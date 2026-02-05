@@ -21,7 +21,7 @@ echo PASO 2: Configura el Webhook
 echo ════════════════════════════════════════════════════════════════
 echo.
 echo En "WHEN A MESSAGE COMES IN":
-echo   URL: https://restaurante-production-fbf5.up.railway.app/webhook/whatsapp
+echo   URL: https://restaurante-production-fbf5.up.railway.app/webhook
 echo   Method: POST
 echo.
 echo ════════════════════════════════════════════════════════════════

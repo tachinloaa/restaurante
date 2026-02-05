@@ -96,7 +96,7 @@ El servidor iniciará en: `http://localhost:3000`
 ## 📡 API Endpoints
 
 ### Webhooks
-- `POST /webhook/whatsapp` - Recibir mensajes de WhatsApp
+- `POST /webhook` - Recibir mensajes de WhatsApp
 - `POST /webhook/status` - Estado de mensajes Twilio
 
 ### Productos

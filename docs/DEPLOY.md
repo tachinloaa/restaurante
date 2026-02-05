@@ -76,7 +76,7 @@ Deberías recibir:
 
 2. **En "WHEN A MESSAGE COMES IN":**
    ```
-   URL: https://restaurante-production-fbf5.up.railway.app/webhook/whatsapp
+   URL: https://restaurante-production-fbf5.up.railway.app/webhook
    Method: POST
    ```
 

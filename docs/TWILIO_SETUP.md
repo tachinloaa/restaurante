@@ -72,8 +72,8 @@ ngrok http 3000
 1. En Twilio Console → **Messaging** → **Settings** → **WhatsApp Sandbox settings**
 
 2. En **"WHEN A MESSAGE COMES IN":**
-   - Pega tu URL + `/webhook/whatsapp`
-   - Ejemplo: `https://el-rinconcito.railway.app/webhook/whatsapp`
+   - Pega tu URL + `/webhook`
+   - Ejemplo: `https://restaurante-production-fbf5.up.railway.app/webhook`
    - Método: **POST**
 
 3. En **"STATUS CALLBACK URL"** (opcional):
@@ -190,7 +190,7 @@ TWILIO_WHATSAPP_NUMBER_ADMIN=whatsapp:+520987654321
 - Verifica que la validación de firma de Twilio esté correcta
 - En desarrollo, puedes deshabilitarla temporalmente
 
-### Error: "Cannot POST /webhook/whatsapp"
+### Error: "Cannot POST /webhook"
 - Verifica la ruta en el backend
 - Asegúrate que el servidor esté corriendo
 - Revisa CORS

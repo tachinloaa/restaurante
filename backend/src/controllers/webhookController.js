@@ -6,7 +6,7 @@ import logger from '../utils/logger.js';
 class WebhookController {
   /**
    * Webhook para recibir mensajes de WhatsApp desde Twilio
-   * POST /webhook/whatsapp
+   * POST /webhook
    */
   async whatsapp(req, res) {
     try {
