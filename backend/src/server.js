@@ -1,0 +1,124 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import config from './config/environment.js';
+import { testConnection } from './config/database.js';
+import { testTwilioConnection } from './config/twilio.js';
+import routes from './routes/index.js';
+import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
+import httpLogger from './middlewares/logger.js';
+import logger from './utils/logger.js';
+
+/**
+ * Servidor Express para El Rinconcito
+ */
+const app = express();
+
+// ════════════════════════════════════════════════════════════
+// MIDDLEWARES GLOBALES
+// ════════════════════════════════════════════════════════════
+
+// Seguridad
+app.use(helmet());
+
+// CORS - Permitir múltiples orígenes en desarrollo
+const allowedOrigins = config.isDevelopment 
+  ? ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000']
+  : [config.frontendUrl];
+
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  },
+  credentials: true
+}));
+
+// Parsing de body
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Compresión
+app.use(compression());
+
+// Logging HTTP
+app.use(httpLogger);
+
+// ════════════════════════════════════════════════════════════
+// RUTAS
+// ════════════════════════════════════════════════════════════
+
+app.use('/api', routes);
+
+// Ruta raíz
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API de El Rinconcito - Sistema de Pedidos',
+    version: '1.0.0',
+    environment: config.env
+  });
+});
+
+// ════════════════════════════════════════════════════════════
+// MANEJO DE ERRORES
+// ════════════════════════════════════════════════════════════
+
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+// ════════════════════════════════════════════════════════════
+// INICIAR SERVIDOR
+// ════════════════════════════════════════════════════════════
+
+const startServer = async () => {
+  try {
+    logger.info('🚀 Iniciando servidor...');
+    logger.info(`📝 Entorno: ${config.env}`);
+    
+    // Verificar conexión a Supabase
+    const dbConnected = await testConnection();
+    if (!dbConnected) {
+      logger.error('❌ No se pudo conectar a Supabase');
+      process.exit(1);
+    }
+
+    // Verificar conexión a Twilio
+    const twilioConnected = await testTwilioConnection();
+    if (!twilioConnected) {
+      logger.warn('⚠️  No se pudo verificar conexión a Twilio');
+    }
+
+    // Iniciar servidor
+    app.listen(config.port, () => {
+      logger.info(`✅ Servidor corriendo en puerto ${config.port}`);
+      logger.info(`🌐 URL: http://localhost:${config.port}`);
+      logger.info(`📱 Frontend URL: ${config.frontendUrl}`);
+      logger.info('═══════════════════════════════════════════');
+      logger.info('🌮 El Rinconcito - Sistema de Pedidos');
+      logger.info('═══════════════════════════════════════════');
+    });
+  } catch (error) {
+    logger.error('❌ Error al iniciar servidor:', error);
+    process.exit(1);
+  }
+};
+
+// Manejo de errores no capturados
+process.on('unhandledRejection', (error) => {
+  logger.error('Unhandled Rejection:', error);
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+// Iniciar servidor
+startServer();
+
+export default app;

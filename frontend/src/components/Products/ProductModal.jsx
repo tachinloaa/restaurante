@@ -1,0 +1,296 @@
+import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
+import categoryService from '../../services/categoryService';
+import toast from 'react-hot-toast';
+
+function ProductModal({ isOpen, onClose, onSave, product = null }) {
+  const [formData, setFormData] = useState({
+    nombre: '',
+    descripcion: '',
+    precio: '',
+    stock: '',
+    categoria_id: '',
+    subcategoria_id: '',
+    imagen_url: '',
+    activo: true
+  });
+  
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadCategories();
+      if (product) {
+        setFormData({
+          nombre: product.nombre || '',
+          descripcion: product.descripcion || '',
+          precio: product.precio || '',
+          stock: product.stock || '',
+          categoria_id: product.categoria_id || '',
+          subcategoria_id: product.subcategoria_id || '',
+          imagen_url: product.imagen_url || '',
+          activo: product.activo !== undefined ? product.activo : true
+        });
+      } else {
+        // Resetear formulario para nuevo producto
+        setFormData({
+          nombre: '',
+          descripcion: '',
+          precio: '',
+          stock: '',
+          categoria_id: '',
+          subcategoria_id: '',
+          imagen_url: '',
+          activo: true
+        });
+      }
+    }
+  }, [isOpen, product]);
+
+  const loadCategories = async () => {
+    try {
+      const response = await categoryService.getAll();
+      if (response.success) {
+        setCategories(response.data);
+      }
+    } catch (error) {
+      toast.error('Error al cargar categorías');
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    
+    // Manejar precio especialmente para evitar redondeos
+    if (name === 'precio') {
+      // Permitir solo números y punto decimal
+      const soloNumeros = value.replace(/[^\d.]/g, '');
+      // Permitir máximo 2 decimales
+      const partes = soloNumeros.split('.');
+      const precioLimpio = partes.length > 1 
+        ? `${partes[0]}.${partes[1].substring(0, 2)}`
+        : soloNumeros;
+      
+      setFormData(prev => ({
+        ...prev,
+        [name]: precioLimpio
+      }));
+      return;
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validaciones
+    if (!formData.nombre.trim()) {
+      toast.error('El nombre es requerido');
+      return;
+    }
+    
+    // Validar precio
+    const precioNum = parseFloat(formData.precio);
+    if (!formData.precio || isNaN(precioNum) || precioNum <= 0) {
+      toast.error('El precio debe ser mayor a 0');
+      return;
+    }
+    
+    if (!formData.categoria_id) {
+      toast.error('Debes seleccionar una categoría');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Preparar datos para enviar - redondear precio a 2 decimales
+      const dataToSend = {
+        ...formData,
+        precio: Math.round(precioNum * 100) / 100, // Asegurar 2 decimales exactos
+        stock: parseInt(formData.stock) || 0
+      };
+
+      // Limpiar campos vacíos opcionales
+      if (!dataToSend.descripcion) delete dataToSend.descripcion;
+      if (!dataToSend.subcategoria_id) delete dataToSend.subcategoria_id;
+      if (!dataToSend.imagen_url) delete dataToSend.imagen_url;
+
+      await onSave(dataToSend);
+      onClose();
+    } catch (error) {
+      console.error('Error al guardar producto:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-2xl font-bold font-display">
+            {product ? 'Editar Producto' : 'Nuevo Producto'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Nombre */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nombre del Producto *
+            </label>
+            <input
+              type="text"
+              name="nombre"
+              value={formData.nombre}
+              onChange={handleChange}
+              className="input"
+              placeholder="Ej: Hamburguesa completa"
+              required
+            />
+          </div>
+
+          {/* Descripción */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Descripción
+            </label>
+            <textarea
+              name="descripcion"
+              value={formData.descripcion}
+              onChange={handleChange}
+              className="input"
+              rows="3"
+              placeholder="Descripción del producto (opcional)"
+            />
+          </div>
+
+          {/* Precio y Stock */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Precio (MXN) *
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <input
+                  type="text"
+                  name="precio"
+                  value={formData.precio}
+                  onChange={handleChange}
+                  className="input pl-8"
+                  placeholder="0.00"
+                  inputMode="decimal"
+                  required
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Permite centavos: ej. 20.50 o 40</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Stock
+              </label>
+              <input
+                type="number"
+                name="stock"
+                value={formData.stock}
+                onChange={handleChange}
+                className="input"
+                placeholder="0"
+                min="0"
+                step="1"
+              />
+            </div>
+          </div>
+
+          {/* Categoría */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Categoría *
+            </label>
+            <select
+              name="categoria_id"
+              value={formData.categoria_id}
+              onChange={handleChange}
+              className="input"
+              required
+            >
+              <option value="">Seleccionar categoría</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* URL de Imagen */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              URL de Imagen
+            </label>
+            <input
+              type="url"
+              name="imagen_url"
+              value={formData.imagen_url}
+              onChange={handleChange}
+              className="input"
+              placeholder="https://ejemplo.com/imagen.jpg"
+            />
+          </div>
+
+          {/* Activo */}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              name="activo"
+              checked={formData.activo}
+              onChange={handleChange}
+              className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+            />
+            <label className="ml-2 text-sm text-gray-700">
+              Producto activo
+            </label>
+          </div>
+
+          {/* Botones */}
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn btn-secondary flex-1"
+              disabled={loading}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary flex-1"
+              disabled={loading}
+            >
+              {loading ? 'Guardando...' : (product ? 'Actualizar' : 'Crear Producto')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export default ProductModal;
