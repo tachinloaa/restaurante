@@ -55,6 +55,11 @@ app.use(httpLogger);
 // RUTAS
 // ════════════════════════════════════════════════════════════
 
+// Webhook de Twilio (fuera de /api para que sea /webhook directo)
+import webhookRoutes from './routes/webhookRoutes.js';
+app.use('/webhook', webhookRoutes);
+
+// Rutas de API
 app.use('/api', routes);
 
 // Ruta raíz
