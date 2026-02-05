@@ -55,11 +55,11 @@ Después de configurar las variables, Railway redesplegará automáticamente.
 **Verificar:**
 1. Ve a **Deployments** en Railway
 2. Espera a que el estado sea "Success"
-3. Copia la URL del deployment (ej: `https://web-production-dceae.up.railway.app`)
+3. Copia la URL del deployment (ej: `https://restaurante-production-fbf5.up.railway.app`)
 
 **Probar el servidor:**
 ```bash
-curl https://web-production-dceae.up.railway.app/api/health
+curl https://restaurante-production-fbf5.up.railway.app/api/health
 ```
 
 Deberías recibir:
@@ -76,7 +76,7 @@ Deberías recibir:
 
 2. **En "WHEN A MESSAGE COMES IN":**
    ```
-   URL: https://web-production-dceae.up.railway.app/webhook/whatsapp
+   URL: https://restaurante-production-fbf5.up.railway.app/webhook/whatsapp
    Method: POST
    ```
 
@@ -175,7 +175,7 @@ O en Railway Dashboard → **Deployments** → Click en deployment → **View Lo
 - **Railway:** https://railway.app
 - **Twilio Console:** https://console.twilio.com
 - **Supabase:** https://supabase.com/dashboard/project/oppjntxqwpalnjwtrpjz
-- **Backend URL:** https://web-production-dceae.up.railway.app
+- **Backend URL:** https://restaurante-production-fbf5.up.railway.app
 
 ---
 

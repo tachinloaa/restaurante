@@ -63,7 +63,7 @@ echo.
 echo [6/6] Una vez configuradas las variables, Railway redesplegará automáticamente
 echo.
 echo Después configura el webhook en Twilio:
-echo   URL: https://web-production-dceae.up.railway.app/webhook/whatsapp
+echo   URL: https://restaurante-production-fbf5.up.railway.app/webhook/whatsapp
 echo   Method: POST
 echo.
 echo ════════════════════════════════════════════════════════════════

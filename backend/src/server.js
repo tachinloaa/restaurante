@@ -15,6 +15,9 @@ import logger from './utils/logger.js';
  */
 const app = express();
 
+// Confiar en proxies (Railway, Heroku, etc.)
+app.set('trust proxy', true);
+
 // ════════════════════════════════════════════════════════════
 // MIDDLEWARES GLOBALES
 // ════════════════════════════════════════════════════════════

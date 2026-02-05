@@ -6,7 +6,7 @@ echo ╚════════════════════════
 echo.
 echo Tu servidor backend ya está desplegado en Railway:
 echo.
-echo   https://web-production-dceae.up.railway.app
+echo   https://restaurante-production-fbf5.up.railway.app
 echo.
 echo Para que el bot de WhatsApp funcione, configura el webhook en Twilio:
 echo.
@@ -21,7 +21,7 @@ echo PASO 2: Configura el Webhook
 echo ════════════════════════════════════════════════════════════════
 echo.
 echo En "WHEN A MESSAGE COMES IN":
-echo   URL: https://web-production-dceae.up.railway.app/webhook/whatsapp
+echo   URL: https://restaurante-production-fbf5.up.railway.app/webhook/whatsapp
 echo   Method: POST
 echo.
 echo ════════════════════════════════════════════════════════════════
