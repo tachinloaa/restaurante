@@ -32,8 +32,8 @@ const config = {
   twilio: {
     accountSid: process.env.TWILIO_ACCOUNT_SID,
     authToken: process.env.TWILIO_AUTH_TOKEN,
-    whatsappClientes: process.env.TWILIO_WHATSAPP_NUMBER_CLIENTES,
-    whatsappAdmin: process.env.TWILIO_WHATSAPP_NUMBER_ADMIN
+    whatsappClientes: process.env.TWILIO_WHATSAPP_NUMBER,
+    whatsappAdmin: process.env.TWILIO_WHATSAPP_NUMBER
   },
 
   // CORS
