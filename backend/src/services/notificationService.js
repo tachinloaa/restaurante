@@ -1,4 +1,5 @@
 import TwilioService from './twilioService.js';
+import { supabase } from '../config/database.js';
 import { formatearPrecio, formatearHora } from '../utils/formatters.js';
 import { EMOJIS, TIPOS_PEDIDO } from '../config/constants.js';
 import config from '../config/environment.js';
@@ -260,6 +261,127 @@ class NotificationService {
         success: false,
         error: error.message
       };
+    }
+  }
+
+  /**
+   * Crea una notificación en la base de datos
+   * @param {string} tipo - Tipo de notificación
+   * @param {string} mensaje - Mensaje de la notificación
+   * @param {Object} datosAdicionales - Datos adicionales (JSON)
+   */
+  async crearNotificacion(tipo, mensaje, datosAdicionales = null) {
+    try {
+      const { data, error } = await supabase
+        .from('notificaciones')
+        .insert({
+          tipo,
+          mensaje,
+          datos_adicionales: datosAdicionales,
+          leida: false
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      logger.info(`Notificación creada: ${tipo} - ${mensaje}`);
+      return { success: true, data };
+    } catch (error) {
+      logger.error('Error creando notificación:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Crea notificación de nuevo pedido
+   */
+  async notificarNuevoPedidoPanel(pedido, cliente) {
+    try {
+      const tipoPedido = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO 
+        ? 'DOMICILIO' 
+        : pedido.tipo_pedido === TIPOS_PEDIDO.RESTAURANTE
+        ? 'RESTAURANTE'
+        : 'PARA LLEVAR';
+
+      const mensaje = `Nuevo pedido #${pedido.numero_pedido} - ${tipoPedido} - ${formatearPrecio(pedido.total)}`;
+      
+      await this.crearNotificacion('nuevo_pedido', mensaje, {
+        order_id: pedido.id,
+        numero_pedido: pedido.numero_pedido,
+        tipo_pedido: tipoPedido,
+        total: pedido.total,
+        cliente: cliente.nombre
+      });
+    } catch (error) {
+      logger.error('Error en notificarNuevoPedidoPanel:', error);
+    }
+  }
+
+  /**
+   * Crea notificación de cambio de estado de pedido
+   */
+  async notificarCambioEstadoPedido(pedido, estadoAnterior, estadoNuevo) {
+    try {
+      const estadosTexto = {
+        pendiente: 'Pendiente',
+        en_preparacion: 'En Preparación',
+        listo: 'Listo',
+        en_camino: 'En Camino',
+        entregado: 'Entregado',
+        cancelado: 'Cancelado'
+      };
+
+      let tipo = 'pedido_actualizado';
+      let icono = '📦';
+
+      if (estadoNuevo === 'entregado') {
+        tipo = 'pedido_completado';
+        icono = '✅';
+      } else if (estadoNuevo === 'cancelado') {
+        tipo = 'pedido_cancelado';
+        icono = '❌';
+      }
+
+      const mensaje = `${icono} Pedido #${pedido.numero_pedido} cambió a: ${estadosTexto[estadoNuevo]}`;
+      
+      await this.crearNotificacion(tipo, mensaje, {
+        order_id: pedido.id,
+        numero_pedido: pedido.numero_pedido,
+        estado_anterior: estadoAnterior,
+        estado_nuevo: estadoNuevo
+      });
+    } catch (error) {
+      logger.error('Error en notificarCambioEstadoPedido:', error);
+    }
+  }
+
+  /**
+   * Crea notificación de nuevo cliente
+   */
+  async notificarNuevoCliente(cliente) {
+    try {
+      const mensaje = `👤 Nuevo cliente registrado: ${cliente.nombre || cliente.telefono}`;
+      
+      await this.crearNotificacion('cliente_nuevo', mensaje, {
+        customer_id: cliente.id,
+        nombre: cliente.nombre,
+        telefono: cliente.telefono
+      });
+    } catch (error) {
+      logger.error('Error en notificarNuevoCliente:', error);
+    }
+  }
+
+  /**
+   * Crea notificación de sistema/alerta
+   */
+  async notificarSistema(mensaje, datosAdicionales = null, esAlerta = false) {
+    try {
+      const tipo = esAlerta ? 'alerta' : 'sistema';
+      await this.crearNotificacion(tipo, mensaje, datosAdicionales);
+    } catch (error) {
+      logger.error('Error en notificarSistema:', error);
     }
   }
 }

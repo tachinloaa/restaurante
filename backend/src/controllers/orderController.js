@@ -54,8 +54,11 @@ class OrderController {
         return serverError(res, resultado.error);
       }
 
-      // Enviar notificación al admin
+      // Enviar notificación WhatsApp al admin
       await NotificationService.notificarNuevoPedido(resultado.data, req.body.cliente);
+      
+      // Crear notificación en el panel
+      await NotificationService.notificarNuevoPedidoPanel(resultado.data, req.body.cliente);
 
       return created(res, resultado.data);
     } catch (error) {
@@ -73,6 +76,14 @@ class OrderController {
         return serverError(res, 'Estado requerido');
       }
 
+      // Obtener el pedido actual para tener el estado anterior
+      const pedidoActual = await Order.getById(id);
+      if (!pedidoActual.success) {
+        return notFound(res, 'Pedido no encontrado');
+      }
+      
+      const estadoAnterior = pedidoActual.data.estado;
+
       const resultado = await OrderService.cambiarEstado(id, estado);
 
       if (!resultado.success) {
@@ -86,6 +97,9 @@ class OrderController {
           await NotificationService.notificarEstadoPedido(pedido.data, pedido.data.clientes);
         }
       }
+      
+      // Crear notificación en el panel
+      await NotificationService.notificarCambioEstadoPedido(resultado.pedido, estadoAnterior, estado);
 
       return success(res, resultado.pedido);
     } catch (error) {

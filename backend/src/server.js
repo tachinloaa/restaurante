@@ -25,20 +25,26 @@ app.set('trust proxy', true);
 // Seguridad
 app.use(helmet());
 
-// CORS - Permitir múltiples orígenes en desarrollo
+// CORS - Permitir múltiples orígenes
 const allowedOrigins = config.isDevelopment 
   ? ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000']
-  : [config.frontendUrl];
+  : config.frontendUrl.split(',').map(url => url.trim());
 
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Permitir requests sin origin (mobile apps, postman, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      logger.warn(`❌ CORS bloqueó request desde: ${origin}`);
       callback(new Error('No permitido por CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Parsing de body

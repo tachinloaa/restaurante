@@ -329,6 +329,15 @@ class BotService {
     const session = SessionService.getSession(telefono);
     const tipoPedido = session.datos.tipo_pedido;
 
+    // Si no hay tipo de pedido, solicitarlo primero
+    if (!tipoPedido) {
+      SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
+      return {
+        success: true,
+        mensaje: `Antes de continuar, necesito saber cómo recibirás tu pedido:\n\n*2.* ${EMOJIS.DELIVERY} A domicilio\n*3.* ${EMOJIS.RESTAURANTE} Comer aquí\n\nResponde con el número de tu opción.`
+      };
+    }
+
     SessionService.updateEstado(telefono, BOT_STATES.SOLICITAR_NOMBRE);
 
     let mensaje = 'Excelente! Ahora necesito algunos datos.\n\n';
@@ -469,7 +478,7 @@ class BotService {
     }
 
     const tipoPedido = session.datos.tipo_pedido;
-    const tiempoEstimado = TIEMPO_ENTREGA[tipoPedido.toUpperCase()] || TIEMPO_ENTREGA.DOMICILIO;
+    const tiempoEstimado = tipoPedido ? TIEMPO_ENTREGA[tipoPedido.toUpperCase()] || TIEMPO_ENTREGA.DOMICILIO : TIEMPO_ENTREGA.DOMICILIO;
 
     let mensaje = resumen.resumen;
     mensaje += `\n\n${EMOJIS.RELOJ} Tiempo estimado: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos`;
@@ -525,7 +534,7 @@ class BotService {
 
     // Obtener tiempo estimado
     const tipoPedido = session.datos.tipo_pedido;
-    const tiempoEstimado = TIEMPO_ENTREGA[tipoPedido.toUpperCase()];
+    const tiempoEstimado = tipoPedido ? TIEMPO_ENTREGA[tipoPedido.toUpperCase()] : TIEMPO_ENTREGA.DOMICILIO;
 
     // Enviar confirmación al cliente
     const mensaje = MENSAJES_BOT.PEDIDO_CONFIRMADO(

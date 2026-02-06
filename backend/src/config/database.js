@@ -5,7 +5,7 @@ import logger from '../utils/logger.js';
 /**
  * Cliente de Supabase configurado
  */
-const supabase = createClient(config.supabase.url, config.supabase.key, {
+export const supabase = createClient(config.supabase.url, config.supabase.key, {
   auth: {
     autoRefreshToken: true,
     persistSession: false
