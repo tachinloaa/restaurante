@@ -87,15 +87,15 @@ function Products() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold font-display">Productos</h1>
-          <p className="text-gray-600 mt-2">Gestiona el menú de tu restaurante</p>
+          <h1 className="text-2xl sm:text-3xl font-bold font-display">Productos</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Gestiona el menú de tu restaurante</p>
         </div>
         
         <button 
-          className="btn btn-primary flex items-center gap-2"
+          className="btn btn-primary flex items-center gap-2 justify-center text-sm sm:text-base"
           onClick={() => handleOpenModal()}
         >
           <Plus size={20} />
@@ -106,11 +106,11 @@ function Products() {
       {/* Búsqueda */}
       <Card>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
             placeholder="Buscar productos..."
-            className="input pl-10"
+            className="input pl-10 text-sm sm:text-base"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -121,25 +121,25 @@ function Products() {
       {loading ? (
         <LoadingSpinner text="Cargando productos..." />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredProducts.map((product) => (
             <Card key={product.id} className="hover:shadow-md transition-shadow">
               <div className="space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{product.nombre}</h3>
+                    <h3 className="font-semibold text-base sm:text-lg">{product.nombre}</h3>
                     {product.descripcion && (
-                      <p className="text-sm text-gray-600 mt-1">{product.descripcion}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2">{product.descripcion}</p>
                     )}
                   </div>
-                  <Package className="text-gray-400 flex-shrink-0 ml-2" size={20} />
+                  <Package className="text-gray-400 flex-shrink-0 ml-2" size={18} />
                 </div>
 
                 <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                  <span className="text-2xl font-bold text-primary">
+                  <span className="text-xl sm:text-2xl font-bold text-primary">
                     {formatearPrecio(product.precio)}
                   </span>
-                  <span className={`text-sm font-medium ${
+                  <span className={`text-xs sm:text-sm font-medium ${
                     product.stock > 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
                     Stock: {product.stock}
@@ -150,17 +150,17 @@ function Products() {
                 <div className="flex gap-2 pt-3 border-t border-gray-200">
                   <button
                     onClick={() => handleOpenModal(product)}
-                    className="flex-1 btn btn-secondary text-sm flex items-center justify-center gap-2"
+                    className="flex-1 btn btn-secondary text-xs sm:text-sm flex items-center justify-center gap-2"
                   >
-                    <Pencil size={16} />
-                    Editar
+                    <Pencil size={14} />
+                    <span className="hidden sm:inline">Editar</span>
                   </button>
                   <button
                     onClick={() => handleDeleteProduct(product.id, product.nombre)}
-                    className="flex-1 btn bg-red-50 text-red-600 hover:bg-red-100 text-sm flex items-center justify-center gap-2"
+                    className="flex-1 btn bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 text-xs sm:text-sm flex items-center justify-center gap-2"
                   >
-                    <Trash2 size={16} />
-                    Eliminar
+                    <Trash2 size={14} />
+                    <span className="hidden sm:inline">Eliminar</span>
                   </button>
                 </div>
               </div>

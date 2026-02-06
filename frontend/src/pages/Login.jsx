@@ -1,11 +1,29 @@
+/**
+ * Página Login - Autenticación de usuarios
+ * 
+ * Permite a los usuarios administradores iniciar sesión en el sistema
+ * Utiliza Supabase Authentication para el manejo de sesiones
+ * 
+ * Características:
+ * - Formulario de login con email y password
+ * - Toggle para mostrar/ocultar contraseña
+ * - Validación de campos requeridos
+ * - Redirección automática si ya está autenticado
+ * - Soporte completo para dark mode
+ * - Diseño responsive
+ */
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, LogIn, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Mail, Lock, Moon, Sun } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 const Login = () => {
   const navigate = useNavigate();
   const { signIn, user } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+  
+  // Estados del formulario
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -16,6 +34,9 @@ const Login = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
+  /**
+   * Maneja el envío del formulario de login
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -33,40 +54,63 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-3 sm:p-4 transition-colors duration-300">
       <div className="max-w-md w-full">
+        {/* Toggle de tema - Posición absoluta superior derecha */}
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={toggleTheme}
+            className="p-2.5 rounded-lg bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200 dark:border-gray-700"
+            aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          >
+            {isDark ? (
+              <Sun size={20} className="text-yellow-500" />
+            ) : (
+              <Moon size={20} className="text-gray-600" />
+            )}
+          </button>
+        </div>
+
         {/* Logo y título */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-600 rounded-full mb-4">
-            <span className="text-3xl">🌮</span>
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-red-600 dark:bg-red-700 rounded-full mb-3 sm:mb-4 shadow-lg">
+            <span className="text-2xl sm:text-3xl">🌮</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">El Rinconcito</h1>
-          <p className="text-gray-600">Sistema de Gestión de Pedidos</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white mb-2">
+            El Rinconcito
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 font-medium">
+            Sistema de Gestión de Pedidos
+          </p>
         </div>
 
         {/* Formulario */}
-        <div className="bg-white rounded-lg shadow-xl p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 sm:p-8 border border-gray-100 dark:border-gray-700">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Iniciar Sesión</h2>
-            <p className="text-gray-600">Ingresa tus credenciales para continuar</p>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white mb-2">
+              Iniciar Sesión
+            </h2>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+              Ingresa tus credenciales para continuar
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
                 Correo electrónico
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 </div>
                 <input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="block w-full pl-10 pr-3 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400 focus:border-transparent text-base transition-colors"
                   placeholder="admin@elrinconcito.com"
                   required
                   autoComplete="email"
@@ -76,19 +120,19 @@ const Login = () => {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
                 Contraseña
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                  <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 </div>
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="block w-full pl-10 pr-10 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400 focus:border-transparent text-base transition-colors"
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
@@ -97,11 +141,12 @@ const Login = () => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" />
                   )}
                 </button>
               </div>
@@ -111,37 +156,25 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              className="w-full flex items-center justify-center gap-2 bg-red-600 dark:bg-red-700 text-white py-2.5 sm:py-3 px-4 rounded-lg hover:bg-red-700 dark:hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm sm:text-base shadow-md hover:shadow-lg"
             >
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Iniciando sesión...</span>
+                  <span className="font-semibold">Iniciando sesión...</span>
                 </>
               ) : (
                 <>
                   <LogIn className="w-5 h-5" />
-                  <span>Iniciar Sesión</span>
+                  <span className="font-semibold">Iniciar Sesión</span>
                 </>
               )}
             </button>
           </form>
-
-          {/* Info de credenciales de prueba */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-800 font-medium mb-2">🔐 Credenciales de prueba:</p>
-            <p className="text-sm text-blue-700">
-              <strong>Email:</strong> admin@elrinconcito.com<br />
-              <strong>Password:</strong> Admin123!
-            </p>
-            <p className="text-xs text-blue-600 mt-2">
-              * Crea esta cuenta en Supabase Authentication
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-sm text-gray-600 mt-6">
+        <p className="text-center text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-4 sm:mt-6 font-medium">
           El Rinconcito © {new Date().getFullYear()} - Todos los derechos reservados
         </p>
       </div>

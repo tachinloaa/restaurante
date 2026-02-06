@@ -157,7 +157,7 @@ function Categories() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold font-display">Categorías</h1>
@@ -205,11 +205,11 @@ function Categories() {
             return (
               <Card key={category.id} className="overflow-hidden">
                 {/* Categoría Principal */}
-                <div className="flex items-center justify-between p-4 hover:bg-gray-50">
+                <div className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <div className="flex items-center gap-3 flex-1">
                     <button
                       onClick={() => toggleCategory(category.id)}
-                      className="text-gray-500 hover:text-gray-700"
+                      className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                     >
                       {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                     </button>
@@ -238,7 +238,7 @@ function Categories() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleOpenSubcategoryModal(null, category.id)}
-                      className="btn btn-sm bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center gap-1"
+                      className="btn btn-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 flex items-center gap-1"
                     >
                       <Plus size={16} />
                       Subcategoría
@@ -267,7 +267,7 @@ function Categories() {
                       {subcategorias.map((subcat) => (
                         <div
                           key={subcat.id}
-                          className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow"
+                          className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-sm transition-shadow"
                         >onClick={() => handleDeleteSubcategory(subcat.id, subcat.nombre)}
                               
                           <div className="flex items-center gap-3">

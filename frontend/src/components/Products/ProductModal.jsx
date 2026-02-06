@@ -133,15 +133,15 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold font-display">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-2xl font-bold font-display text-gray-900 dark:text-gray-100">
             {product ? 'Editar Producto' : 'Nuevo Producto'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             <X size={24} />
           </button>
@@ -151,7 +151,7 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Nombre */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Nombre del Producto *
             </label>
             <input
@@ -159,7 +159,7 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
               name="nombre"
               value={formData.nombre}
               onChange={handleChange}
-              className="input"
+              className="input bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-primary focus:border-primary"
               placeholder="Ej: Hamburguesa completa"
               required
             />
@@ -167,14 +167,14 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
 
           {/* Descripción */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Descripción
             </label>
             <textarea
               name="descripcion"
               value={formData.descripcion}
               onChange={handleChange}
-              className="input"
+              className="input bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-primary focus:border-primary"
               rows="3"
               placeholder="Descripción del producto (opcional)"
             />
@@ -183,27 +183,27 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
           {/* Precio y Stock */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Precio (MXN) *
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
                 <input
                   type="text"
                   name="precio"
                   value={formData.precio}
                   onChange={handleChange}
-                  className="input pl-8"
+                  className="input pl-8 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-primary focus:border-primary"
                   placeholder="0.00"
                   inputMode="decimal"
                   required
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">Permite centavos: ej. 20.50 o 40</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Permite centavos: ej. 20.50 o 40</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Stock
               </label>
               <input
@@ -211,7 +211,7 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
                 name="stock"
                 value={formData.stock}
                 onChange={handleChange}
-                className="input"
+                className="input bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-primary focus:border-primary"
                 placeholder="0"
                 min="0"
                 step="1"
@@ -221,19 +221,19 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
 
           {/* Categoría */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Categoría *
             </label>
             <select
               name="categoria_id"
               value={formData.categoria_id}
               onChange={handleChange}
-              className="input"
+              className="input bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-primary focus:border-primary"
               required
             >
-              <option value="">Seleccionar categoría</option>
+              <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">Seleccionar categoría</option>
               {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>
+                <option key={cat.id} value={cat.id} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                   {cat.nombre}
                 </option>
               ))}
@@ -242,7 +242,7 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
 
           {/* URL de Imagen */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               URL de Imagen
             </label>
             <input
@@ -250,7 +250,7 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
               name="imagen_url"
               value={formData.imagen_url}
               onChange={handleChange}
-              className="input"
+              className="input bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-primary focus:border-primary"
               placeholder="https://ejemplo.com/imagen.jpg"
             />
           </div>
@@ -262,15 +262,15 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
               name="activo"
               checked={formData.activo}
               onChange={handleChange}
-              className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+              className="w-4 h-4 text-primary bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-primary"
             />
-            <label className="ml-2 text-sm text-gray-700">
+            <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
               Producto activo
             </label>
           </div>
 
           {/* Botones */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
+          <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
               onClick={onClose}

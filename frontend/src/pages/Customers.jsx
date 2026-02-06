@@ -30,35 +30,35 @@ function Customers() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold font-display">Clientes</h1>
-        <p className="text-gray-600 mt-2">Lista de clientes registrados</p>
+        <h1 className="text-2xl sm:text-3xl font-bold font-display">Clientes</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Lista de clientes registrados</p>
       </div>
 
       {loading ? (
         <LoadingSpinner text="Cargando clientes..." />
       ) : (
         <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Nombre</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Teléfono</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Dirección</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Registro</th>
+                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Nombre</th>
+                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Teléfono</th>
+                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm hidden md:table-cell">Dirección</th>
+                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm hidden lg:table-cell">Registro</th>
                 </tr>
               </thead>
               <tbody>
                 {customers.map((customer) => (
-                  <tr key={customer.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4">{customer.nombre || 'Sin nombre'}</td>
-                    <td className="py-3 px-4">{formatearTelefono(customer.telefono)}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">
+                  <tr key={customer.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="py-2 sm:py-3 px-3 sm:px-4 text-sm">{customer.nombre || 'Sin nombre'}</td>
+                    <td className="py-2 sm:py-3 px-3 sm:px-4 text-sm">{formatearTelefono(customer.telefono)}</td>
+                    <td className="py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm text-gray-600 hidden md:table-cell">
                       {customer.direccion || 'Sin dirección'}
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">
+                    <td className="py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm text-gray-600 hidden lg:table-cell">
                       {new Date(customer.created_at).toLocaleDateString('es-MX')}
                     </td>
                   </tr>
@@ -68,8 +68,8 @@ function Customers() {
 
             {customers.length === 0 && (
               <div className="text-center py-12">
-                <Users className="mx-auto text-gray-400" size={48} />
-                <p className="text-gray-500 mt-4">No hay clientes registrados</p>
+                <Users className="mx-auto text-gray-400" size={40} />
+                <p className="text-sm sm:text-base text-gray-500 mt-4">No hay clientes registrados</p>
               </div>
             )}
           </div>

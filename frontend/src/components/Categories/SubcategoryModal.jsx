@@ -77,14 +77,14 @@ function SubcategoryModal({ isOpen, onClose, onSave, categories = [], subcategor
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold font-display">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-2xl font-bold font-display text-gray-900 dark:text-gray-100">
             {subcategory ? 'Editar Subcategoría' : 'Nueva Subcategoría'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             <X size={24} />
           </button>

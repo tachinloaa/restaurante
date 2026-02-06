@@ -285,7 +285,66 @@ VITE_ENV=development
 - [Configuración de Twilio](docs/TWILIO_SETUP.md)
 - [Guía de Despliegue](docs/DEPLOYMENT.md)
 
-## 📄 Licencia
+## � Deployment a Producción
+
+### ✅ Verificación Pre-Deployment
+
+Ejecuta estos comandos para verificar que todo está listo:
+
+```bash
+# Backend
+cd backend
+node check-deployment.js
+
+# Frontend
+cd frontend
+node check-deployment.js
+```
+
+### 📦 Plataformas Recomendadas
+
+#### **Backend → Render.com** (Gratuito)
+- ✅ 750 horas/mes gratis
+- ✅ Sleep tras 15 min de inactividad
+- ✅ Perfecto para Node.js
+- 📖 Guía completa: [DEPLOY_PRODUCTION.md](DEPLOY_PRODUCTION.md)
+
+#### **Frontend → Netlify** (Gratuito)
+- ✅ 100GB bandwidth/mes
+- ✅ Deploy automático desde Git
+- ✅ Optimizado para React/Vite
+- 📖 Guía completa: [DEPLOY_PRODUCTION.md](DEPLOY_PRODUCTION.md)
+
+### 📋 Quick Start Deployment
+
+1. **Preparación:**
+   ```bash
+   # Verificar configuración
+   cd backend && node check-deployment.js
+   cd ../frontend && node check-deployment.js
+   ```
+
+2. **Backend (Render):**
+   - Sube código a GitHub
+   - Conecta repo en [Render.com](https://render.com)
+   - Configura variables de entorno (ver `.env.example`)
+   - Deploy automático
+
+3. **Frontend (Netlify):**
+   - Sube código a GitHub
+   - Conecta repo en [Netlify](https://netlify.com)
+   - Configura variables `VITE_*` (ver `.env.example`)
+   - Deploy automático
+
+4. **Post-Deploy:**
+   - Actualiza URLs en Supabase (Authentication settings)
+   - Configura webhook de Twilio: `https://tu-backend.onrender.com/webhook/twilio`
+   - Prueba todas las funcionalidades
+
+📖 **Guía Completa:** [DEPLOY_PRODUCTION.md](DEPLOY_PRODUCTION.md)  
+✅ **Checklist:** [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)
+
+## �📄 Licencia
 
 MIT
 
