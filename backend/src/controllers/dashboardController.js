@@ -351,16 +351,21 @@ class DashboardController {
         if (!clientesMap[id]) {
           clientesMap[id] = {
             nombre: pedido.clientes?.nombre || 'Cliente',
-            pedidos: 0,
-            total: 0
+            telefono: pedido.clientes?.telefono,
+            totalPedidos: 0,
+            totalGastado: 0
           };
         }
-        clientesMap[id].pedidos += 1;
-        clientesMap[id].total += parseFloat(pedido.total || 0);
+        clientesMap[id].totalPedidos += 1;
+        clientesMap[id].totalGastado += parseFloat(pedido.total || 0);
       });
 
       return Object.values(clientesMap)
-        .sort((a, b) => b.pedidos - a.pedidos)
+        .map(cliente => ({
+          ...cliente,
+          promedioTicket: cliente.totalGastado / cliente.totalPedidos
+        }))
+        .sort((a, b) => b.totalPedidos - a.totalPedidos)
         .slice(0, limit);
     } catch (error) {
       logger.error('Error en _getLoyalCustomersData:', error);

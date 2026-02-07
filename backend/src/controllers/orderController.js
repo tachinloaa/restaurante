@@ -91,7 +91,7 @@ class OrderController {
       }
 
       // Notificar al cliente si es necesario
-      if (['preparando', 'listo', 'enviado', 'entregado'].includes(estado)) {
+      if (['preparando', 'listo', 'enviado', 'entregado', 'cancelado'].includes(estado)) {
         const pedido = await Order.getById(id);
         if (pedido.success && pedido.data.clientes) {
           await NotificationService.notificarEstadoPedido(pedido.data, pedido.data.clientes);
