@@ -1,34 +1,12 @@
 # Actualizar Variables de Entorno en Render
 
-## Variables necesarias para notificaciones al admin
+## ✅ El sistema ya está configurado para funcionar automáticamente
 
-Después de hacer push, ve a Render y agrega esta variable de entorno:
+El código ya tiene configurado el número del admin por defecto: **+5215519060013**
 
-### Panel de Render:
-1. Ve a: https://dashboard.render.com/
-2. Selecciona tu servicio: **el-rinconcito-backend**
-3. Click en **Environment** (en el menú lateral)
-4. Click en **Add Environment Variable**
+Solo necesitas asegurarte de que estas variables de entorno estén en Render:
 
-### Variable a agregar:
-
-```
-ADMIN_PHONE_NUMBER=+5215519060013
-```
-
-**IMPORTANTE:** 
-- Usar el formato internacional: `+52` (México) + `número sin espacios`
-- NO incluir `whatsapp:` al principio
-- Ejemplo: `+5215519060013`
-
-### Después de agregar:
-El servicio se redesplegará automáticamente en 2-3 minutos.
-
----
-
-## Variables de entorno completas requeridas:
-
-Para referencia, estas son TODAS las variables necesarias en Render:
+### Variables necesarias en Render:
 
 ```bash
 NODE_ENV=production
@@ -43,21 +21,44 @@ TWILIO_ACCOUNT_SID=ACxxxxx
 TWILIO_AUTH_TOKEN=xxxxx
 TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
 
-# Admin
-ADMIN_PHONE_NUMBER=+5215519060013
-
 # Frontend
 FRONTEND_URL=https://el-rinconcito.pages.dev
 ```
 
 ---
 
-## Verificar que funcione:
+## 📱 Importante: Unir tu número al Sandbox de Twilio
+
+Para que te lleguen las notificaciones a **+5215519060013**, necesitas:
+
+1. Desde tu WhatsApp personal, envía un mensaje al número de Twilio: **+1 415 523 8886**
+2. Escribe: `join [codigo-sandbox]`
+3. Recibirás: "You are all set!"
+
+💡 **¿Dónde encuentro el código?**
+- Ve a: https://console.twilio.com/us1/develop/sms/try-it-out/whatsapp-learn
+- Verás algo como: "join happy-tiger" o "join cool-cat"
+
+---
+
+## 🎯 Opcional: Cambiar número del admin
+
+Si quieres usar otro número, agrega en Render:
+
+```bash
+ADMIN_PHONE_NUMBER=+5215512345678
+```
+
+(Recuerda: formato internacional con +52 para México)
+
+---
+
+## ✅ Verificar que funcione:
 
 1. Entra a WhatsApp y escribe `hola` al bot de Twilio
 2. Haz un pedido completo
-3. Deberías recibir una notificación en el número: **+5215519060013**
+3. Deberías recibir una notificación en el número del admin
 
-Si no llega la notificación, revisa los logs en Render:
-- Dashboard > el-rinconcito-backend > Logs
-- Busca: "Mensaje enviado a admin" o errores de Twilio
+Si no llega, revisa en Render > Logs:
+- Busca: "Mensaje enviado a admin" 
+- O errores de Twilio (21606 = número no verificado en sandbox)

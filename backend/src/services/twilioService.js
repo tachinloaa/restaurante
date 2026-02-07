@@ -35,13 +35,19 @@ class TwilioService {
    */
   static async enviarMensajeAdmin(mensaje) {
     try {
+      // Obtener número del admin y formatear
+      const numeroAdmin = config.admin.phoneNumber;
+      const numeroFormateado = numeroAdmin.startsWith('whatsapp:') 
+        ? numeroAdmin 
+        : `whatsapp:${numeroAdmin}`;
+
       const message = await twilioClient.messages.create({
         body: mensaje,
         from: config.twilio.whatsappClientes,
-        to: config.twilio.whatsappAdmin
+        to: numeroFormateado
       });
 
-      logger.info(`Mensaje enviado a admin: ${message.sid}`);
+      logger.info(`Mensaje enviado a admin ${numeroAdmin}: ${message.sid}`);
       return { success: true, messageSid: message.sid };
     } catch (error) {
       logger.error('Error al enviar mensaje a admin:', error);
