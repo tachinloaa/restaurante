@@ -89,8 +89,7 @@ class Order {
             productos(
               id,
               nombre,
-              descripcion,
-              imagen_url
+              descripcion
             )
           )
         `)

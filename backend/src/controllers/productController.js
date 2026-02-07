@@ -63,10 +63,8 @@ class ProductController {
         nombre: req.body.nombre,
         descripcion: req.body.descripcion,
         precio: req.body.precio,
-        stock: req.body.stock || 0,
         categoria_id: req.body.categoria_id,
         subcategoria_id: req.body.subcategoria_id || null,
-        imagen_url: req.body.imagen_url || null,
         activo: req.body.activo !== undefined ? req.body.activo : true
       };
 
@@ -97,10 +95,8 @@ class ProductController {
         nombre: req.body.nombre,
         descripcion: req.body.descripcion,
         precio: req.body.precio,
-        stock: req.body.stock,
         categoria_id: req.body.categoria_id,
         subcategoria_id: req.body.subcategoria_id,
-        imagen_url: req.body.imagen_url,
         activo: req.body.activo
       };
 
@@ -185,32 +181,6 @@ class ProductController {
     } catch (error) {
       logger.error('Error en getBySubcategory:', error);
       return serverError(res, 'Error al obtener productos', error);
-    }
-  }
-
-  /**
-   * Actualizar stock de producto
-   * PATCH /api/products/:id/stock
-   */
-  async updateStock(req, res) {
-    try {
-      const { id } = req.params;
-      const { stock } = req.body;
-
-      if (stock === undefined || stock < 0) {
-        return serverError(res, 'Stock inválido');
-      }
-
-      const resultado = await Product.updateStock(id, stock);
-
-      if (!resultado.success) {
-        return notFound(res, 'Producto no encontrado');
-      }
-
-      return success(res, resultado.data, 'Stock actualizado exitosamente');
-    } catch (error) {
-      logger.error('Error en updateStock:', error);
-      return serverError(res, 'Error al actualizar stock', error);
     }
   }
 }

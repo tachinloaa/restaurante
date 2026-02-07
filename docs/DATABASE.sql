@@ -47,10 +47,8 @@ CREATE TABLE productos (
   nombre VARCHAR(200) NOT NULL,
   descripcion TEXT,
   precio DECIMAL(10,2) NOT NULL,
-  stock INTEGER DEFAULT 0,
   categoria_id UUID REFERENCES categorias(id),
   subcategoria_id UUID REFERENCES subcategorias(id),
-  imagen_url TEXT,
   activo BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
@@ -188,16 +186,16 @@ INSERT INTO subcategorias (categoria_id, nombre, orden)
 SELECT id, 'Calientes', 3 FROM categorias WHERE nombre = 'BEBIDAS';
 
 -- Insertar productos de ejemplo
-INSERT INTO productos (nombre, precio, stock, categoria_id, activo) VALUES
-  ('Pambazo con papas', 70.00, 50, (SELECT id FROM categorias WHERE nombre = 'ANTOJITOS'), true),
-  ('Tostadas', 35.00, 100, (SELECT id FROM categorias WHERE nombre = 'ANTOJITOS'), true),
-  ('Pata de res', 35.00, 30, (SELECT id FROM categorias WHERE nombre = 'GUISADOS'), true),
-  ('Tinga de pollo', 35.00, 30, (SELECT id FROM categorias WHERE nombre = 'GUISADOS'), true),
-  ('Tinga de res', 35.00, 30, (SELECT id FROM categorias WHERE nombre = 'GUISADOS'), true),
-  ('Hamburguesa completa', 110.00, 20, (SELECT id FROM categorias WHERE nombre = 'HAMBURGUESAS'), true),
-  ('Hot-dog con tocino', 75.00, 25, (SELECT id FROM categorias WHERE nombre = 'HOT DOGS'), true),
-  ('Caldo de res', 95.00, 15, (SELECT id FROM categorias WHERE nombre = 'CALDOS'), true),
-  ('Caldo de pollo', 95.00, 15, (SELECT id FROM categorias WHERE nombre = 'CALDOS'), true),
+INSERT INTO productos (nombre, precio, categoria_id, activo) VALUES
+  ('Pambazo con papas', 70.00, (SELECT id FROM categorias WHERE nombre = 'ANTOJITOS'), true),
+  ('Tostadas', 35.00, (SELECT id FROM categorias WHERE nombre = 'ANTOJITOS'), true),
+  ('Pata de res', 35.00, (SELECT id FROM categorias WHERE nombre = 'GUISADOS'), true),
+  ('Tinga de pollo', 35.00, (SELECT id FROM categorias WHERE nombre = 'GUISADOS'), true),
+  ('Tinga de res', 35.00, (SELECT id FROM categorias WHERE nombre = 'GUISADOS'), true),
+  ('Hamburguesa completa', 110.00, (SELECT id FROM categorias WHERE nombre = 'HAMBURGUESAS'), true),
+  ('Hot-dog con tocino', 75.00, (SELECT id FROM categorias WHERE nombre = 'HOT DOGS'), true),
+  ('Caldo de res', 95.00, (SELECT id FROM categorias WHERE nombre = 'CALDOS'), true),
+  ('Caldo de pollo', 95.00, (SELECT id FROM categorias WHERE nombre = 'CALDOS'), true),
   ('Pancita de res', 110.00, 10, (SELECT id FROM categorias WHERE nombre = 'CALDOS'), true),
   ('Pozole (Puerco y pollo)', 110.00, 10, (SELECT id FROM categorias WHERE nombre = 'CALDOS'), true),
   ('Coca-Cola', 40.00, 100, (SELECT id FROM categorias WHERE nombre = 'BEBIDAS'), true),

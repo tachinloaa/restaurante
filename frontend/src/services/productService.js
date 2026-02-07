@@ -41,13 +41,6 @@ const productService = {
   },
 
   /**
-   * Actualizar stock
-   */
-  updateStock: async (id, stock) => {
-    return await api.patch(`/products/${id}/stock`, { stock });
-  },
-
-  /**
    * Obtener productos por categoría
    */
   getByCategory: async (categoriaId) => {

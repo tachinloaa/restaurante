@@ -133,7 +133,6 @@ class MenuService {
               nombre: producto.nombre,
               precio: producto.precio,
               descripcion: producto.descripcion,
-              stock: producto.stock,
               categoria: grupo.categoria.nombre,
               subcategoria: subcat.nombre
             });
@@ -161,7 +160,6 @@ class MenuService {
             nombre: producto.nombre,
             precio: producto.precio,
             descripcion: producto.descripcion,
-            stock: producto.stock,
             categoria: grupo.categoria.nombre
           });
           

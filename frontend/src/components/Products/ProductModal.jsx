@@ -8,10 +8,8 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
     nombre: '',
     descripcion: '',
     precio: '',
-    stock: '',
     categoria_id: '',
     subcategoria_id: '',
-    imagen_url: '',
     activo: true
   });
   
@@ -26,10 +24,8 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
           nombre: product.nombre || '',
           descripcion: product.descripcion || '',
           precio: product.precio || '',
-          stock: product.stock || '',
           categoria_id: product.categoria_id || '',
           subcategoria_id: product.subcategoria_id || '',
-          imagen_url: product.imagen_url || '',
           activo: product.activo !== undefined ? product.activo : true
         });
       } else {
@@ -38,10 +34,8 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
           nombre: '',
           descripcion: '',
           precio: '',
-          stock: '',
           categoria_id: '',
           subcategoria_id: '',
-          imagen_url: '',
           activo: true
         });
       }
@@ -111,14 +105,12 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
       // Preparar datos para enviar - redondear precio a 2 decimales
       const dataToSend = {
         ...formData,
-        precio: Math.round(precioNum * 100) / 100, // Asegurar 2 decimales exactos
-        stock: parseInt(formData.stock) || 0
+        precio: Math.round(precioNum * 100) / 100 // Asegurar 2 decimales exactos
       };
 
       // Limpiar campos vacíos opcionales
       if (!dataToSend.descripcion) delete dataToSend.descripcion;
       if (!dataToSend.subcategoria_id) delete dataToSend.subcategoria_id;
-      if (!dataToSend.imagen_url) delete dataToSend.imagen_url;
 
       await onSave(dataToSend);
       onClose();
@@ -180,43 +172,25 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
             />
           </div>
 
-          {/* Precio y Stock */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Precio (MXN) *
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
-                <input
-                  type="text"
-                  name="precio"
-                  value={formData.precio}
-                  onChange={handleChange}
-                  className="input pl-8 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-primary focus:border-primary"
-                  placeholder="0.00"
-                  inputMode="decimal"
-                  required
-                />
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Permite centavos: ej. 20.50 o 40</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Stock
-              </label>
+          {/* Precio */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Precio (MXN) *
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
               <input
-                type="number"
-                name="stock"
-                value={formData.stock}
+                type="text"
+                name="precio"
+                value={formData.precio}
                 onChange={handleChange}
-                className="input bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-primary focus:border-primary"
-                placeholder="0"
-                min="0"
-                step="1"
+                className="input pl-8 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-primary focus:border-primary"
+                placeholder="0.00"
+                inputMode="decimal"
+                required
               />
             </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Permite centavos: ej. 20.50 o 40</p>
           </div>
 
           {/* Categoría */}
@@ -238,21 +212,6 @@ function ProductModal({ isOpen, onClose, onSave, product = null }) {
                 </option>
               ))}
             </select>
-          </div>
-
-          {/* URL de Imagen */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              URL de Imagen
-            </label>
-            <input
-              type="url"
-              name="imagen_url"
-              value={formData.imagen_url}
-              onChange={handleChange}
-              className="input bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-primary focus:border-primary"
-              placeholder="https://ejemplo.com/imagen.jpg"
-            />
           </div>
 
           {/* Activo */}

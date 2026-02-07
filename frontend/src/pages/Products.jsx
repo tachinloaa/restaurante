@@ -139,11 +139,6 @@ function Products() {
                   <span className="text-xl sm:text-2xl font-bold text-primary">
                     {formatearPrecio(product.precio)}
                   </span>
-                  <span className={`text-xs sm:text-sm font-medium ${
-                    product.stock > 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    Stock: {product.stock}
-                  </span>
                 </div>
 
                 {/* Botones de acción */}

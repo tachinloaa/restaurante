@@ -254,14 +254,6 @@ class BotService {
       };
     }
 
-    // Verificar stock
-    if (producto.stock <= 0) {
-      return {
-        success: true,
-        mensaje: `Lo sentimos, *${producto.nombre}* no está disponible en este momento. ${EMOJIS.CRUZ}\n\nPor favor elige otro producto.`
-      };
-    }
-
     // Guardar producto seleccionado temporalmente
     SessionService.guardarDatos(telefono, { producto_temporal: producto });
     SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_CANTIDAD);

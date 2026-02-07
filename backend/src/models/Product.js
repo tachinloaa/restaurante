@@ -171,12 +171,10 @@ class Product {
           nombre,
           descripcion,
           precio,
-          stock,
           categorias(id, nombre, orden),
           subcategorias(id, nombre, orden)
         `)
         .eq('activo', true)
-        .gt('stock', 0)
         .order('nombre', { ascending: true });
 
       if (error) throw error;
@@ -184,53 +182,6 @@ class Product {
       return { success: true, data };
     } catch (error) {
       logger.error('Error al obtener productos activos:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Actualizar stock
-   */
-  static async updateStock(id, cantidad) {
-    try {
-      const { data, error } = await supabase
-        .from('productos')
-        .update({ stock: cantidad })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      logger.info(`Stock actualizado para producto ${id}: ${cantidad}`);
-      return { success: true, data };
-    } catch (error) {
-      logger.error(`Error al actualizar stock del producto ${id}:`, error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Decrementar stock
-   */
-  static async decrementarStock(id, cantidad) {
-    try {
-      // Primero obtener el producto
-      const producto = await this.getById(id);
-      
-      if (!producto.success) {
-        throw new Error('Producto no encontrado');
-      }
-
-      const nuevoStock = producto.data.stock - cantidad;
-
-      if (nuevoStock < 0) {
-        throw new Error('Stock insuficiente');
-      }
-
-      return await this.updateStock(id, nuevoStock);
-    } catch (error) {
-      logger.error(`Error al decrementar stock del producto ${id}:`, error);
       return { success: false, error: error.message };
     }
   }
