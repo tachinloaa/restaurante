@@ -1,12 +1,7 @@
-name = "el-rinconcito-frontend"
+name = "el-rinconcito"
 compatibility_date = "2024-01-01"
-
-[site]
-bucket = "./dist"
+pages_build_output_dir = "dist"
 
 # Variables de entorno para producción
 [env.production]
 vars = { NODE_ENV = "production" }
-
-# Configuración de Pages
-pages_build_output_dir = "dist"
