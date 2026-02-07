@@ -100,7 +100,7 @@ export const TIEMPO_ENTREGA = {
 
 // Mensajes del bot
 export const MENSAJES_BOT = {
-  BIENVENIDA: `${EMOJIS.SALUDO} ¡Hola! Bienvenido a *El Rinconcito* ${EMOJIS.TACO}\n\nSomos un restaurante mexicano especializado en antojitos y comida casera.\n\n¿Qué deseas hacer hoy?\n\n1️⃣ Ver nuestro menú\n2️⃣ Hacer un pedido para *DOMICILIO* ${EMOJIS.CASA}\n3️⃣ Hacer un pedido para *COMER AQUÍ* ${EMOJIS.RESTAURANTE}\n4️⃣ Ver estado de mi pedido\n5️⃣ Hablar con un asesor\n\n💡 *Comandos útiles:*\n📦 Escribe *mis pedidos* para ver tus últimos pedidos\n❌ Escribe *cancelar pedido #X* para cancelar\n\nEscribe el número o palabra clave.`,
+  BIENVENIDA: `${EMOJIS.SALUDO} ¡Hola! Bienvenido a *El Rinconcito* ${EMOJIS.TACO}\n\nSomos un restaurante mexicano especializado en antojitos y comida casera.\n\n¿Cómo deseas recibir tu pedido?\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n*3.* ${EMOJIS.RESTAURANTE} Comer aquí\n\n💡 *Comandos útiles:*\n📦 Escribe *mis pedidos* para ver tus últimos pedidos\n❌ Escribe *cancelar pedido #X* para cancelar\n\nResponde con el número de tu opción.`,
   
   ERROR_GENERAL: 'Lo siento, ocurrió un error. Por favor intenta de nuevo o escribe *ayuda* para ver las opciones.',
   

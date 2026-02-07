@@ -40,7 +40,7 @@ const config = {
     accountSid: process.env.TWILIO_ACCOUNT_SID,
     authToken: process.env.TWILIO_AUTH_TOKEN,
     whatsappClientes: process.env.TWILIO_WHATSAPP_NUMBER_CLIENTES || process.env.TWILIO_WHATSAPP_NUMBER,
-    whatsappAdmin: process.env.TWILIO_WHATSAPP_NUMBER_ADMIN || process.env.TWILIO_WHATSAPP_NUMBER
+    whatsappAdmin: process.env.TWILIO_WHATSAPP_NUMBER_ADMIN || `whatsapp:${process.env.ADMIN_PHONE_NUMBER || '+5215519060013'}`
   },
 
   // Admin
