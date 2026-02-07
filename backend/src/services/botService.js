@@ -162,21 +162,12 @@ class BotService {
   async procesarSeleccionTipo(telefono, mensaje) {
     let tipoPedido = null;
 
-    if (mensaje === '2' || COMANDOS_BOT.DOMICILIO.includes(mensaje)) {
+    if (mensaje === '1' || COMANDOS_BOT.PARA_LLEVAR.includes(mensaje)) {
+      tipoPedido = TIPOS_PEDIDO.PARA_LLEVAR;
+    } else if (mensaje === '2' || COMANDOS_BOT.DOMICILIO.includes(mensaje)) {
       tipoPedido = TIPOS_PEDIDO.DOMICILIO;
     } else if (mensaje === '3' || COMANDOS_BOT.RESTAURANTE.includes(mensaje)) {
       tipoPedido = TIPOS_PEDIDO.RESTAURANTE;
-    } else if (COMANDOS_BOT.PARA_LLEVAR.includes(mensaje)) {
-      tipoPedido = TIPOS_PEDIDO.PARA_LLEVAR;
-    } else if (mensaje === '1' || COMANDOS_BOT.MENU.includes(mensaje)) {
-      return await this.mostrarMenuCompleto(telefono);
-    } else if (mensaje === '4') {
-      return await this.mostrarEstadoPedido(telefono);
-    } else if (mensaje === '5') {
-      return {
-        success: true,
-        mensaje: `En breve un asesor se comunicará contigo. ${EMOJIS.PERSONA}\n\nPuedes escribir *hola* para volver al menú principal.`
-      };
     }
 
     if (!tipoPedido) {
@@ -217,7 +208,7 @@ class BotService {
     } else if (datos.tipo_pedido === TIPOS_PEDIDO.RESTAURANTE) {
       mensaje = `Perfecto! ${EMOJIS.RESTAURANTE} Haremos tu pedido para *COMER AQUÍ*.\n\n`;
     } else if (datos.tipo_pedido === TIPOS_PEDIDO.PARA_LLEVAR) {
-      mensaje = `Perfecto! Haremos tu pedido *PARA LLEVAR*.\n\n`;
+      mensaje = `Perfecto! ${EMOJIS.CARRITO} Haremos tu pedido *PARA LLEVAR*.\n\n`;
     }
 
     mensaje += menu.mensaje;
@@ -347,7 +338,7 @@ class BotService {
       SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
       return {
         success: true,
-        mensaje: `Antes de continuar, necesito saber cómo recibirás tu pedido:\n\n*2.* ${EMOJIS.DELIVERY} A domicilio\n*3.* ${EMOJIS.RESTAURANTE} Comer aquí\n\nResponde con el número de tu opción.`
+        mensaje: `Antes de continuar, necesito saber cómo recibirás tu pedido:\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n*3.* ${EMOJIS.RESTAURANTE} Comer aquí\n\nResponde con el número de tu opción.`
       };
     }
 
