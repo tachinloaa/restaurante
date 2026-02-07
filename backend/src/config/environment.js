@@ -43,6 +43,11 @@ const config = {
     whatsappAdmin: process.env.TWILIO_WHATSAPP_NUMBER_ADMIN || process.env.TWILIO_WHATSAPP_NUMBER
   },
 
+  // Admin
+  admin: {
+    phoneNumber: process.env.ADMIN_PHONE_NUMBER || '+5215519060013'
+  },
+
   // CORS
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 

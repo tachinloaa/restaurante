@@ -85,10 +85,6 @@ class OrderService {
         throw new Error('Error al crear pedido');
       }
 
-      // Decrementar stock de productos
-      for (const producto of productosConDetalles.productos) {
-        await Product.decrementarStock(producto.producto_id, producto.cantidad);
-      }
 
       // Limpiar sesión
       SessionService.limpiarCarrito(telefono);
@@ -133,14 +129,6 @@ class OrderService {
           return {
             success: false,
             error: `Producto no disponible: ${item.nombre}`
-          };
-        }
-
-        // Validar stock
-        if (producto.data.stock < item.cantidad) {
-          return {
-            success: false,
-            error: `Stock insuficiente para: ${item.nombre} (disponible: ${producto.data.stock})`
           };
         }
 
@@ -290,18 +278,6 @@ class OrderService {
 
       if (!resultado.success) {
         throw new Error('Error al cancelar pedido');
-      }
-
-      // Restaurar stock de productos
-      if (pedido.data.pedido_detalles) {
-        for (const detalle of pedido.data.pedido_detalles) {
-          const producto = await Product.getById(detalle.productos.id);
-          
-          if (producto.success) {
-            const nuevoStock = producto.data.stock + detalle.cantidad;
-            await Product.updateStock(detalle.productos.id, nuevoStock);
-          }
-        }
       }
 
       logger.info(`Pedido cancelado: ${pedidoId} - Razón: ${razon}`);

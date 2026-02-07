@@ -3,6 +3,8 @@ import MenuService from './menuService.js';
 import OrderService from './orderService.js';
 import NotificationService from './notificationService.js';
 import TwilioService from './twilioService.js';
+import { supabase } from '../config/database.js';
+import config from '../config/environment.js';
 import { 
   BOT_STATES, 
   COMANDOS_BOT, 
@@ -30,6 +32,22 @@ class BotService {
 
       logger.info(`Mensaje recibido de ${telefono}: ${body}`);
 
+      // Verificar si es admin
+      const isAdmin = this.esAdmin(telefono);
+      
+      // Comandos especiales para admin
+      if (isAdmin) {
+        if (mensajeLimpio === 'pedidos' || mensajeLimpio === 'pendientes') {
+          return await this.mostrarPedidosPendientes();
+        }
+        if (mensajeLimpio.startsWith('ver pedido') || mensajeLimpio.startsWith('ver #')) {
+          return await this.verDetallePedido(body);
+        }
+        if (mensajeLimpio.startsWith('estado')) {
+          return await this.cambiarEstadoPedido(body);
+        }
+      }
+
       // Obtener o crear sesión del usuario
       let session = SessionService.getSession(telefono);
 
@@ -53,6 +71,15 @@ class BotService {
 
       if (this.esComandoEstado(mensajeLimpio)) {
         return await this.mostrarEstadoPedido(telefono);
+      }
+
+      // Comandos de cliente
+      if (this.esComandoMisPedidos(mensajeLimpio)) {
+        return await this.mostrarPedidosCliente(telefono);
+      }
+
+      if (this.esComandoCancelarPedido(mensajeLimpio)) {
+        return await this.procesarCancelacionPedido(telefono, body);
       }
 
       // Procesar según el estado actual del bot
@@ -267,13 +294,7 @@ class BotService {
       return await this.iniciarConversacion(telefono);
     }
 
-    // Verificar stock suficiente
-    if (cantidad > producto.stock) {
-      return {
-        success: true,
-        mensaje: `Lo sentimos, solo tenemos ${producto.stock} disponibles de *${producto.nombre}*.\n\n¿Cuántos deseas?`
-      };
-    }
+    // No validar stock
 
     // Agregar al carrito
     SessionService.agregarAlCarrito(telefono, {
@@ -629,6 +650,441 @@ class BotService {
 
   esComandoEstado(mensaje) {
     return COMANDOS_BOT.ESTADO.includes(mensaje);
+  }
+
+  /**
+   * Verificar si es comando para ver pedidos
+   */
+  esComandoMisPedidos(mensaje) {
+    return mensaje.includes('mis pedidos') || mensaje.includes('pedidos recientes') || mensaje === 'pedidos';
+  }
+
+  /**
+   * Verificar si es comando para cancelar pedido
+   */
+  esComandoCancelarPedido(mensaje) {
+    return mensaje.includes('cancelar pedido');
+  }
+
+  /**
+   * Mostrar pedidos recientes del cliente
+   */
+  async mostrarPedidosCliente(telefono) {
+    try {
+      const { data: pedidos, error } = await supabase
+        .from('pedidos')
+        .select('*')
+        .eq('telefono', telefono)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error || !pedidos || pedidos.length === 0) {
+        return {
+          success: true,
+          mensaje: '📦 No tienes pedidos registrados.\n\nEscribe *pedir* para hacer tu primer pedido.'
+        };
+      }
+
+      let mensaje = `📋 *Tus Últimos Pedidos*\n\n`;
+
+      for (const pedido of pedidos) {
+        const fecha = new Date(pedido.created_at);
+        const ahora = new Date();
+        const minutosTranscurridos = Math.floor((ahora - fecha) / 60000);
+
+        const estadoEmoji = {
+          pendiente: '⏳',
+          preparando: '👨‍🍳',
+          en_camino: '🚚',
+          entregado: '✅',
+          cancelado: '❌'
+        };
+
+        mensaje += `${estadoEmoji[pedido.estado] || '📦'} *Pedido #${pedido.id}*\n`;
+        mensaje += `   Estado: ${pedido.estado}\n`;
+        mensaje += `   Total: $${pedido.total.toFixed(2)} MXN\n`;
+        mensaje += `   Hace: ${minutosTranscurridos} minutos\n`;
+
+        // Mostrar si puede cancelar (solo pendientes dentro de 20 min)
+        if (pedido.estado === 'pendiente' && minutosTranscurridos <= 20) {
+          mensaje += `   ⚠️ Puedes cancelar\n`;
+        }
+
+        mensaje += `\n`;
+      }
+
+      mensaje += `💡 Para cancelar un pedido pendiente:\n`;
+      mensaje += `"cancelar pedido #X"\n\n`;
+      mensaje += `⚠️ Solo puedes cancelar pedidos pendientes dentro de los primeros 20 minutos.`;
+
+      return {
+        success: true,
+        mensaje
+      };
+    } catch (error) {
+      logger.error('Error al mostrar pedidos del cliente:', error);
+      return {
+        success: true,
+        mensaje: '❌ Error al cargar tus pedidos. Intenta nuevamente.'
+      };
+    }
+  }
+
+  /**
+   * Procesar cancelación de pedido
+   */
+  async procesarCancelacionPedido(telefono, mensaje) {
+    try {
+      // Extraer ID del pedido del mensaje
+      const match = mensaje.match(/#(\d+)/);
+      
+      if (!match) {
+        return {
+          success: true,
+          mensaje: '❌ Formato incorrecto.\n\nUsa: "cancelar pedido #123"'
+        };
+      }
+
+      const pedidoId = parseInt(match[1]);
+
+      // Buscar el pedido
+      const {data: pedido, error: fetchError } = await supabase
+        .from('pedidos')
+        .select('*')
+        .eq('id', pedidoId)
+        .eq('telefono', telefono)
+        .single();
+
+      if (fetchError || !pedido) {
+        return {
+          success: true,
+          mensaje: `❌ No se encontró el pedido #${pedidoId} o no te pertenece.`
+        };
+      }
+
+      // Verificar si ya está cancelado o completado
+      if (pedido.estado === 'cancelado') {
+        return {
+          success: true,
+          mensaje: `ℹ️ El pedido #${pedidoId} ya está cancelado.`
+        };
+      }
+
+      if (pedido.estado === 'entregado') {
+        return {
+          success: true,
+          mensaje: `❌ El pedido #${pedidoId} ya fue entregado y no puede ser cancelado.`
+        };
+      }
+
+      // Verificar tiempo transcurrido (20 minutos)
+      const fecha = new Date(pedido.created_at);
+      const ahora = new Date();
+      const minutosTranscurridos = Math.floor((ahora - fecha) / 60000);
+
+      if (minutosTranscurridos > 20) {
+        return {
+          success: true,
+          mensaje: `❌ El pedido #${pedidoId} ya no puede ser cancelado.\n\n` +
+                  `Han pasado ${minutosTranscurridos} minutos desde que fue creado.\n` +
+                  `Solo puedes cancelar dentro de los primeros 20 minutos.\n\n` +
+                  `Para más información, contáctanos.`
+        };
+      }
+
+      // Cancelar el pedido
+      const { error: updateError } = await supabase
+        .from('pedidos')
+        .update({ estado: 'cancelado' })
+        .eq('id', pedidoId);
+
+      if (updateError) {
+        logger.error('Error al cancelar pedido del cliente:', updateError);
+        return {
+          success: true,
+          mensaje: `❌ Error al cancelar el pedido #${pedidoId}. Intenta nuevamente.`
+        };
+      }
+
+      logger.info(`✅ Pedido #${pedidoId} cancelado por el cliente ${telefono} (${minutosTranscurridos} min)`);
+
+      return {
+        success: true,
+        mensaje: `✅ *Pedido #${pedidoId} cancelado exitosamente*\n\n` +
+                `Total: $${pedido.total} MXN\n\n` +
+                `Tu pedido ha sido cancelado. Esperamos verte pronto! 😊`
+      };
+    } catch (error) {
+      logger.error('Error al procesar cancelación del cliente:', error);
+      return {
+        success: true,
+        mensaje: `❌ Error al procesar la cancelación. Por favor intenta nuevamente.`
+      };
+    }
+  }
+
+  /**
+   * Verificar si el número es admin
+   */
+  esAdmin(telefono) {
+    const adminPhone = config.admin.phoneNumber.replace(/\D/g, '');
+    const userPhone = telefono.replace(/\D/g, '');
+    return userPhone === adminPhone;
+  }
+
+  /**
+   * Mostrar pedidos pendientes (solo admin)
+   */
+  async mostrarPedidosPendientes() {
+    try {
+      const { data: pedidos, error } = await supabase
+        .from('pedidos')
+        .select(`
+          id,
+          total,
+          estado,
+          tipo_pedido,
+          created_at,
+          clientes (
+            nombre,
+            telefono
+          )
+        `)
+        .in('estado', ['pendiente', 'en_proceso'])
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        logger.error('Error al obtener pedidos pendientes:', error);
+        return {
+          success: true,
+          mensaje: '❌ Error al obtener los pedidos pendientes.'
+        };
+      }
+
+      if (!pedidos || pedidos.length === 0) {
+        return {
+          success: true,
+          mensaje: '✅ *No hay pedidos pendientes*\n\nTodos los pedidos están completados o cancelados.'
+        };
+      }
+
+      let mensaje = `📋 *PEDIDOS PENDIENTES* (${pedidos.length})\n${'='.repeat(35)}\n\n`;
+
+      pedidos.forEach(pedido => {
+        const estado = pedido.estado === 'pendiente' ? '🔴 NUEVO' : '🟡 EN PROCESO';
+        const tipo = pedido.tipo_pedido === 'domicilio' ? '🏠 Domicilio' : '🏪 Para llevar';
+        const tiempo = new Date(pedido.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        
+        mensaje += `*#${pedido.id}* - ${estado}\n`;
+        mensaje += `👤 ${pedido.clientes?.nombre || 'Sin nombre'}\n`;
+        mensaje += `${tipo} | ${formatearPrecio(pedido.total)}\n`;
+        mensaje += `🕐 ${tiempo}\n\n`;
+      });
+
+      mensaje += `\n📝 Comandos:\n`;
+      mensaje += `• *ver #${pedidos[0].id}* - Ver detalles\n`;
+      mensaje += `• *estado #${pedidos[0].id} en_proceso* - Cambiar estado\n`;
+      mensaje += `• *estado #${pedidos[0].id} completado* - Marcar completado\n`;
+      mensaje += `• *estado #${pedidos[0].id} cancelado* - Cancelar pedido`;
+
+      return {
+        success: true,
+        mensaje
+      };
+    } catch (error) {
+      logger.error('Error al mostrar pedidos pendientes:', error);
+      return {
+        success: true,
+        mensaje: '❌ Error al obtener los pedidos. Intenta nuevamente.'
+      };
+    }
+  }
+
+  /**
+   * Ver detalle de un pedido (solo admin)
+   */
+  async verDetallePedido(mensaje) {
+    try {
+      const match = mensaje.match(/\d+/);
+      if (!match) {
+        return {
+          success: true,
+          mensaje: '⚠️ Usa el formato: *ver pedido #123* o *ver #123*'
+        };
+      }
+
+      const pedidoId = parseInt(match[0]);
+
+      const { data: pedido, error } = await supabase
+        .from('pedidos')
+        .select(`
+          id,
+          total,
+          estado,
+          tipo_pedido,
+          direccion_entrega,
+          referencias,
+          numero_personas,
+          created_at,
+          clientes (
+            nombre,
+            telefono
+          ),
+          pedido_productos (
+            cantidad,
+            precio_unitario,
+            notas,
+            productos (
+              nombre,
+              descripcion
+            )
+          )
+        `)
+        .eq('id', pedidoId)
+        .single();
+
+      if (error || !pedido) {
+        return {
+          success: true,
+          mensaje: `❌ No se encontró el pedido #${pedidoId}`
+        };
+      }
+
+      let respuesta = `📋 *PEDIDO #${pedido.id}*\n${'='.repeat(35)}\n\n`;
+      
+      // Estado y tipo
+      const estadoEmoji = {
+        'pendiente': '🔴',
+        'en_proceso': '🟡',
+        'completado': '✅',
+        'cancelado': '❌'
+      };
+      respuesta += `${estadoEmoji[pedido.estado] || '⚪'} *Estado:* ${pedido.estado.toUpperCase()}\n`;
+      respuesta += `${pedido.tipo_pedido === 'domicilio' ? '🏠' : '🏪'} *Tipo:* ${pedido.tipo_pedido}\n\n`;
+
+      // Cliente
+      respuesta += `👤 *CLIENTE*\n`;
+      respuesta += `Nombre: ${pedido.clientes?.nombre || 'Sin nombre'}\n`;
+      respuesta += `Teléfono: ${pedido.clientes?.telefono || 'Sin teléfono'}\n\n`;
+
+      // Dirección (si es domicilio)
+      if (pedido.tipo_pedido === 'domicilio' && pedido.direccion_entrega) {
+        respuesta += `📍 *DIRECCIÓN*\n${pedido.direccion_entrega}\n`;
+        if (pedido.referencias) {
+          respuesta += `Referencias: ${pedido.referencias}\n`;
+        }
+        respuesta += `\n`;
+      }
+
+      // Número de personas (si es para llevar)
+      if (pedido.tipo_pedido === 'llevar' && pedido.numero_personas) {
+        respuesta += `👥 Para ${pedido.numero_personas} personas\n\n`;
+      }
+
+      // Productos
+      respuesta += `🍽️ *PRODUCTOS*\n`;
+      pedido.pedido_productos.forEach(item => {
+        respuesta += `• ${item.productos?.nombre} x${item.cantidad}\n`;
+        respuesta += `  ${formatearPrecio(item.precio_unitario)} c/u = ${formatearPrecio(item.cantidad * item.precio_unitario)}\n`;
+        if (item.notas) {
+          respuesta += `  📝 ${item.notas}\n`;
+        }
+      });
+
+      respuesta += `\n💰 *TOTAL: ${formatearPrecio(pedido.total)}*\n\n`;
+      respuesta += `🕐 ${new Date(pedido.created_at).toLocaleString('es-MX')}\n\n`;
+
+      respuesta += `📝 Cambiar estado:\n`;
+      respuesta += `• *estado #${pedido.id} en_proceso*\n`;
+      respuesta += `• *estado #${pedido.id} completado*\n`;
+      respuesta += `• *estado #${pedido.id} cancelado*`;
+
+      return {
+        success: true,
+        mensaje: respuesta
+      };
+    } catch (error) {
+      logger.error('Error al ver detalle de pedido:', error);
+      return {
+        success: true,
+        mensaje: '❌ Error al obtener los detalles del pedido.'
+      };
+    }
+  }
+
+  /**
+   * Cambiar estado de un pedido (solo admin)
+   */
+  async cambiarEstadoPedido(mensaje) {
+    try {
+      // Formato: "estado #123 completado" o "estado 123 en_proceso"
+      const match = mensaje.match(/estado\s+#?(\d+)\s+(pendiente|en_proceso|completado|cancelado)/i);
+      
+      if (!match) {
+        return {
+          success: true,
+          mensaje: '⚠️ Usa el formato: *estado #123 completado*\n\n' +
+                  'Estados disponibles:\n' +
+                  '• pendiente\n' +
+                  '• en_proceso\n' +
+                  '• completado\n' +
+                  '• cancelado'
+        };
+      }
+
+      const pedidoId = parseInt(match[1]);
+      const nuevoEstado = match[2].toLowerCase();
+
+      // Verificar que el pedido existe
+      const { data: pedido, error: fetchError } = await supabase
+        .from('pedidos')
+        .select('id, estado, clientes(nombre, telefono)')
+        .eq('id', pedidoId)
+        .single();
+
+      if (fetchError || !pedido) {
+        return {
+          success: true,
+          mensaje: `❌ No se encontró el pedido #${pedidoId}`
+        };
+      }
+
+      // Actualizar estado
+      const { error: updateError } = await supabase
+        .from('pedidos')
+        .update({ estado: nuevoEstado })
+        .eq('id', pedidoId);
+
+      if (updateError) {
+        logger.error('Error al actualizar estado del pedido:', updateError);
+        return {
+          success: true,
+          mensaje: `❌ Error al actualizar el pedido #${pedidoId}`
+        };
+      }
+
+      logger.info(`✅ Pedido #${pedidoId} actualizado a estado: ${nuevoEstado}`);
+
+      const estadoEmoji = {
+        'pendiente': '🔴',
+        'en_proceso': '🟡',
+        'completado': '✅',
+        'cancelado': '❌'
+      };
+
+      return {
+        success: true,
+        mensaje: `${estadoEmoji[nuevoEstado]} *Pedido #${pedidoId} actualizado*\n\n` +
+                `Estado: *${nuevoEstado.toUpperCase()}*\n\n` +
+                `Cliente: ${pedido.clientes?.nombre || 'Sin nombre'}`
+      };
+    } catch (error) {
+      logger.error('Error al cambiar estado de pedido:', error);
+      return {
+        success: true,
+        mensaje: '❌ Error al cambiar el estado. Intenta nuevamente.'
+      };
+    }
   }
 }
 
