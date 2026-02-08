@@ -84,12 +84,13 @@ const getKPIs = async (req, res) => {
     const rango = calcularRangoFechas(periodo);
     const rangoAnterior = calcularRangoPeriodoAnterior(periodo);
 
-    // KPIs del período actual
+    // KPIs del período actual (solo pedidos entregados/completados)
     const { data: pedidosActuales, error: error1 } = await supabase
       .from('pedidos')
       .select('total, cliente_id')
       .gte('created_at', rango.inicio)
-      .lte('created_at', rango.fin);
+      .lte('created_at', rango.fin)
+      .eq('estado', 'entregado');
 
     if (error1) throw error1;
 
@@ -98,6 +99,8 @@ const getKPIs = async (req, res) => {
       .from('pedidos')
       .select('total, cliente_id')
       .gte('created_at', rangoAnterior.inicio)
+      .lte('created_at', rangoAnterior.fin)
+      .eq('estado', 'entregado');
       .lte('created_at', rangoAnterior.fin);
 
     if (error2) throw error2;
@@ -150,7 +153,8 @@ const getIngresosSemana = async (req, res) => {
       .from('pedidos')
       .select('total, created_at')
       .gte('created_at', rango.inicio)
-      .lte('created_at', rango.fin);
+      .lte('created_at', rango.fin)
+      .eq('estado', 'entregado');
 
     if (error) throw error;
 
@@ -190,7 +194,7 @@ const getTopProductos = async (req, res) => {
     const { periodo = 'mes', limit = 5 } = req.query;
     const rango = calcularRangoFechas(periodo);
 
-    // Obtener items de pedidos con productos
+    // Obtener items de pedidos con productos (solo pedidos entregados)
     const { data: items, error } = await supabase
       .from('pedido_detalles')
       .select(`
@@ -202,11 +206,13 @@ const getTopProductos = async (req, res) => {
           precio
         ),
         pedidos:pedido_id (
-          created_at
+          created_at,
+          estado
         )
       `)
       .gte('pedidos.created_at', rango.inicio)
-      .lte('pedidos.created_at', rango.fin);
+      .lte('pedidos.created_at', rango.fin)
+      .eq('pedidos.estado', 'entregado');
 
     if (error) throw error;
 
