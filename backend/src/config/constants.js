@@ -39,19 +39,19 @@ export const BOT_STATES = {
   PEDIDO_COMPLETADO: 'pedido_completado'
 };
 
-// Comandos del bot
+// Comandos del bot (todos sin acentos porque se normalizan en procesarMensaje)
 export const COMANDOS_BOT = {
-  HOLA: ['hola', 'hi', 'buenas', 'buenos dias', 'buenas tardes', 'buenas noches'],
-  MENU: ['menu', 'menú', 'carta', 'ver menu'],
-  PEDIR: ['pedir', 'ordenar', 'pedido', 'orden', 'quiero pedir'],
-  DOMICILIO: ['domicilio', 'a domicilio', 'delivery', 'entrega'],
-  RESTAURANTE: ['restaurante', 'comer aqui', 'comer aquí', 'mesa', 'en el local'],
-  PARA_LLEVAR: ['para llevar', 'llevar', 'recoger'],
-  ESTADO: ['estado', 'mi pedido', 'ver pedido', 'seguimiento'],
-  CANCELAR: ['cancelar', 'cancelar pedido', 'quiero cancelar'],
-  AYUDA: ['ayuda', 'help', 'opciones', '?'],
-  SI: ['si', 'sí', 'yes', 'ok', 'vale', 'confirmar', 'correcto'],
-  NO: ['no', 'nop', 'nope', 'negativo']
+  HOLA: ['hola', 'hi', 'buenas', 'buenos dias', 'buenas tardes', 'buenas noches', 'inicio', 'empezar', 'comenzar'],
+  MENU: ['menu', 'carta', 'ver menu', 'productos', 'comida'],
+  PEDIR: ['pedir', 'ordenar', 'pedido', 'orden', 'quiero pedir', 'comprar', 'quiero', 'deseo'],
+  DOMICILIO: ['domicilio', 'a domicilio', 'delivery', 'entrega', 'entregar', 'llevar a casa'],
+  RESTAURANTE: ['restaurante', 'comer aqui', 'mesa', 'en el local', 'ahi', 'local', 'comer'],
+  PARA_LLEVAR: ['para llevar', 'llevar', 'recoger', 'paso por el', 'recoger pedido'],
+  ESTADO: ['estado', 'mi pedido', 'ver pedido', 'seguimiento', 'donde esta', 'rastreo'],
+  CANCELAR: ['cancelar', 'cancelar pedido', 'quiero cancelar', 'salir', 'ya no'],
+  AYUDA: ['ayuda', 'help', 'opciones', '?', 'comandos', 'que puedo hacer'],
+  SI: ['si', 'yes', 'ok', 'vale', 'confirmar', 'correcto', 'sep', 'simon', 'dale', 'va'],
+  NO: ['no', 'nop', 'nope', 'negativo', 'nel', 'nanai', 'mejor no']
 };
 
 // Emojis del sistema

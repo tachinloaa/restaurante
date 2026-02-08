@@ -28,7 +28,14 @@ class BotService {
   async procesarMensaje(from, body) {
     try {
       const telefono = limpiarNumeroWhatsApp(from);
-      const mensajeLimpio = body.trim().toLowerCase();
+      
+      // Normalizar mensaje: minúsculas, sin espacios extras, sin acentos
+      const mensajeLimpio = body
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+        .replace(/\s+/g, ' '); // Múltiples espacios a uno solo
 
       logger.info(`Mensaje recibido de ${telefono}: ${body}`);
 
@@ -106,10 +113,10 @@ class BotService {
     switch (session.estado) {
       case BOT_STATES.INICIO:
       case BOT_STATES.MENU_PRINCIPAL:
-        return await this.procesarMenuPrincipal(telefono, mensajeLimpio);
+        return await this.procesarMenuPrincipal(telefono, mensajeLimpio, body);
 
       case BOT_STATES.SELECCIONAR_TIPO:
-        return await this.procesarSeleccionTipo(telefono, mensajeLimpio);
+        return await this.procesarSeleccionTipo(telefono, mensajeLimpio, body);
 
       case BOT_STATES.VER_MENU:
       case BOT_STATES.SELECCIONAR_PRODUCTO:
@@ -163,30 +170,33 @@ class BotService {
   /**
    * Procesar menú principal
    */
-  async procesarMenuPrincipal(telefono, mensaje) {
-    if (this.esComandoMenu(mensaje)) {
+  async procesarMenuPrincipal(telefono, mensaje, mensajeOriginal = '') {
+    // Aceptar números 1-5 para opciones rápidas
+    if (mensaje === '1' || this.esComandoMenu(mensaje)) {
       return await this.mostrarMenuCompleto(telefono);
     }
 
-    if (this.esComandoPedir(mensaje) || mensaje === '2') {
+    if (mensaje === '2' || this.esComandoPedir(mensaje)) {
       return await this.solicitarTipoPedido(telefono);
     }
 
-    if (this.esComandoMisPedidos(mensaje) || mensaje === '3') {
+    if (mensaje === '3' || this.esComandoMisPedidos(mensaje)) {
       return await this.mostrarPedidosCliente(telefono);
     }
 
-    if (this.esComandoContacto(mensaje) || mensaje === '4') {
+    if (mensaje === '4' || this.esComandoContacto(mensaje)) {
       return await this.mostrarContacto(telefono);
     }
 
-    if (this.esComandoAyuda(mensaje)) {
+    if (mensaje === '5' || this.esComandoAyuda(mensaje)) {
       return await this.mostrarAyuda(telefono);
     }
 
+    // Mensaje más amigable para opciones inválidas
+    const textoMostrar = (mensajeOriginal || mensaje).substring(0, 30);
     return {
       success: true,
-      mensaje: 'No entendí tu respuesta. Por favor elige una opción:\n\n📋 *menú* - Ver productos\n🛒 *pedir* - Hacer pedido\n📦 *mis pedidos* - Ver mis pedidos\n📞 *contacto* - Información\nℹ️ *ayuda* - Ver comandos'
+      mensaje: `❌ No entendí "${textoMostrar}${textoMostrar.length >= 30 ? '...' : ''}"\n\nPor favor elige una opción:\n\n*1* 📋 Ver menú\n*2* 🛒 Hacer pedido\n*3* 📦 Mis pedidos\n*4* 📞 Contacto\n*5* ℹ️ Ayuda\n\nO escribe: *menu*, *pedir*, *contacto*, etc.`
     };
   }
 
@@ -205,21 +215,23 @@ class BotService {
   /**
    * Procesar selección de tipo de pedido
    */
-  async procesarSeleccionTipo(telefono, mensaje) {
+  async procesarSeleccionTipo(telefono, mensaje, mensajeOriginal = '') {
     let tipoPedido = null;
 
-    if (mensaje === '1' || COMANDOS_BOT.PARA_LLEVAR.includes(mensaje)) {
+    // Aceptar número o texto
+    if (mensaje === '1' || COMANDOS_BOT.PARA_LLEVAR.some(cmd => mensaje.includes(cmd))) {
       tipoPedido = TIPOS_PEDIDO.PARA_LLEVAR;
-    } else if (mensaje === '2' || COMANDOS_BOT.DOMICILIO.includes(mensaje)) {
+    } else if (mensaje === '2' || COMANDOS_BOT.DOMICILIO.some(cmd => mensaje.includes(cmd))) {
       tipoPedido = TIPOS_PEDIDO.DOMICILIO;
-    } else if (mensaje === '3' || COMANDOS_BOT.RESTAURANTE.includes(mensaje)) {
+    } else if (mensaje === '3' || COMANDOS_BOT.RESTAURANTE.some(cmd => mensaje.includes(cmd))) {
       tipoPedido = TIPOS_PEDIDO.RESTAURANTE;
     }
 
     if (!tipoPedido) {
+      const textoMostrar = (mensajeOriginal || mensaje).substring(0, 20);
       return {
         success: true,
-        mensaje: MENSAJES_BOT.OPCION_INVALIDA
+        mensaje: `❌ Opción inválida "${textoMostrar}"\n\nPor favor elige:\n\n*1* ${EMOJIS.CARRITO} Para llevar\n*2* ${EMOJIS.MOTO} A domicilio\n*3* ${EMOJIS.RESTAURANTE} Comer aquí\n\nResponde con el número (1, 2 o 3)`
       };
     }
 
@@ -674,15 +686,29 @@ class BotService {
   }
 
   esComandoMenu(mensaje) {
-    return COMANDOS_BOT.MENU.includes(mensaje) || mensaje === '1' || mensaje === 'menu';
+    return mensaje === '1' || 
+           mensaje.includes('menu') || 
+           mensaje.includes('carta') || 
+           mensaje.includes('ver menu') ||
+           mensaje.includes('productos');
   }
 
   esComandoPedir(mensaje) {
-    return COMANDOS_BOT.PEDIR.includes(mensaje);
+    return mensaje === '2' ||
+           mensaje.includes('pedir') || 
+           mensaje.includes('ordenar') ||
+           mensaje.includes('pedido') ||
+           mensaje.includes('orden') ||
+           mensaje.includes('comprar');
   }
 
   esComandoContacto(mensaje) {
-    return mensaje.includes('contacto') || mensaje === 'contacto' || mensaje === 'info';
+    return mensaje === '4' ||
+           mensaje.includes('contacto') || 
+           mensaje.includes('info') ||
+           mensaje.includes('telefono') ||
+           mensaje.includes('ubicacion') ||
+           mensaje.includes('direccion');
   }
 
   esComandoEstado(mensaje) {
@@ -693,7 +719,12 @@ class BotService {
    * Verificar si es comando para ver pedidos
    */
   esComandoMisPedidos(mensaje) {
-    return mensaje.includes('mis pedidos') || mensaje.includes('pedidos recientes') || mensaje === 'pedidos';
+    return mensaje === '3' ||
+           mensaje.includes('mis pedidos') || 
+           mensaje.includes('pedidos recientes') || 
+           mensaje === 'pedidos' ||
+           mensaje.includes('ver pedidos') ||
+           mensaje.includes('historial');
   }
 
   /**
