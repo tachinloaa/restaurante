@@ -89,11 +89,17 @@ function Analytics() {
         analyticsService.getHorariosPico(periodo)
       ]);
 
-      console.log('🎯 Respuesta KPIs:', kpisData);
+      console.log('🎯 Respuesta KPIs completa:', JSON.stringify(kpisData, null, 2));
       console.log('📊 KPIs Data:', kpisData?.data);
+      console.log('🔍 Tipo de kpisData:', typeof kpisData);
+      console.log('🔍 Keys de kpisData:', Object.keys(kpisData || {}));
+
+      // Si kpisData ya contiene los datos directamente (sin .data wrapper)
+      const datosKpis = kpisData?.data || kpisData;
+      console.log('✅ Datos finales que se usarán:', datosKpis);
 
       // Validar y setear datos con valores por defecto
-      setKpis(kpisData?.data || {
+      setKpis(datosKpis || {
         ingresos_totales: 0,
         incremento_ingresos: 0,
         total_pedidos: 0,
@@ -103,11 +109,11 @@ function Analytics() {
         total_clientes: 0,
         incremento_clientes: 0
       });
-      setIngresosSemana(ingresosSemanaData?.data || []);
-      setTopProductos(topProductosData?.data || []);
-      setProductosPobreRendimiento(bajoRendimientoData?.data || []);
-      setAnalisisTipoPedido(analisisTipoData?.data || []);
-      setHorariosPico(horariosPicoData?.data || []);
+      setIngresosSemana(ingresosSemanaData?.data || ingresosSemanaData || []);
+      setTopProductos(topProductosData?.data || topProductosData || []);
+      setProductosPobreRendimiento(bajoRendimientoData?.data || bajoRendimientoData || []);
+      setAnalisisTipoPedido(analisisTipoData?.data || analisisTipoData || []);
+      setHorariosPico(horariosPicoData?.data || horariosPicoData || []);
     } catch (error) {
       console.error('Error al cargar estadísticas:', error);
       toast.error('Error al cargar las estadísticas');
@@ -775,8 +781,8 @@ function Analytics() {
               })()}
 
               {/* Productos con bajo rendimiento */}
-              {(productosBajoRendimiento || []).length > 0 && (() => {
-                const productosTop = productosBajoRendimiento.slice(0, 2);
+              {(productosPobreRendimiento || []).length > 0 && (() => {
+                const productosTop = productosPobreRendimiento.slice(0, 2);
                 const nombres = productosTop.map(p => p.nombre).join(' y ');
                 return (
                   <li className="flex items-start gap-2">
@@ -811,7 +817,7 @@ function Analytics() {
               {/* Mensaje cuando no hay suficientes datos */}
               {(ingresosSemana || []).length === 0 && 
                (horariosPico || []).length === 0 && 
-               (productosBajoRendimiento || []).length === 0 && 
+               (productosPobreRendimiento || []).length === 0 && 
                (analisisTipoPedido || []).length === 0 && (
                 <li className="flex items-start gap-2">
                   <span className="text-blue-600 dark:text-blue-400 mt-0.5">ℹ</span>
