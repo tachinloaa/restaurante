@@ -101,7 +101,6 @@ const getKPIs = async (req, res) => {
       .gte('created_at', rangoAnterior.inicio)
       .lte('created_at', rangoAnterior.fin)
       .eq('estado', 'entregado');
-      .lte('created_at', rangoAnterior.fin);
 
     if (error2) throw error2;
 
