@@ -737,7 +737,8 @@ class BotService {
    * Verificar comandos
    */
   esComandoInicio(mensaje) {
-    return COMANDOS_BOT.HOLA.includes(mensaje) || COMANDOS_BOT.PEDIR.includes(mensaje);
+    // Solo "hola" reinicia la conversación, "pedir" NO debe reiniciar
+    return COMANDOS_BOT.HOLA.includes(mensaje);
   }
 
   esComandoCancelar(mensaje) {
