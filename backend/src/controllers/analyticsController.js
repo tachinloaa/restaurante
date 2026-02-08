@@ -84,15 +84,28 @@ const getKPIs = async (req, res) => {
     const rango = calcularRangoFechas(periodo);
     const rangoAnterior = calcularRangoPeriodoAnterior(periodo);
 
-    // KPIs del período actual (solo pedidos entregados/completados)
+    console.log('📊 Analytics - Período:', periodo);
+    console.log('📅 Rango actual:', rango);
+    console.log('📅 Rango anterior:', rangoAnterior);
+
+    // KPIs del período actual (todos excepto cancelados)
     const { data: pedidosActuales, error: error1 } = await supabase
       .from('pedidos')
-      .select('total, cliente_id')
+      .select('total, cliente_id, estado, created_at')
       .gte('created_at', rango.inicio)
       .lte('created_at', rango.fin)
-      .eq('estado', 'entregado');
+      .neq('estado', 'cancelado');
 
-    if (error1) throw error1;
+    console.log('📦 Pedidos encontrados:', pedidosActuales?.length || 0);
+    if (pedidosActuales && pedidosActuales.length > 0) {
+      console.log('📋 Estados:', pedidosActuales.map(p => p.estado));
+      console.log('💰 Totales:', pedidosActuales.map(p => p.total));
+    }
+
+    if (error1) {
+      console.error('❌ Error en query pedidosActuales:', error1);
+      throw error1;
+    }
 
     // KPIs del período anterior
     const { data: pedidosAnteriores, error: error2 } = await supabase
@@ -100,7 +113,7 @@ const getKPIs = async (req, res) => {
       .select('total, cliente_id')
       .gte('created_at', rangoAnterior.inicio)
       .lte('created_at', rangoAnterior.fin)
-      .eq('estado', 'entregado');
+      .neq('estado', 'cancelado');
 
     if (error2) throw error2;
 
@@ -153,7 +166,7 @@ const getIngresosSemana = async (req, res) => {
       .select('total, created_at')
       .gte('created_at', rango.inicio)
       .lte('created_at', rango.fin)
-      .eq('estado', 'entregado');
+      .neq('estado', 'cancelado');
 
     if (error) throw error;
 
@@ -193,7 +206,7 @@ const getTopProductos = async (req, res) => {
     const { periodo = 'mes', limit = 5 } = req.query;
     const rango = calcularRangoFechas(periodo);
 
-    // Obtener items de pedidos con productos (solo pedidos entregados)
+    // Obtener items de pedidos con productos (todos excepto cancelados)
     const { data: items, error } = await supabase
       .from('pedido_detalles')
       .select(`
@@ -211,7 +224,7 @@ const getTopProductos = async (req, res) => {
       `)
       .gte('pedidos.created_at', rango.inicio)
       .lte('pedidos.created_at', rango.fin)
-      .eq('pedidos.estado', 'entregado');
+      .neq('pedidos.estado', 'cancelado');
 
     if (error) throw error;
 
