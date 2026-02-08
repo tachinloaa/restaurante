@@ -286,12 +286,14 @@ class DashboardController {
    */
   async _getTopProductsData(limit) {
     try {
-      // Usar una consulta optimizada con join
-      const { data, error } = await supabase.rpc('get_top_products', { 
+      // Intentar usar la función RPC optimizada
+      let { data, error } = await supabase.rpc('get_top_products', { 
         p_limit: limit 
-      }).catch(async () => {
-        // Fallback a consulta manual si el RPC no existe
-        const { data, error } = await supabase
+      });
+
+      // Si el RPC falla, usar fallback con consulta manual
+      if (error) {
+        const fallbackResult = await supabase
           .from('pedido_detalles')
           .select(`
             producto_id,
@@ -301,10 +303,10 @@ class DashboardController {
           `)
           .limit(1000);
 
-        if (error) throw error;
+        if (fallbackResult.error) throw fallbackResult.error;
 
         const productosMap = {};
-        data.forEach(detalle => {
+        fallbackResult.data.forEach(detalle => {
           const prodId = detalle.producto_id;
           if (!productosMap[prodId]) {
             productosMap[prodId] = {
@@ -318,12 +320,11 @@ class DashboardController {
           productosMap[prodId].totalVentas += parseFloat(detalle.subtotal || 0);
         });
 
-        return { data: Object.values(productosMap)
+        data = Object.values(productosMap)
           .sort((a, b) => b.cantidadVendida - a.cantidadVendida)
-          .slice(0, limit) };
-      });
+          .slice(0, limit);
+      }
 
-      if (error) throw error;
       return Array.isArray(data) ? data : [];
     } catch (error) {
       logger.error('Error en _getTopProductsData:', error);
