@@ -171,26 +171,37 @@ class BotService {
    * Procesar menú principal
    */
   async procesarMenuPrincipal(telefono, mensaje, mensajeOriginal = '') {
-    // Mostrar menú sin permitir ordenar (solo visual)
-    if (this.esComandoMenu(mensaje)) {
+    // Opción 1: Mostrar menú sin permitir ordenar (solo visual)
+    if (mensaje === '1' || this.esComandoMenu(mensaje)) {
       return await this.mostrarMenuSoloVer(telefono);
     }
 
-    // Iniciar proceso de pedido
+    // Opción 2: Iniciar proceso de pedido
     if (mensaje === '2' || this.esComandoPedir(mensaje)) {
       return await this.solicitarTipoPedido(telefono);
     }
 
+    // Opción 3: Ver mis pedidos
     if (mensaje === '3' || this.esComandoMisPedidos(mensaje)) {
       return await this.mostrarPedidosCliente(telefono);
     }
 
+    // Opción 4: Ver contacto
     if (mensaje === '4' || this.esComandoContacto(mensaje)) {
       return await this.mostrarContacto(telefono);
     }
 
+    // Opción 5: Ver ayuda
     if (mensaje === '5' || this.esComandoAyuda(mensaje)) {
       return await this.mostrarAyuda(telefono);
+    }
+
+    // Si escribió un número de producto (6-99), recordarle que debe escribir "pedir" primero
+    if (/^\d+$/.test(mensaje) && parseInt(mensaje) >= 6) {
+      return {
+        success: true,
+        mensaje: `Para ordenar productos, primero escribe *pedir* (opción 2) 🛒\n\nLuego podrás seleccionar productos usando los números del menú.`
+      };
     }
 
     // Mensaje más amigable para opciones inválidas
