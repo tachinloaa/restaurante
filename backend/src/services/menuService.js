@@ -169,9 +169,7 @@ class MenuService {
       }
     }
 
-    mensaje += `\n${EMOJIS.FLECHA} Para ordenar, escribe el *número* o *nombre* del producto.\n`;
-    mensaje += `Ejemplo: "1" o "Pambazo"`;
-
+    // NO incluir instrucciones de ordenar aquí - se agregan en botService según contexto
     return {
       mensaje,
       productos,

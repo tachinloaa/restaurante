@@ -84,10 +84,6 @@ const getKPIs = async (req, res) => {
     const rango = calcularRangoFechas(periodo);
     const rangoAnterior = calcularRangoPeriodoAnterior(periodo);
 
-    console.log('📊 Analytics - Período:', periodo);
-    console.log('📅 Rango actual:', rango);
-    console.log('📅 Rango anterior:', rangoAnterior);
-
     // KPIs del período actual (todos excepto cancelados)
     const { data: pedidosActuales, error: error1 } = await supabase
       .from('pedidos')
@@ -96,16 +92,7 @@ const getKPIs = async (req, res) => {
       .lte('created_at', rango.fin)
       .neq('estado', 'cancelado');
 
-    console.log('📦 Pedidos encontrados:', pedidosActuales?.length || 0);
-    if (pedidosActuales && pedidosActuales.length > 0) {
-      console.log('📋 Estados:', pedidosActuales.map(p => p.estado));
-      console.log('💰 Totales:', pedidosActuales.map(p => p.total));
-    }
-
-    if (error1) {
-      console.error('❌ Error en query pedidosActuales:', error1);
-      throw error1;
-    }
+    if (error1) throw error1;
 
     // KPIs del período anterior
     const { data: pedidosAnteriores, error: error2 } = await supabase

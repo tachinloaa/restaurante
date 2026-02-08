@@ -268,12 +268,9 @@ class BotService {
       };
     }
 
-    // Reemplazar el texto de ordenar por instrucciones para pedir
+    // Agregar instrucciones para iniciar pedido
     let mensaje = menu.mensaje;
-    mensaje = mensaje.replace(
-      /\n\n👉 Para ordenar.*$/s,
-      `\n\n🛒 ¿Listo para pedir? Escribe *pedir* para hacer tu pedido.`
-    );
+    mensaje += `\n\n🛒 ¿Deseas hacer un pedido? Escribe *pedir*`;
 
     return {
       success: true,
@@ -308,6 +305,8 @@ class BotService {
     }
 
     mensaje += menu.mensaje;
+    mensaje += `\n\n${EMOJIS.FLECHA} Para ordenar, escribe el *número* del producto.\n`;
+    mensaje += `Ejemplo: "1" o "2, 5" (para varios productos)`;
 
     SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_PRODUCTO);
 
@@ -331,7 +330,7 @@ class BotService {
     }
 
     const mensaje = menu.mensaje + 
-      `\n\n${EMOJIS.CARRITO} ¿Deseas hacer un pedido? Escribe *pedir*`;
+      `\n\n${EMOJIS.CARRITO} *¿Deseas hacer un pedido?*\nEscribe *pedir* para ordenar`;
 
     // NO cambiar estado, mantener en MENU_PRINCIPAL
 
