@@ -72,8 +72,10 @@ class BotService {
         return await this.mostrarAyuda(telefono);
       }
 
+      // Si escribe "menu" en cualquier momento, mostrar menú SOLO PARA VER
       if (this.esComandoMenu(mensajeLimpio)) {
-        return await this.mostrarMenuCompleto(telefono);
+        SessionService.updateEstado(telefono, BOT_STATES.MENU_PRINCIPAL);
+        return await this.mostrarMenuSoloVer(telefono);
       }
 
       if (this.esComandoEstado(mensajeLimpio)) {
