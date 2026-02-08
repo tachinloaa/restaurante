@@ -89,6 +89,9 @@ function Analytics() {
         analyticsService.getHorariosPico(periodo)
       ]);
 
+      console.log('🎯 Respuesta KPIs:', kpisData);
+      console.log('📊 KPIs Data:', kpisData?.data);
+
       // Validar y setear datos con valores por defecto
       setKpis(kpisData?.data || {
         ingresos_totales: 0,
