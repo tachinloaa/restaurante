@@ -105,6 +105,9 @@ class BotService {
 
     switch (session.estado) {
       case BOT_STATES.INICIO:
+      case BOT_STATES.MENU_PRINCIPAL:
+        return await this.procesarMenuPrincipal(telefono, mensajeLimpio);
+
       case BOT_STATES.SELECCIONAR_TIPO:
         return await this.procesarSeleccionTipo(telefono, mensajeLimpio);
 
@@ -149,10 +152,53 @@ class BotService {
    */
   async iniciarConversacion(telefono) {
     SessionService.resetSession(telefono);
+    SessionService.updateEstado(telefono, BOT_STATES.MENU_PRINCIPAL);
     
     return {
       success: true,
       mensaje: MENSAJES_BOT.BIENVENIDA
+    };
+  }
+
+  /**
+   * Procesar menú principal
+   */
+  async procesarMenuPrincipal(telefono, mensaje) {
+    if (this.esComandoMenu(mensaje)) {
+      return await this.mostrarMenuCompleto(telefono);
+    }
+
+    if (this.esComandoPedir(mensaje) || mensaje === '2') {
+      return await this.solicitarTipoPedido(telefono);
+    }
+
+    if (this.esComandoMisPedidos(mensaje) || mensaje === '3') {
+      return await this.mostrarPedidosCliente(telefono);
+    }
+
+    if (this.esComandoContacto(mensaje) || mensaje === '4') {
+      return await this.mostrarContacto(telefono);
+    }
+
+    if (this.esComandoAyuda(mensaje)) {
+      return await this.mostrarAyuda(telefono);
+    }
+
+    return {
+      success: true,
+      mensaje: 'No entendí tu respuesta. Por favor elige una opción:\n\n📋 *menú* - Ver productos\n🛒 *pedir* - Hacer pedido\n📦 *mis pedidos* - Ver mis pedidos\n📞 *contacto* - Información\nℹ️ *ayuda* - Ver comandos'
+    };
+  }
+
+  /**
+   * Solicitar tipo de pedido
+   */
+  async solicitarTipoPedido(telefono) {
+    SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
+    
+    return {
+      success: true,
+      mensaje: `¿Cómo deseas recibir tu pedido?\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n*3.* ${EMOJIS.RESTAURANTE} Comer aquí\n\nResponde con el número de tu opción.`
     };
   }
 
@@ -628,7 +674,15 @@ class BotService {
   }
 
   esComandoMenu(mensaje) {
-    return COMANDOS_BOT.MENU.includes(mensaje);
+    return COMANDOS_BOT.MENU.includes(mensaje) || mensaje === '1' || mensaje === 'menu';
+  }
+
+  esComandoPedir(mensaje) {
+    return COMANDOS_BOT.PEDIR.includes(mensaje);
+  }
+
+  esComandoContacto(mensaje) {
+    return mensaje.includes('contacto') || mensaje === 'contacto' || mensaje === 'info';
   }
 
   esComandoEstado(mensaje) {
@@ -711,6 +765,24 @@ class BotService {
         mensaje: '❌ Error al cargar tus pedidos. Intenta nuevamente.'
       };
     }
+  }
+
+  /**
+   * Mostrar información de contacto
+   */
+  async mostrarContacto(telefono) {
+    const mensaje = `${EMOJIS.TELEFONO} *Información de Contacto*\n\n` +
+      `📱 WhatsApp: Este número\n` +
+      `${EMOJIS.RELOJ} Horario: Lunes a Domingo 10:00 - 22:00\n` +
+      `${EMOJIS.UBICACION} Ubicación: Unidad Habitacional los Héroes Chalco\n` +
+      `   Mz 17 Lt 17 planta baja el cupido C.P 56644\n` +
+      `   (enfrente glorieta el oasis)\n\n` +
+      `¿Necesitas algo más? Escribe *hola* para ver el menú.`;
+
+    return {
+      success: true,
+      mensaje
+    };
   }
 
   /**

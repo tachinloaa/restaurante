@@ -22,6 +22,7 @@ export const TIPOS_PEDIDO = {
 // Estados del bot conversacional
 export const BOT_STATES = {
   INICIO: 'inicio',
+  MENU_PRINCIPAL: 'menu_principal',
   SELECCIONAR_TIPO: 'seleccionar_tipo',
   VER_MENU: 'ver_menu',
   SELECCIONAR_CATEGORIA: 'seleccionar_categoria',
@@ -100,7 +101,7 @@ export const TIEMPO_ENTREGA = {
 
 // Mensajes del bot
 export const MENSAJES_BOT = {
-  BIENVENIDA: `${EMOJIS.SALUDO} ¡Hola! Bienvenido a *El Rinconcito* ${EMOJIS.TACO}\n\nSomos un restaurante mexicano especializado en antojitos y comida casera.\n\n¿Cómo deseas recibir tu pedido?\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n*3.* ${EMOJIS.RESTAURANTE} Comer aquí\n\n💡 *Comandos útiles:*\n📦 Escribe *mis pedidos* para ver tus últimos pedidos\n❌ Escribe *cancelar pedido #X* para cancelar\n\nResponde con el número de tu opción.`,
+  BIENVENIDA: `¡Hola! ${EMOJIS.SALUDO} Bienvenido a *El Rinconcito* ${EMOJIS.RESTAURANTE}\n\n¿En qué puedo ayudarte hoy?\n\n📋 *menú* - Ver productos disponibles\n${EMOJIS.CARRITO} *pedir* - Hacer un pedido\n📦 *mis pedidos* - Ver mis pedidos recientes\n${EMOJIS.TELEFONO} *contacto* - Información de contacto\nℹ️ *ayuda* - Ver comandos disponibles\n\nEscribe una opción para comenzar.`,
   
   ERROR_GENERAL: 'Lo siento, ocurrió un error. Por favor intenta de nuevo o escribe *ayuda* para ver las opciones.',
   
