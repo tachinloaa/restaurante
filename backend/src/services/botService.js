@@ -171,11 +171,12 @@ class BotService {
    * Procesar menú principal
    */
   async procesarMenuPrincipal(telefono, mensaje, mensajeOriginal = '') {
-    // Aceptar números 1-5 para opciones rápidas
-    if (mensaje === '1' || this.esComandoMenu(mensaje)) {
-      return await this.mostrarMenuCompleto(telefono);
+    // Mostrar menú sin permitir ordenar (solo visual)
+    if (this.esComandoMenu(mensaje)) {
+      return await this.mostrarMenuSoloVer(telefono);
     }
 
+    // Iniciar proceso de pedido
     if (mensaje === '2' || this.esComandoPedir(mensaje)) {
       return await this.solicitarTipoPedido(telefono);
     }
@@ -244,7 +245,7 @@ class BotService {
   }
 
   /**
-   * Mostrar menú completo
+   * Mostrar menú completo (para pedidos - permite ordenar)
    */
   async mostrarMenuCompleto(telefono) {
     const menu = await MenuService.getMenuCompleto();
@@ -272,6 +273,30 @@ class BotService {
     mensaje += menu.mensaje;
 
     SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_PRODUCTO);
+
+    return {
+      success: true,
+      mensaje
+    };
+  }
+
+  /**
+   * Mostrar menú solo para ver (sin iniciar pedido)
+   */
+  async mostrarMenuSoloVer(telefono) {
+    const menu = await MenuService.getMenuCompleto();
+
+    if (!menu) {
+      return {
+        success: false,
+        mensaje: 'Lo siento, no pudimos cargar el menú. Intenta más tarde.'
+      };
+    }
+
+    const mensaje = menu.mensaje + 
+      `\n\n${EMOJIS.CARRITO} ¿Deseas hacer un pedido? Escribe *pedir*`;
+
+    // NO cambiar estado, mantener en MENU_PRINCIPAL
 
     return {
       success: true,
@@ -690,7 +715,8 @@ class BotService {
            mensaje.includes('menu') || 
            mensaje.includes('carta') || 
            mensaje.includes('ver menu') ||
-           mensaje.includes('productos');
+           mensaje.includes('productos') ||
+           mensaje.includes('comida');
   }
 
   esComandoPedir(mensaje) {
