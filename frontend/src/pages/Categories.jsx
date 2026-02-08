@@ -158,26 +158,28 @@ function Categories() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold font-display">Categorías</h1>
-          <p className="text-gray-600 mt-2">Organiza el menú por categorías y subcategorías</p>
+          <h1 className="text-2xl sm:text-3xl font-bold font-display">Categorías</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Organiza el menú por categorías y subcategorías</p>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <button 
-            className="btn btn-secondary flex items-center gap-2"
+            className="btn btn-secondary flex items-center justify-center gap-2 flex-1 sm:flex-initial text-xs sm:text-sm"
             onClick={() => handleOpenSubcategoryModal()}
           >
-            <FolderTree size={20} />
-            Nueva Subcategoría
+            <FolderTree size={18} />
+            <span className="hidden sm:inline">Nueva Subcategoría</span>
+            <span className="sm:hidden">Subcat.</span>
           </button>
           <button 
-            className="btn btn-primary flex items-center gap-2"
+            className="btn btn-primary flex items-center justify-center gap-2 flex-1 sm:flex-initial text-xs sm:text-sm"
             onClick={() => handleOpenCategoryModal()}
           >
-            <Plus size={20} />
-            Nueva Categoría
+            <Plus size={18} />
+            <span className="hidden sm:inline">Nueva Categoría</span>
+            <span className="sm:hidden">Categoría</span>
           </button>
         </div>
       </div>
@@ -205,57 +207,56 @@ function Categories() {
             return (
               <Card key={category.id} className="overflow-hidden">
                 {/* Categoría Principal */}
-                <div className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                  <div className="flex items-center gap-3 flex-1">
-                    <button
-                      onClick={() => toggleCategory(category.id)}
-                      className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                    >
-                      {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                    </button>
-                    
-                    <Folder className="text-primary" size={24} />
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-lg">{category.nombre}</h3>
-                        {!category.activo && (
-                          <Badge variant="gray">Inactiva</Badge>
-                        )}
-                        <span className="text-sm text-gray-500">
-                          (Orden: {category.orden})
-                        </span>
-                      </div>
-                      {category.descripcion && (
-                        <p className="text-sm text-gray-600 mt-1">{category.descripcion}</p>
+                <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <button
+                    onClick={() => toggleCategory(category.id)}
+                    className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex-shrink-0"
+                  >
+                    {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                  </button>
+                  
+                  <Folder className="text-primary flex-shrink-0" size={20} />
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                      <h3 className="font-semibold text-base sm:text-lg truncate">{category.nombre}</h3>
+                      {!category.activo && (
+                        <Badge variant="gray">Inactiva</Badge>
                       )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        {subcategorias.length} subcategoría{subcategorias.length !== 1 ? 's' : ''}
-                      </p>
+                      <span className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
+                        (Orden: {category.orden})
+                      </span>
                     </div>
+                    {category.descripcion && (
+                      <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-1">{category.descripcion}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {subcategorias.length} subcategoría{subcategorias.length !== 1 ? 's' : ''}
+                    </p>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                     <button
                       onClick={() => handleOpenSubcategoryModal(null, category.id)}
-                      className="btn btn-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 flex items-center gap-1"
+                      className="btn btn-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 flex items-center gap-1 px-2 sm:px-3"
+                      title="Agregar subcategoría"
                     >
-                      <Plus size={16} />
-                      Subcategoría
+                      <Plus size={14} />
+                      <span className="hidden sm:inline text-xs">Sub</span>
                     </button>
                     <button
                       onClick={() => handleOpenCategoryModal(category)}
-                      className="btn btn-sm btn-secondary flex items-center gap-1"
+                      className="btn btn-sm btn-secondary p-2"
+                      title="Editar categoría"
                     >
-                      <Pencil size={16} />
-                      Editar
+                      <Pencil size={14} />
                     </button>
                     <button
                       onClick={() => handleDeleteCategory(category.id, category.nombre)}
-                      className="btn btn-sm bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-1"
+                      className="btn btn-sm bg-red-50 text-red-600 hover:bg-red-100 p-2"
+                      title="Eliminar categoría"
                     >
-                      <Trash2 size={16} />
-                      Eliminar
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
