@@ -89,14 +89,8 @@ function Analytics() {
         analyticsService.getHorariosPico(periodo)
       ]);
 
-      console.log('🎯 Respuesta KPIs completa:', JSON.stringify(kpisData, null, 2));
-      console.log('📊 KPIs Data:', kpisData?.data);
-      console.log('🔍 Tipo de kpisData:', typeof kpisData);
-      console.log('🔍 Keys de kpisData:', Object.keys(kpisData || {}));
-
       // Si kpisData ya contiene los datos directamente (sin .data wrapper)
       const datosKpis = kpisData?.data || kpisData;
-      console.log('✅ Datos finales que se usarán:', datosKpis);
 
       // Validar y setear datos con valores por defecto
       setKpis(datosKpis || {
