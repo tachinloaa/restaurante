@@ -245,6 +245,32 @@ class BotService {
   }
 
   /**
+   * Mostrar menú solo para ver (sin permitir ordenar)
+   */
+  async mostrarMenuSoloVer(telefono) {
+    const menu = await MenuService.getMenuCompleto();
+
+    if (!menu) {
+      return {
+        success: false,
+        mensaje: 'Lo siento, no pudimos cargar el menú. Intenta más tarde.'
+      };
+    }
+
+    // Reemplazar el texto de ordenar por instrucciones para pedir
+    let mensaje = menu.mensaje;
+    mensaje = mensaje.replace(
+      /\n\n👉 Para ordenar.*$/s,
+      `\n\n🛒 ¿Listo para pedir? Escribe *pedir* para hacer tu pedido.`
+    );
+
+    return {
+      success: true,
+      mensaje
+    };
+  }
+
+  /**
    * Mostrar menú completo (para pedidos - permite ordenar)
    */
   async mostrarMenuCompleto(telefono) {
