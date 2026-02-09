@@ -195,7 +195,11 @@ class MenuService {
       'jugos': EMOJIS.JUGO,
       'postres': '🍰',
       'desayunos': '🍳',
-      'comidas': '🍽️'
+      'comidas': '🍽️',
+      'paquetes': '📦',
+      'paquete': '📦',
+      'promos': '🎁',
+      'promociones': '🎁'
     };
 
     for (const [key, emoji] of Object.entries(emojis)) {
