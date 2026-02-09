@@ -750,8 +750,7 @@ class BotService {
   }
 
   esComandoMenu(mensaje) {
-    return mensaje === '1' || 
-           mensaje.includes('menu') || 
+    return mensaje.includes('menu') || 
            mensaje.includes('carta') || 
            mensaje.includes('ver menu') ||
            mensaje.includes('productos') ||
@@ -759,8 +758,7 @@ class BotService {
   }
 
   esComandoPedir(mensaje) {
-    return mensaje === '2' ||
-           mensaje.includes('pedir') || 
+    return mensaje.includes('pedir') || 
            mensaje.includes('ordenar') ||
            mensaje.includes('pedido') ||
            mensaje.includes('orden') ||
@@ -768,8 +766,7 @@ class BotService {
   }
 
   esComandoContacto(mensaje) {
-    return mensaje === '4' ||
-           mensaje.includes('contacto') || 
+    return mensaje.includes('contacto') || 
            mensaje.includes('info') ||
            mensaje.includes('telefono') ||
            mensaje.includes('ubicacion') ||
@@ -784,8 +781,7 @@ class BotService {
    * Verificar si es comando para ver pedidos
    */
   esComandoMisPedidos(mensaje) {
-    return mensaje === '3' ||
-           mensaje.includes('mis pedidos') || 
+    return mensaje.includes('mis pedidos') || 
            mensaje.includes('pedidos recientes') || 
            mensaje === 'pedidos' ||
            mensaje.includes('ver pedidos') ||
