@@ -253,8 +253,21 @@ class BotService {
     SessionService.guardarDatos(telefono, { tipo_pedido: tipoPedido });
     SessionService.updateEstado(telefono, BOT_STATES.VER_MENU);
 
+    // Mensaje especial para domicilio
+    let mensajeTipo = '';
+    if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
+      mensajeTipo = `✅ *Pedido a domicilio seleccionado*\n\n📍 *Entregas en zonas cercanas a Cupido*\n\n`;
+    }
+
     // Mostrar menú
-    return await this.mostrarMenuCompleto(telefono);
+    const menuResponse = await this.mostrarMenuCompleto(telefono);
+    
+    // Agregar mensaje de tipo de pedido antes del menú
+    if (mensajeTipo && menuResponse.success) {
+      menuResponse.mensaje = mensajeTipo + menuResponse.mensaje;
+    }
+    
+    return menuResponse;
   }
 
   /**
