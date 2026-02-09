@@ -70,7 +70,7 @@ function TopProducts({ products = [], loading = false }) {
               
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">
-                  {formatearPrecio(product.totalVentas)}
+                  {formatearPrecio(product.totalVentas || 0)}
                 </span>
                 <span className="text-xs text-green-600 flex items-center gap-1">
                   <TrendingUp size={10} />

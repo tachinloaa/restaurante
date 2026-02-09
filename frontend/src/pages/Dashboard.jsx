@@ -161,7 +161,8 @@ function Dashboard() {
       icon: DollarSign,
       color: 'text-green-600',
       bgColor: 'bg-green-100',
-      change: '+12%'
+      change: stats.cambios?.ventas,
+      changeType: (stats.cambios?.ventas || 0) >= 0 ? 'positive' : 'negative'
     },
     {
       title: 'Pedidos Hoy',
@@ -169,7 +170,8 @@ function Dashboard() {
       icon: ShoppingCart,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100',
-      change: '+8%'
+      change: stats.cambios?.pedidos,
+      changeType: (stats.cambios?.pedidos || 0) >= 0 ? 'positive' : 'negative'
     },
     {
       title: 'Pedidos Pendientes',
@@ -246,19 +248,19 @@ function Dashboard() {
                   <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 sm:mt-2">
                     {stat.value}
                   </p>
-                  {stat.change && (
+                  {stat.change !== undefined && stat.change !== null && (
                     <div className="flex items-center gap-1 mt-1 sm:mt-2">
-                      {stat.change.startsWith('+') ? (
+                      {stat.change >= 0 ? (
                         <TrendingUp size={14} className="text-green-600 dark:text-green-400" />
                       ) : (
                         <TrendingDown size={14} className="text-red-600 dark:text-red-400" />
                       )}
                       <span className={`text-xs sm:text-sm font-medium ${
-                        stat.change.startsWith('+') 
+                        stat.change >= 0
                           ? 'text-green-600 dark:text-green-400' 
                           : 'text-red-600 dark:text-red-400'
                       }`}>
-                        {stat.change}
+                        {stat.change >= 0 ? '+' : ''}{stat.change}%
                       </span>
                     </div>
                   )}

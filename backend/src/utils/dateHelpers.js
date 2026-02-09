@@ -82,6 +82,13 @@ export const getRangoFechas = (tipo = 'hoy') => {
       hasta.setHours(23, 59, 59, 999);
       break;
 
+    case 'ayer':
+      desde = getInicioDiaMexico();
+      desde.setDate(desde.getDate() - 1);
+      hasta = new Date(desde);
+      hasta.setHours(23, 59, 59, 999);
+      break;
+
     case 'semana':
       desde = getInicioSemanaMexico();
       hasta = new Date();

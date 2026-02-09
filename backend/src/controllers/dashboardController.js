@@ -13,12 +13,18 @@ class DashboardController {
     try {
       // Usar zona horaria de México
       const rangoHoy = getRangoFechas('hoy');
+      const rangoAyer = getRangoFechas('ayer');
       const rangoSemana = getRangoFechas('semana');
       const rangoMes = getRangoFechas('mes');
 
-      // Estadísticas de pedidos
+      // Estadísticas de pedidos de hoy y ayer
       const statsHoy = await Order.getEstadisticas({
         fecha_desde: rangoHoy.desde
+      });
+
+      const statsAyer = await Order.getEstadisticas({
+        fecha_desde: rangoAyer.desde,
+        fecha_hasta: rangoAyer.hasta
       });
 
       const statsSemana = await Order.getEstadisticas({
@@ -34,12 +40,31 @@ class DashboardController {
       // Pedidos por estado
       const pedidosPendientes = await Order.getPendientes();
 
+      // Calcular porcentajes de cambio vs ayer
+      const ventasHoy = statsHoy.data?.totalVentas || 0;
+      const ventasAyer = statsAyer.data?.totalVentas || 0;
+      const pedidosHoy = statsHoy.data?.totalPedidos || 0;
+      const pedidosAyer = statsAyer.data?.totalPedidos || 0;
+
+      const calcularPorcentajeCambio = (hoy, ayer) => {
+        if (ayer === 0) return hoy > 0 ? 100 : 0;
+        return Math.round(((hoy - ayer) / ayer) * 100);
+      };
+
+      const cambioVentas = calcularPorcentajeCambio(ventasHoy, ventasAyer);
+      const cambioPedidos = calcularPorcentajeCambio(pedidosHoy, pedidosAyer);
+
       return success(res, {
         hoy: statsHoy.data,
+        ayer: statsAyer.data,
         semana: statsSemana.data,
         mes: statsMes.data,
         total: statsTotal.data,
         pedidosPendientes: pedidosPendientes.data?.length || 0,
+        cambios: {
+          ventas: cambioVentas,
+          pedidos: cambioPedidos
+        },
         timezone: 'America/Mexico_City'
       });
     } catch (error) {
