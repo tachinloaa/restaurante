@@ -238,7 +238,7 @@ function Orders() {
                       <span className="truncate">
                         Cliente: {order.clientes?.nombre || 'Sin nombre'}
                       </span>
-                      <span>📞 {order.clientes?.telefono}</span>
+                      <span>📞 {formatearTelefono(order.clientes?.telefono || '')}</span>
                       <span>🕒 {formatearFecha(order.created_at)}</span>
                     </div>
 

@@ -1,6 +1,6 @@
 import Order from '../models/Order.js';
 import TwilioService from './twilioService.js';
-import { formatearPrecio, formatearHora } from '../utils/formatters.js';
+import { formatearPrecio, formatearHora, formatearTelefono } from '../utils/formatters.js';
 import { EMOJIS } from '../config/constants.js';
 import logger from '../utils/logger.js';
 import config from '../config/environment.js';
@@ -102,7 +102,7 @@ class ReminderService {
       mensaje += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
       mensaje += `${EMOJIS.RELOJ} Creado: ${formatearHora(pedido.created_at)}\n`;
       mensaje += `${EMOJIS.PERSONA} Cliente: ${pedido.clientes?.nombre || 'Sin nombre'}\n`;
-      mensaje += `${EMOJIS.TELEFONO} ${pedido.clientes?.telefono}\n`;
+      mensaje += `${EMOJIS.TELEFONO} ${formatearTelefono(pedido.clientes?.telefono || '')}\n`;
       
       if (pedido.direccion_entrega) {
         mensaje += `${EMOJIS.UBICACION} ${pedido.direccion_entrega}\n`;

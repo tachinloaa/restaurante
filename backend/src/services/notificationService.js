@@ -1,6 +1,6 @@
 import TwilioService from './twilioService.js';
 import { supabase } from '../config/database.js';
-import { formatearPrecio, formatearHora } from '../utils/formatters.js';
+import { formatearPrecio, formatearHora, formatearTelefono } from '../utils/formatters.js';
 import { EMOJIS, TIPOS_PEDIDO } from '../config/constants.js';
 import config from '../config/environment.js';
 import logger from '../utils/logger.js';
@@ -25,7 +25,7 @@ class NotificationService {
       mensaje += `${EMOJIS.RELOJ} Hora: ${formatearHora(pedido.created_at)}\n`;
       mensaje += `⏱️ *Estado: PENDIENTE - ATENDER DE INMEDIATO*\n`;
       mensaje += `${EMOJIS.PERSONA} Cliente: ${cliente.nombre || 'Sin nombre'}\n`;
-      mensaje += `${EMOJIS.TELEFONO} Teléfono: ${cliente.telefono}\n`;
+      mensaje += `${EMOJIS.TELEFONO} Teléfono: ${formatearTelefono(cliente.telefono)}\n`;
 
       // Datos según tipo de pedido
       if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
@@ -156,7 +156,7 @@ class NotificationService {
     try {
       let mensaje = `${EMOJIS.PERSONA} *NUEVO CLIENTE REGISTRADO*\n\n`;
       mensaje += `Nombre: ${cliente.nombre || 'Sin nombre'}\n`;
-      mensaje += `${EMOJIS.TELEFONO} Teléfono: ${cliente.telefono}\n`;
+      mensaje += `${EMOJIS.TELEFONO} Teléfono: ${formatearTelefono(cliente.telefono)}\n`;
       
       if (cliente.direccion) {
         mensaje += `${EMOJIS.UBICACION} Dirección: ${cliente.direccion}\n`;

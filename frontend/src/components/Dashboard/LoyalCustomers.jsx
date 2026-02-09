@@ -1,6 +1,6 @@
 import { TrendingUp, Users, Award } from 'lucide-react';
 import Card from '../Common/Card';
-import { formatearPrecio } from '../../utils/helpers';
+import { formatearPrecio, formatearTelefono } from '../../utils/helpers';
 
 function LoyalCustomers({ customers = [], loading = false }) {
   if (loading) {
@@ -50,7 +50,7 @@ function LoyalCustomers({ customers = [], loading = false }) {
               </div>
               <div className="min-w-0">
                 <p className="font-medium text-gray-900 text-sm sm:text-base truncate">{customer.nombre}</p>
-                <p className="text-xs text-gray-500 truncate">{customer.telefono}</p>
+                <p className="text-xs text-gray-500 truncate">{formatearTelefono(customer.telefono || '')}</p>
               </div>
             </div>
             

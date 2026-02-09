@@ -55,15 +55,24 @@ export const formatearHora = (fecha) => {
  * Formatear número de teléfono
  */
 export const formatearTelefono = (telefono) => {
+  if (!telefono) return '';
+  
   // Eliminar caracteres no numéricos
   const numeros = telefono.replace(/\D/g, '');
   
-  // Formatear según longitud
-  if (numeros.length === 10) {
-    return numeros.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+  // Si tiene el prefijo +521 o +52 (13 o 12 dígitos), tomar los últimos 10
+  let numeroLocal = numeros;
+  if (numeros.length >= 12) {
+    numeroLocal = numeros.slice(-10);
   }
   
-  return telefono;
+  // Formatear si tenemos 10 dígitos
+  if (numeroLocal.length === 10) {
+    return numeroLocal.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+  }
+  
+  // Devolver los últimos 10 sin formato
+  return numeroLocal.length > 10 ? numeroLocal.slice(-10) : numeroLocal;
 };
 
 /**
