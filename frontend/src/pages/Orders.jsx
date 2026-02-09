@@ -56,21 +56,22 @@ function Orders() {
   const getNivelUrgencia = (estado, minutos) => {
     if (estado === 'entregado' || estado === 'cancelado') return 'normal';
     
+    // Tiempos iguales para TODOS (domicilio, restaurante, para llevar)
     if (estado === 'pendiente') {
-      if (minutos > 15) return 'critico';
-      if (minutos > 10) return 'urgente';
-      if (minutos > 5) return 'atencion';
+      if (minutos >= 10) return 'critico';
+      if (minutos >= 8) return 'urgente';
+      if (minutos >= 5) return 'atencion';
     }
     
     if (estado === 'preparando') {
-      if (minutos > 30) return 'critico';
-      if (minutos > 20) return 'urgente';
-      if (minutos > 10) return 'atencion';
+      if (minutos >= 35) return 'critico';
+      if (minutos >= 25) return 'urgente';
+      if (minutos >= 15) return 'atencion';
     }
     
     if (estado === 'listo' || estado === 'enviado') {
-      if (minutos > 20) return 'urgente';
-      if (minutos > 10) return 'atencion';
+      if (minutos >= 20) return 'urgente';
+      if (minutos >= 10) return 'atencion';
     }
     
     return 'normal';

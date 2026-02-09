@@ -61,13 +61,15 @@ class ReminderService {
       return false;
     }
 
+    // Tiempos iguales para TODOS los tipos de pedido (domicilio, restaurante, para llevar)
     // Recordatorio para pedidos pendientes sin atender
     if (pedido.estado === 'pendiente' && minutos >= 10) {
       return true;
     }
 
     // Recordatorio para pedidos en preparación que tardan mucho
-    if (pedido.estado === 'preparando' && minutos >= 25) {
+    // 35 minutos permite 30-45min totales (preparación + entrega)
+    if (pedido.estado === 'preparando' && minutos >= 35) {
       return true;
     }
 
@@ -81,12 +83,20 @@ class ReminderService {
     try {
       const key = `${pedido.id}-${pedido.estado}`;
       
+      // Obtener tipo de pedido en español
+      const tipoPedidoTexto = {
+        'domicilio': 'DOMICILIO',
+        'restaurante': 'RESTAURANTE',
+        'para_llevar': 'PARA LLEVAR'
+      }[pedido.tipo_pedido] || 'PEDIDO';
+      
       let mensaje = `⚠️ *RECORDATORIO - PEDIDO SIN ATENDER*\n\n`;
       
       if (pedido.estado === 'pendiente') {
-        mensaje += `❗ El pedido #${pedido.numero_pedido} lleva *${minutos} minutos* SIN ATENDER\n\n`;
+        mensaje += `❗ El pedido #${pedido.numero_pedido} (${tipoPedidoTexto}) lleva *${minutos} minutos* SIN ATENDER\n\n`;
       } else if (pedido.estado === 'preparando') {
-        mensaje += `⏰ El pedido #${pedido.numero_pedido} lleva *${minutos} minutos* EN PREPARACIÓN\n\n`;
+        mensaje += `⏰ El pedido #${pedido.numero_pedido} (${tipoPedidoTexto}) lleva *${minutos} minutos* EN PREPARACIÓN\n\n`;
+        mensaje += `⏱️ *Tiempo recomendado: 30-45 minutos*\n\n`;
       }
       
       mensaje += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
@@ -96,6 +106,10 @@ class ReminderService {
       
       if (pedido.direccion_entrega) {
         mensaje += `${EMOJIS.UBICACION} ${pedido.direccion_entrega}\n`;
+      }
+      
+      if (pedido.numero_mesa) {
+        mensaje += `🪑 Mesa: ${pedido.numero_mesa}\n`;
       }
       
       mensaje += `${EMOJIS.DINERO} Total: ${formatearPrecio(pedido.total)}\n\n`;
