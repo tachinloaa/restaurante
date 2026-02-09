@@ -56,8 +56,8 @@ class NotificationService {
 
       mensaje += `\n${EMOJIS.DINERO} *TOTAL: ${formatearPrecio(pedido.total)}*\n\n`;
 
-      // URL al dashboard
-      const dashboardUrl = `${config.frontendUrl}/orders/${pedido.id}`;
+      // URL al dashboard - página de pedidos
+      const dashboardUrl = `${config.frontendUrl}/pedidos`;
       mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${dashboardUrl}`;
 
       // Enviar mensaje al admin
