@@ -8,7 +8,6 @@ class OrderController {
   async getAll(req, res) {
     try {
       const filtros = {
-        estado: req.query.estado,
         tipo_pedido: req.query.tipo_pedido,
         cliente_id: req.query.cliente_id,
         fecha_desde: req.query.fecha_desde,
@@ -16,6 +15,13 @@ class OrderController {
         limit: parseInt(req.query.limit) || 50,
         offset: parseInt(req.query.offset) || 0
       };
+
+      // Manejo especial para filtro "activos"
+      if (req.query.estado === 'activos') {
+        filtros.estados = ['pendiente', 'preparando', 'listo', 'enviado'];
+      } else if (req.query.estado) {
+        filtros.estado = req.query.estado;
+      }
 
       const resultado = await Order.getAll(filtros);
 

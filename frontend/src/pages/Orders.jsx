@@ -7,6 +7,7 @@
  * - Cambio de estado de pedidos
  * - Vista responsive para móviles y tablets
  * - Soporte para dark mode
+ * - Sistema de alertas por tiempo transcurrido
  * 
  * Estados de pedidos:
  * - pendiente: Pedido recién creado
@@ -17,7 +18,7 @@
  * - cancelado: Cancelado por cliente o restaurante
  */
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Filter } from 'lucide-react';
+import { ShoppingCart, Filter, Clock, AlertTriangle } from 'lucide-react';
 import Card from '../components/Common/Card';
 import Badge from '../components/Common/Badge';
 import LoadingSpinner from '../components/Common/LoadingSpinner';
@@ -30,13 +31,63 @@ function Orders() {
   // Estados del componente
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [estadoFiltro, setEstadoFiltro] = useState('');
+  const [estadoFiltro, setEstadoFiltro] = useState('activos');
+
+  /**
+   * Calcular tiempo transcurrido desde la creación del pedido
+   */
+  const calcularTiempoTranscurrido = (fechaCreacion) => {
+    const ahora = new Date();
+    const creacion = new Date(fechaCreacion);
+    const diffMinutos = Math.floor((ahora - creacion) / 1000 / 60);
+    
+    if (diffMinutos < 60) {
+      return { minutos: diffMinutos, texto: `${diffMinutos} min` };
+    }
+    
+    const horas = Math.floor(diffMinutos / 60);
+    const mins = diffMinutos % 60;
+    return { minutos: diffMinutos, texto: `${horas}h ${mins}min` };
+  };
+
+  /**
+   * Determinar nivel de urgencia del pedido
+   */
+  const getNivelUrgencia = (estado, minutos) => {
+    if (estado === 'entregado' || estado === 'cancelado') return 'normal';
+    
+    if (estado === 'pendiente') {
+      if (minutos > 15) return 'critico';
+      if (minutos > 10) return 'urgente';
+      if (minutos > 5) return 'atencion';
+    }
+    
+    if (estado === 'preparando') {
+      if (minutos > 30) return 'critico';
+      if (minutos > 20) return 'urgente';
+      if (minutos > 10) return 'atencion';
+    }
+    
+    if (estado === 'listo' || estado === 'enviado') {
+      if (minutos > 20) return 'urgente';
+      if (minutos > 10) return 'atencion';
+    }
+    
+    return 'normal';
+  };
 
   /**
    * Cargar pedidos cuando cambia el filtro de estado
    */
   useEffect(() => {
     loadOrders();
+    
+    // Actualizar cada minuto para refrescar tiempos
+    const interval = setInterval(() => {
+      setOrders(prev => [...prev]); // Force re-render para actualizar tiempos
+    }, 60000);
+    
+    return () => clearInterval(interval);
   }, [estadoFiltro]);
 
   /**
@@ -45,11 +96,37 @@ function Orders() {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const filtros = estadoFiltro ? { estado: estadoFiltro } : {};
+      let filtros = {};
+      
+      if (estadoFiltro && estadoFiltro !== '') {
+        filtros = { estado: estadoFiltro };
+      }
+      
       const response = await orderService.getAll(filtros);
       
       if (response.success) {
-        setOrders(response.data);
+        // Ordenar por prioridad y tiempo
+        const ordenados = response.data.sort((a, b) => {
+          // Prioridad por estado
+          const prioridadEstado = {
+            'pendiente': 1,
+            'preparando': 2,
+            'listo': 3,
+            'enviado': 4,
+            'entregado': 5,
+            'cancelado': 6
+          };
+          
+          const prioA = prioridadEstado[a.estado] || 999;
+          const prioB = prioridadEstado[b.estado] || 999;
+          
+          if (prioA !== prioB) return prioA - prioB;
+          
+          // Si mismo estado, más antiguos primero
+          return new Date(a.created_at) - new Date(b.created_at);
+        });
+        
+        setOrders(ordenados);
       }
     } catch (error) {
       toast.error('Error al cargar pedidos');
@@ -99,6 +176,7 @@ function Orders() {
             onChange={(e) => setEstadoFiltro(e.target.value)}
             aria-label="Filtrar por estado"
           >
+            <option value="activos">🔥 Activos (Pendientes/Preparando)</option>
             <option value="">Todos los estados</option>
             <option value="pendiente">Pendiente</option>
             <option value="preparando">Preparando</option>
@@ -115,73 +193,112 @@ function Orders() {
         <LoadingSpinner text="Cargando pedidos..." />
       ) : (
         <div className="space-y-3 sm:space-y-4">
-          {orders.map((order) => (
-            <Card key={order.id} className="hover:shadow-md transition-shadow">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                {/* Información del pedido */}
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-2">
-                    <h3 className="font-semibold text-base sm:text-lg text-gray-900 dark:text-gray-100">
-                      {ICONOS_TIPO[order.tipo_pedido]} Pedido #{order.numero_pedido}
-                    </h3>
-                    <Badge estado={order.estado} />
+          {orders.map((order) => {
+            const tiempo = calcularTiempoTranscurrido(order.created_at);
+            const urgencia = getNivelUrgencia(order.estado, tiempo.minutos);
+            
+            // Colores según urgencia
+            const bordeBgClasses = {
+              'critico': 'border-l-4 border-red-500 bg-red-50 dark:bg-red-900/10',
+              'urgente': 'border-l-4 border-orange-500 bg-orange-50 dark:bg-orange-900/10',
+              'atencion': 'border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/10',
+              'normal': ''
+            };
+            
+            return (
+              <Card key={order.id} className={`hover:shadow-md transition-shadow ${bordeBgClasses[urgencia]}`}>
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  {/* Información del pedido */}
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-2">
+                      <h3 className="font-semibold text-base sm:text-lg text-gray-900 dark:text-gray-100">
+                        {ICONOS_TIPO[order.tipo_pedido]} Pedido #{order.numero_pedido}
+                      </h3>
+                      <Badge estado={order.estado} />
+                      
+                      {/* Alerta de tiempo */}
+                      {urgencia !== 'normal' && (
+                        <span className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded ${
+                          urgencia === 'critico' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                          urgencia === 'urgente' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                          'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        }`}>
+                          {urgencia === 'critico' && <AlertTriangle size={14} />}
+                          <Clock size={14} />
+                          {tiempo.texto}
+                          {urgencia === 'critico' && ' - ¡URGENTE!'}
+                          {urgencia === 'urgente' && ' - Atender pronto'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Detalles del cliente */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                      <span className="truncate">
+                        Cliente: {order.clientes?.nombre || 'Sin nombre'}
+                      </span>
+                      <span>📞 {order.clientes?.telefono}</span>
+                      <span>🕒 {formatearFecha(order.created_at)}</span>
+                    </div>
+
+                    {/* Dirección de entrega */}
+                    {order.direccion_entrega && (
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
+                        📍 {order.direccion_entrega}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Detalles del cliente */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                    <span className="truncate">
-                      Cliente: {order.clientes?.nombre || 'Sin nombre'}
-                    </span>
-                    <span>📞 {order.clientes?.telefono}</span>
-                    <span>🕒 {formatearFecha(order.created_at)}</span>
-                  </div>
-
-                  {/* Dirección de entrega */}
-                  {order.direccion_entrega && (
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
-                      📍 {order.direccion_entrega}
+                  {/* Total y acciones */}
+                  <div className="flex justify-between lg:justify-end lg:flex-col items-center lg:items-end gap-3 lg:text-right">
+                    <p className="text-xl sm:text-2xl font-bold text-primary dark:text-primary-400">
+                      {formatearPrecio(order.total)}
                     </p>
-                  )}
-                </div>
-
-                {/* Total y acciones */}
-                <div className="flex justify-between lg:justify-end lg:flex-col items-center lg:items-end gap-3 lg:text-right">
-                  <p className="text-xl sm:text-2xl font-bold text-primary dark:text-primary-400">
-                    {formatearPrecio(order.total)}
-                  </p>
-                  
-                  {/* Botones de cambio de estado */}
-                  <div className="flex gap-2">
-                    {order.estado === 'pendiente' && (
-                      <button
-                        onClick={() => handleCambiarEstado(order.id, 'preparando')}
-                        className="btn btn-primary text-xs sm:text-sm"
-                        aria-label="Marcar como preparando"
-                      >
-                        Preparar
-                      </button>
-                    )}
-                    {order.estado === 'preparando' && (
-                      <button
-                        onClick={() => handleCambiarEstado(order.id, 'listo')}
-                        className="btn btn-secondary text-xs sm:text-sm"
-                        aria-label="Marcar como listo"
-                      >
-                        Listo
-                      </button>
-                    )}
+                    
+                    {/* Botones de cambio de estado */}
+                    <div className="flex gap-2">
+                      {order.estado === 'pendiente' && (
+                        <button
+                          onClick={() => handleCambiarEstado(order.id, 'preparando')}
+                          className="btn btn-primary text-xs sm:text-sm"
+                          aria-label="Marcar como preparando"
+                        >
+                          ✅ Preparar
+                        </button>
+                      )}
+                      {order.estado === 'preparando' && (
+                        <button
+                          onClick={() => handleCambiarEstado(order.id, 'listo')}
+                          className="btn btn-secondary text-xs sm:text-sm"
+                          aria-label="Marcar como listo"
+                        >
+                          🍽️ Listo
+                        </button>
+                      )}
+                      {order.estado === 'listo' && order.tipo_pedido === 'domicilio' && (
+                        <button
+                          onClick={() => handleCambiarEstado(order.id, 'enviado')}
+                          className="btn btn-secondary text-xs sm:text-sm"
+                          aria-label="Marcar como enviado"
+                        >
+                          🚗 Enviado
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
 
           {/* Estado vacío */}
           {orders.length === 0 && (
             <div className="text-center py-12">
               <ShoppingCart className="mx-auto text-gray-400 dark:text-gray-600" size={40} />
               <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-4">
-                No hay pedidos para mostrar
+                {estadoFiltro === 'activos' 
+                  ? '🎉 ¡No hay pedidos activos! Todo al día' 
+                  : 'No hay pedidos para mostrar'}
               </p>
             </div>
           )}

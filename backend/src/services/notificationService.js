@@ -23,6 +23,7 @@ class NotificationService {
       let mensaje = `${EMOJIS.CAMPANA} *NUEVO PEDIDO - ${tipoPedido}*\n\n`;
       mensaje += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
       mensaje += `${EMOJIS.RELOJ} Hora: ${formatearHora(pedido.created_at)}\n`;
+      mensaje += `⏱️ *Estado: PENDIENTE - ATENDER DE INMEDIATO*\n`;
       mensaje += `${EMOJIS.PERSONA} Cliente: ${cliente.nombre || 'Sin nombre'}\n`;
       mensaje += `${EMOJIS.TELEFONO} Teléfono: ${cliente.telefono}\n`;
 

@@ -25,7 +25,11 @@ class Order {
         .order('created_at', { ascending: false });
 
       // Aplicar filtros
-      if (filtros.estado) {
+      if (filtros.estados && Array.isArray(filtros.estados)) {
+        // Filtrar por múltiples estados
+        query = query.in('estado', filtros.estados);
+      } else if (filtros.estado) {
+        // Filtrar por un solo estado
         query = query.eq('estado', filtros.estado);
       }
 
