@@ -1,3 +1,5 @@
+import config from '../config/environment.js';
+
 /**
  * Utilidades para formatear datos
  */
@@ -21,7 +23,8 @@ export const formatearFecha = (fecha) => {
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: config.timezone
   }).format(new Date(fecha));
 };
 
@@ -32,7 +35,8 @@ export const formatearFechaCorta = (fecha) => {
   return new Intl.DateTimeFormat('es-MX', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: config.timezone
   }).format(new Date(fecha));
 };
 
@@ -42,7 +46,8 @@ export const formatearFechaCorta = (fecha) => {
 export const formatearHora = (fecha) => {
   return new Intl.DateTimeFormat('es-MX', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: config.timezone
   }).format(new Date(fecha));
 };
 
@@ -65,10 +70,11 @@ export const formatearTelefono = (telefono) => {
  * Generar número de pedido único
  */
 export const generarNumeroPedido = () => {
-  const fecha = new Date();
-  const año = fecha.getFullYear().toString().slice(-2);
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-  const dia = String(fecha.getDate()).padStart(2, '0');
+  const ahora = new Date();
+  const fechaMexico = new Date(ahora.toLocaleString('en-US', { timeZone: config.timezone }));
+  const año = fechaMexico.getFullYear().toString().slice(-2);
+  const mes = String(fechaMexico.getMonth() + 1).padStart(2, '0');
+  const dia = String(fechaMexico.getDate()).padStart(2, '0');
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   
   return `${año}${mes}${dia}${random}`;
