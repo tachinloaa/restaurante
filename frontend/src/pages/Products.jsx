@@ -127,7 +127,14 @@ function Products() {
               <div className="space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-base sm:text-lg">{product.nombre}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-base sm:text-lg">{product.nombre}</h3>
+                      {product.activo === false && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded">
+                          Inactivo
+                        </span>
+                      )}
+                    </div>
                     {product.descripcion && (
                       <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2">{product.descripcion}</p>
                     )}
