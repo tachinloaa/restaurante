@@ -50,6 +50,46 @@ export const sanitizarTexto = (texto) => {
 };
 
 /**
+ * Validar que el nombre solo contenga letras, espacios y acentos
+ */
+export const esValidoNombre = (nombre) => {
+  if (!nombre || nombre.trim().length < 3) return false;
+  // Permitir letras (incluye acentos), espacios, ñ, apóstrofes
+  const regex = /^[a-záéíóúüñA-ZÁÉÍÓÚÜÑ\s']+$/;
+  return regex.test(nombre.trim());
+};
+
+/**
+ * Validar dirección (debe tener calle y número o S/N)
+ */
+export const esValidaDireccion = (direccion) => {
+  if (!direccion || direccion.trim().length < 10) return false;
+  
+  const texto = direccion.toUpperCase();
+  
+  // Debe contener número O la palabra S/N (sin número)
+  const tieneNumero = /\d+/.test(texto);
+  const tieneSinNumero = /S\/N|SN|SIN\s*NUMERO|SIN\s*N[UÚ]MERO/.test(texto);
+  
+  return tieneNumero || tieneSinNumero;
+};
+
+/**
+ * Sanitizar input del usuario (prevenir inyecciones)
+ */
+export const sanitizarInput = (input) => {
+  if (!input) return '';
+  
+  return input
+    .trim()
+    .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remover scripts
+    .replace(/<[^>]*>/g, '') // Remover HTML
+    .replace(/javascript:/gi, '') // Remover javascript:
+    .replace(/on\w+=/gi, '') // Remover event handlers
+    .substring(0, 500); // Limitar longitud
+};
+
+/**
  * Validar longitud de texto
  */
 export const esValidaLongitud = (texto, min, max) => {

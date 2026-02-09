@@ -83,14 +83,23 @@ export const EMOJIS = {
   MOTO: '🛵'
 };
 
-// Tiempo de sesión en milisegundos (15 minutos)
-export const SESSION_TIMEOUT = 15 * 60 * 1000;
+// Tiempo de sesión en milisegundos (30 minutos)
+export const SESSION_TIMEOUT = 30 * 60 * 1000;
 
 // Límite de productos por pedido
 export const MAX_PRODUCTOS_POR_PEDIDO = 20;
 
 // Límite de cantidad por producto
 export const MAX_CANTIDAD_POR_PRODUCTO = 10;
+
+// Límite total de items en el carrito (suma de todas las cantidades)
+export const MAX_ITEMS_CARRITO = 50;
+
+// Límite de tipos diferentes de productos
+export const MAX_TIPOS_PRODUCTOS = 15;
+
+// Cambio máximo que lleva el repartidor
+export const MAX_CAMBIO_REPARTIDOR = 50;
 
 // Tiempo estimado de entrega (minutos)
 export const TIEMPO_ENTREGA = {
@@ -141,6 +150,9 @@ export default {
   SESSION_TIMEOUT,
   MAX_PRODUCTOS_POR_PEDIDO,
   MAX_CANTIDAD_POR_PRODUCTO,
+  MAX_ITEMS_CARRITO,
+  MAX_TIPOS_PRODUCTOS,
+  MAX_CAMBIO_REPARTIDOR,
   TIEMPO_ENTREGA,
   MENSAJES_BOT,
   PAGINATION,

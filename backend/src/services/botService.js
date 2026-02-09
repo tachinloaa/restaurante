@@ -12,9 +12,11 @@ import {
   MENSAJES_BOT, 
   TIPOS_PEDIDO,
   TIEMPO_ENTREGA,
-  MAX_CANTIDAD_POR_PRODUCTO
+  MAX_CANTIDAD_POR_PRODUCTO,
+  MAX_CAMBIO_REPARTIDOR
 } from '../config/constants.js';
 import { limpiarNumeroWhatsApp } from '../utils/formatters.js';
+import { sanitizarInput, esValidoNombre, esValidaDireccion } from '../utils/validators.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -29,15 +31,18 @@ class BotService {
     try {
       const telefono = limpiarNumeroWhatsApp(from);
       
+      // Sanitizar input del usuario
+      const bodySanitizado = sanitizarInput(body);
+      
       // Normalizar mensaje: minúsculas, sin espacios extras, sin acentos
-      const mensajeLimpio = body
+      const mensajeLimpio = bodySanitizado
         .trim()
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
         .replace(/\s+/g, ' '); // Múltiples espacios a uno solo
 
-      logger.info(`Mensaje recibido de ${telefono}: ${body}`);
+      logger.info(`Mensaje recibido de ${telefono}: ${bodySanitizado}`);
 
       // Verificar si es admin
       const isAdmin = this.esAdmin(telefono);
@@ -48,10 +53,10 @@ class BotService {
           return await this.mostrarPedidosPendientes();
         }
         if (mensajeLimpio.startsWith('ver pedido') || mensajeLimpio.startsWith('ver #')) {
-          return await this.verDetallePedido(body);
+          return await this.verDetallePedido(bodySanitizado);
         }
         if (mensajeLimpio.startsWith('estado')) {
-          return await this.cambiarEstadoPedido(body);
+          return await this.cambiarEstadoPedido(bodySanitizado);
         }
       }
 
@@ -88,11 +93,11 @@ class BotService {
       }
 
       if (this.esComandoCancelarPedido(mensajeLimpio)) {
-        return await this.procesarCancelacionPedido(telefono, body);
+        return await this.procesarCancelacionPedido(telefono, bodySanitizado);
       }
 
       // Procesar según el estado actual del bot
-      return await this.procesarSegunEstado(telefono, body, mensajeLimpio);
+      return await this.procesarSegunEstado(telefono, bodySanitizado, mensajeLimpio);
     } catch (error) {
       logger.error('Error al procesar mensaje:', error);
       return {
@@ -413,19 +418,27 @@ class BotService {
 
     // No validar stock
 
-    // Agregar al carrito
-    SessionService.agregarAlCarrito(telefono, {
+    // Agregar al carrito con validación de límites
+    const resultado = SessionService.agregarAlCarrito(telefono, {
       id: producto.id,
       nombre: producto.nombre,
       precio: producto.precio,
       cantidad: cantidad
     });
 
+    // Verificar si hubo error de límite
+    if (resultado.error) {
+      return {
+        success: true,
+        mensaje: `${EMOJIS.CRUZ} ${resultado.mensaje}\n\n¿Deseas finalizar tu pedido actual?\n\nResponde:\n• *SI* para continuar con tu pedido\n• *NO* para cancelar`
+      };
+    }
+
     // Limpiar producto temporal
     SessionService.guardarDatos(telefono, { producto_temporal: null });
 
     // Mostrar carrito y preguntar si quiere más
-    const resumenCarrito = OrderService.generarResumenCarrito(session);
+    const resumenCarrito = OrderService.generarResumenCarrito(resultado.session);
     
     let mensajeRespuesta = `Perfecto!\n\n${resumenCarrito.resumen}\n\n¿Deseas agregar más productos?\n\nResponde:\n• *SI* para agregar más\n• *NO* para continuar con tu pedido`;
 
@@ -491,15 +504,17 @@ class BotService {
    * Procesar nombre
    */
   async procesarNombre(telefono, nombre) {
-    if (nombre.trim().length < 3) {
+    const nombreLimpio = nombre.trim();
+    
+    if (!esValidoNombre(nombreLimpio)) {
       return {
         success: true,
-        mensaje: 'Por favor escribe tu nombre completo (mínimo 3 caracteres)'
+        mensaje: 'Por favor escribe un nombre válido (solo letras, mínimo 3 caracteres)'
       };
     }
 
     SessionService.guardarDatos(telefono, { 
-      nombre: nombre.trim(),
+      nombre: nombreLimpio,
       telefono: telefono 
     });
 
@@ -511,14 +526,14 @@ class BotService {
       
       return {
         success: true,
-        mensaje: `Gracias ${nombre.trim()} ${EMOJIS.PERSONA}\n\nAhora necesito tu *DIRECCIÓN COMPLETA* para la entrega.\n\nEjemplo: Calle 5 de Mayo #123, Col. Centro, entre Juárez e Hidalgo`
+        mensaje: `Gracias ${nombreLimpio} ${EMOJIS.PERSONA}\n\nAhora necesito tu *DIRECCIÓN COMPLETA* para la entrega.\n\nEjemplo: Calle 5 de Mayo #123, Col. Centro\nO si es sin número: Calle Morelos S/N, Col. Centro`
       };
     } else if (tipoPedido === TIPOS_PEDIDO.RESTAURANTE) {
       SessionService.updateEstado(telefono, BOT_STATES.SOLICITAR_NUM_PERSONAS);
       
       return {
         success: true,
-        mensaje: `Gracias ${nombre.trim()} ${EMOJIS.PERSONA}\n\n¿Para cuántas personas es el pedido? ${EMOJIS.GRUPO}`
+        mensaje: `Gracias ${nombreLimpio} ${EMOJIS.PERSONA}\n\n¿Para cuántas personas es el pedido? ${EMOJIS.GRUPO}`
       };
     } else {
       // Para llevar, ir directamente a confirmación
@@ -530,14 +545,16 @@ class BotService {
    * Procesar dirección
    */
   async procesarDireccion(telefono, direccion) {
-    if (direccion.trim().length < 10) {
+    const direccionLimpia = direccion.trim();
+    
+    if (!esValidaDireccion(direccionLimpia)) {
       return {
         success: true,
-        mensaje: 'Por favor proporciona una dirección completa y detallada.'
+        mensaje: 'Por favor proporciona una dirección completa con calle y número (o S/N si es sin número).\n\nEjemplo: Calle 5 de Mayo #123, Col. Centro\nO: Av. Juárez S/N, Col. Centro'
       };
     }
 
-    SessionService.guardarDatos(telefono, { direccion: direccion.trim() });
+    SessionService.guardarDatos(telefono, { direccion: direccionLimpia });
     SessionService.updateEstado(telefono, BOT_STATES.SOLICITAR_REFERENCIAS);
 
     return {
@@ -620,6 +637,12 @@ class BotService {
 
     let mensaje = resumen.resumen;
     mensaje += `\n\n${EMOJIS.RELOJ} Tiempo estimado: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos`;
+    
+    // Mensaje especial para domicilio sobre el cambio del repartidor
+    if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
+      mensaje += `\n\n${EMOJIS.DINERO} *IMPORTANTE:* El repartidor lleva cambio máximo de $${MAX_CAMBIO_REPARTIDOR} pesos`;
+    }
+    
     mensaje += `\n\n¿Todo está correcto?\n\nResponde:\n• *SI* para confirmar tu pedido\n• *NO* para cancelar y empezar de nuevo`;
 
     SessionService.updateEstado(telefono, BOT_STATES.CONFIRMAR_PEDIDO);

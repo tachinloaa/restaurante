@@ -1,4 +1,4 @@
-import { BOT_STATES, SESSION_TIMEOUT } from '../config/constants.js';
+import { BOT_STATES, SESSION_TIMEOUT, MAX_ITEMS_CARRITO, MAX_TIPOS_PRODUCTOS } from '../config/constants.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -78,13 +78,32 @@ class SessionService {
       session.carrito = [];
     }
 
+    // Validar límite de tipos diferentes de productos
+    if (session.carrito.length >= MAX_TIPOS_PRODUCTOS) {
+      return {
+        error: true,
+        mensaje: `No puedes agregar más de ${MAX_TIPOS_PRODUCTOS} tipos diferentes de productos`
+      };
+    }
+
+    // Calcular items totales actuales
+    const itemsTotales = session.carrito.reduce((sum, item) => sum + item.cantidad, 0);
+    
+    // Validar límite total de items
+    if (itemsTotales + producto.cantidad > MAX_ITEMS_CARRITO) {
+      return {
+        error: true,
+        mensaje: `No puedes agregar más de ${MAX_ITEMS_CARRITO} items en total. Actualmente tienes ${itemsTotales}`
+      };
+    }
+
     session.carrito.push(producto);
     session.lastActivity = Date.now();
     
     this.sessions.set(telefono, session);
     logger.info(`Producto agregado al carrito de ${telefono}: ${producto.nombre}`);
     
-    return session;
+    return { success: true, session };
   }
 
   /**
