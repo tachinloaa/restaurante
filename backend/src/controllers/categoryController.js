@@ -1,6 +1,7 @@
 import Category from '../models/Category.js';
 import { success, created, notFound, serverError } from '../utils/responses.js';
 import logger from '../utils/logger.js';
+import MenuService from '../services/menuService.js';
 
 class CategoryController {
   async getAll(req, res) {
@@ -43,6 +44,9 @@ class CategoryController {
         return serverError(res, resultado.error);
       }
 
+      // Invalidar caché del menú
+      MenuService.invalidarCache();
+
       return created(res, resultado.data);
     } catch (error) {
       logger.error('Error en create categoría:', error);
@@ -59,6 +63,9 @@ class CategoryController {
         return notFound(res, 'Categoría no encontrada');
       }
 
+      // Invalidar caché del menú
+      MenuService.invalidarCache();
+
       return success(res, resultado.data);
     } catch (error) {
       logger.error('Error en update categoría:', error);
@@ -74,6 +81,9 @@ class CategoryController {
       if (!resultado.success) {
         return notFound(res, 'Categoría no encontrada');
       }
+
+      // Invalidar caché del menú
+      MenuService.invalidarCache();
 
       return success(res, null, 'Categoría eliminada exitosamente');
     } catch (error) {

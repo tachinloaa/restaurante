@@ -1,6 +1,7 @@
 import Subcategory from '../models/Subcategory.js';
 import { success, created, notFound, serverError } from '../utils/responses.js';
 import logger from '../utils/logger.js';
+import MenuService from '../services/menuService.js';
 
 class SubcategoryController {
   async getAll(req, res) {
@@ -60,6 +61,9 @@ class SubcategoryController {
         return serverError(res, resultado.error);
       }
 
+      // Invalidar caché del menú
+      MenuService.invalidarCache();
+
       return created(res, resultado.data);
     } catch (error) {
       logger.error('Error en create subcategoría:', error);
@@ -76,6 +80,9 @@ class SubcategoryController {
         return notFound(res, 'Subcategoría no encontrada');
       }
 
+      // Invalidar caché del menú
+      MenuService.invalidarCache();
+
       return success(res, resultado.data);
     } catch (error) {
       logger.error('Error en update subcategoría:', error);
@@ -91,6 +98,9 @@ class SubcategoryController {
       if (!resultado.success) {
         return notFound(res, 'Subcategoría no encontrada');
       }
+
+      // Invalidar caché del menú
+      MenuService.invalidarCache();
 
       return success(res, null, 'Subcategoría eliminada exitosamente');
     } catch (error) {

@@ -288,6 +288,15 @@ class MenuService {
       return null;
     }
   }
+
+  /**
+   * Invalidar caché del menú (llamar cuando se modifica el menú)
+   */
+  invalidarCache() {
+    this.menuCache = null;
+    this.lastUpdate = null;
+    logger.info('Caché del menú invalidado - se actualizará en la próxima consulta');
+  }
 }
 
 // Exportar instancia única (Singleton)
