@@ -1,6 +1,7 @@
 import Order from '../models/Order.js';
 import OrderService from '../services/orderService.js';
 import NotificationService from '../services/notificationService.js';
+import reminderService from '../services/reminderService.js';
 import { success, created, notFound, serverError } from '../utils/responses.js';
 import logger from '../utils/logger.js';
 
@@ -95,6 +96,9 @@ class OrderController {
       if (!resultado.success) {
         return notFound(res, 'Pedido no encontrado');
       }
+
+      // Limpiar recordatorios del estado anterior (el admin ya atendió el pedido)
+      reminderService.limpiarRecordatorio(id, estadoAnterior);
 
       // Notificar al cliente si es necesario
       if (['preparando', 'listo', 'enviado', 'entregado', 'cancelado'].includes(estado)) {

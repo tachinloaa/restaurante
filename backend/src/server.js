@@ -9,6 +9,7 @@ import routes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import httpLogger from './middlewares/logger.js';
 import logger from './utils/logger.js';
+import reminderService from './services/reminderService.js';
 
 /**
  * Servidor Express para El Rinconcito
@@ -106,6 +107,9 @@ const startServer = async () => {
     if (!twilioConnected) {
       logger.warn('⚠️  No se pudo verificar conexión a Twilio');
     }
+
+    // Iniciar sistema de recordatorios automáticos
+    reminderService.iniciarVerificacionPeriodica();
 
     // Iniciar servidor
     app.listen(config.port, () => {
