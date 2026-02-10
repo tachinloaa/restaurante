@@ -241,6 +241,15 @@ class BotService {
   async solicitarTipoPedido(telefono) {
     SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
     
+    // Si hay un producto preseleccionado, moverlo a seleccionado
+    const session = SessionService.getSession(telefono);
+    if (session?.datos?.producto_preseleccionado) {
+      SessionService.guardarDatos(telefono, { 
+        producto_seleccionado: session.datos.producto_preseleccionado,
+        producto_preseleccionado: null
+      });
+    }
+    
     return {
       success: true,
       mensaje: `¿Cómo deseas recibir tu pedido?\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n*3.* ${EMOJIS.RESTAURANTE} Comer aquí\n\nResponde con el número de tu opción.`
@@ -272,7 +281,6 @@ class BotService {
 
     // Guardar tipo de pedido
     SessionService.guardarDatos(telefono, { tipo_pedido: tipoPedido });
-    SessionService.updateEstado(telefono, BOT_STATES.VER_MENU);
 
     // Mensaje especial para domicilio
     let mensajeTipo = '';
@@ -284,7 +292,21 @@ class BotService {
       mensajeTipo = `Perfecto! ${EMOJIS.CARRITO} Haremos tu pedido *PARA LLEVAR*.\n\n`;
     }
 
-    // Mostrar categorías en lugar de menú completo
+    // Verificar si ya hay un producto seleccionado previamente
+    const session = SessionService.getSession(telefono);
+    const productoSeleccionado = session?.datos?.producto_seleccionado;
+
+    if (productoSeleccionado) {
+      // Ya seleccionó producto antes, continuar con cantidad
+      SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_CANTIDAD);
+      return {
+        success: true,
+        mensaje: `${mensajeTipo}${EMOJIS.CHECK} *${productoSeleccionado.nombre}* agregado\n💰 Precio: ${formatearPrecio(productoSeleccionado.precio)}\n\n¿Cuántas ${productoSeleccionado.unidad || 'unidades'} deseas?\n\n${EMOJIS.FLECHA} Escribe un número (1-${MAX_CANTIDAD_POR_PRODUCTO})`
+      };
+    }
+
+    // No hay producto seleccionado, mostrar categorías
+    SessionService.updateEstado(telefono, BOT_STATES.VER_MENU);
     return await this.mostrarCategorias(telefono, mensajeTipo);
   }
 
