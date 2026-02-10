@@ -10,12 +10,20 @@ class WebhookController {
    */
   async whatsapp(req, res) {
     try {
-      const { From, Body } = req.body;
+      const { From, Body, NumMedia, MediaUrl0, MediaContentType0 } = req.body;
 
       logger.info(`Webhook WhatsApp recibido de ${From}: ${Body}`);
 
+      // Preparar datos del mensaje
+      const mensajeData = {
+        body: Body,
+        numMedia: parseInt(NumMedia) || 0,
+        mediaUrl: MediaUrl0 || null,
+        mediaType: MediaContentType0 || null
+      };
+
       // Procesar mensaje con el bot
-      const respuesta = await BotService.procesarMensaje(From, Body);
+      const respuesta = await BotService.procesarMensaje(From, mensajeData);
 
       if (!respuesta.success) {
         logger.error('Error al procesar mensaje del bot:', respuesta.mensaje);

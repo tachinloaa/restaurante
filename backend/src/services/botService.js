@@ -28,9 +28,15 @@ class BotService {
   /**
    * Procesar mensaje entrante del cliente
    */
-  async procesarMensaje(from, body) {
+  async procesarMensaje(from, mensajeData) {
     try {
       const telefono = limpiarNumeroWhatsApp(from);
+      
+      // Extraer datos del mensaje
+      const body = typeof mensajeData === 'string' ? mensajeData : mensajeData.body;
+      const numMedia = mensajeData.numMedia || 0;
+      const mediaUrl = mensajeData.mediaUrl || null;
+      const mediaType = mensajeData.mediaType || null;
       
       // Sanitizar input del usuario
       const bodySanitizado = sanitizarInput(body);
@@ -98,7 +104,7 @@ class BotService {
       }
 
       // Procesar según el estado actual del bot
-      return await this.procesarSegunEstado(telefono, bodySanitizado, mensajeLimpio);
+      return await this.procesarSegunEstado(telefono, bodySanitizado, mensajeLimpio, { mediaUrl, numMedia });
     } catch (error) {
       logger.error('Error al procesar mensaje:', error);
       return {
@@ -111,7 +117,7 @@ class BotService {
   /**
    * Procesar mensaje según el estado actual de la conversación
    */
-  async procesarSegunEstado(telefono, body, mensajeLimpio) {
+  async procesarSegunEstado(telefono, body, mensajeLimpio, mediaData = {}) {
     const session = SessionService.getSession(telefono);
 
     if (!session) {
@@ -161,7 +167,7 @@ class BotService {
         return await this.procesarMetodoPago(telefono, mensajeLimpio);
 
       case BOT_STATES.ESPERANDO_COMPROBANTE:
-        return await this.procesarComprobante(telefono, body);
+        return await this.procesarComprobante(telefono, body, mediaData);
 
       case BOT_STATES.CONFIRMAR_PEDIDO:
         return await this.procesarConfirmacion(telefono, mensajeLimpio);
@@ -770,25 +776,73 @@ class BotService {
   /**
    * Procesar comprobante de pago recibido
    */
-  async procesarComprobante(telefono, mensaje) {
-    // Verificar si recibió una imagen o texto
-    // En este caso, solo verificamos que envió algo
+  async procesarComprobante(telefono, mensaje, mediaData = {}) {
+    const { mediaUrl, numMedia } = mediaData;
     
-    if (!mensaje || mensaje.trim().length < 5) {
-      return {
-        success: true,
-        mensaje: `Por favor envía tu comprobante de pago.\n\nPuede ser:\n• Foto del comprobante\n• Captura de pantalla\n• Número de referencia\n\n📸 Envía tu comprobante ahora`
-      };
+    // Verificar si recibió una imagen
+    if (numMedia > 0 && mediaUrl) {
+      // Guardar URL del comprobante
+      SessionService.guardarDatos(telefono, { 
+        comprobante_recibido: true,
+        comprobante_url: mediaUrl,
+        comprobante_info: 'Imagen recibida'
+      });
+
+      // Reenviar imagen al administrador
+      const session = SessionService.getSession(telefono);
+      const total = OrderService.calcularTotal(session);
+      const cliente = session.datos.nombre || 'Cliente';
+      
+      let mensajeAdmin = `📸 *COMPROBANTE DE PAGO RECIBIDO*\n\n`;
+      mensajeAdmin += `👤 Cliente: *${cliente}*\n`;
+      mensajeAdmin += `💰 Total: *${formatearPrecio(total)}*\n`;
+      mensajeAdmin += `📍 Dirección: ${session.datos.direccion || 'N/A'}\n`;
+      mensajeAdmin += `📞 Teléfono: ${telefono}\n\n`;
+      mensajeAdmin += `⏳ Verifica el pago y confirma el pedido desde el dashboard`;
+
+      await TwilioService.enviarMensajeConImagen(
+        config.admin.phoneNumber,
+        mensajeAdmin,
+        mediaUrl
+      );
+
+      logger.info(`Comprobante reenviado al admin: ${mediaUrl}`);
+
+      // Ir a confirmación con pago pendiente
+      return await this.mostrarConfirmacionConPagoPendiente(telefono);
+    }
+    
+    // Si no recibió imagen pero envió texto (número de referencia)
+    if (mensaje && mensaje.trim().length >= 5) {
+      // Guardar que se recibió comprobante como texto
+      SessionService.guardarDatos(telefono, { 
+        comprobante_recibido: true,
+        comprobante_info: mensaje.substring(0, 100)
+      });
+
+      // Notificar al admin por texto
+      const session = SessionService.getSession(telefono);
+      const total = OrderService.calcularTotal(session);
+      const cliente = session.datos.nombre || 'Cliente';
+      
+      let mensajeAdmin = `📝 *COMPROBANTE DE PAGO (TEXTO)*\n\n`;
+      mensajeAdmin += `👤 Cliente: *${cliente}*\n`;
+      mensajeAdmin += `💰 Total: *${formatearPrecio(total)}*\n`;
+      mensajeAdmin += `📍 Dirección: ${session.datos.direccion || 'N/A'}\n`;
+      mensajeAdmin += `📞 Teléfono: ${telefono}\n`;
+      mensajeAdmin += `📝 Referencia: *${mensaje.trim()}*\n\n`;
+      mensajeAdmin += `⏳ Verifica el pago y confirma el pedido desde el dashboard`;
+
+      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+
+      return await this.mostrarConfirmacionConPagoPendiente(telefono);
     }
 
-    // Guardar que se recibió comprobante (idealmente guardaríamos el media URL)
-    SessionService.guardarDatos(telefono, { 
-      comprobante_recibido: true,
-      comprobante_info: mensaje.substring(0, 100) // Guardar referencia
-    });
-
-    // Ir a confirmación con nota de pago pendiente
-    return await this.mostrarConfirmacionConPagoPendiente(telefono);
+    // Si no envió nada válido
+    return {
+      success: true,
+      mensaje: `Por favor envía tu comprobante de pago.\n\nPuede ser:\n• Foto del comprobante\n• Captura de pantalla\n• Número de referencia\n\n📸 Envía tu comprobante ahora`
+    };
   }
 
   /**
