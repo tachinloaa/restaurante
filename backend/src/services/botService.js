@@ -826,28 +826,45 @@ class BotService {
         comprobante_info: 'Imagen recibida'
       });
 
-      // Reenviar imagen al administrador
+      // CREAR EL PEDIDO INMEDIATAMENTE con estado PENDIENTE_PAGO
+      const resultado = await OrderService.crearPedidoDesdeBot(telefono);
+
+      if (!resultado.success) {
+        logger.error('Error al crear pedido con comprobante:', resultado.error);
+        return {
+          success: false,
+          mensaje: `Lo sentimos, ocurrió un error al procesar tu pedido: ${resultado.error}\n\nPor favor intenta de nuevo.`
+        };
+      }
+
+      const { pedido } = resultado;
+
+      // Cambiar estado a PENDIENTE_PAGO
+      await OrderService.cambiarEstado(pedido.id, ESTADOS_PEDIDO.PENDIENTE_PAGO);
+
+      // Obtener sesión para notificación al admin
       const session = SessionService.getSession(telefono);
-      const total = SessionService.calcularTotalCarrito(telefono);
-      const cliente = session.datos.nombre || 'Cliente';
 
-      let mensajeAdmin = `📸 *COMPROBANTE DE PAGO RECIBIDO*\n\n`;
-      mensajeAdmin += `👤 Cliente: *${cliente}*\n`;
-      mensajeAdmin += `💰 Total: *${formatearPrecio(total)}*\n`;
-      mensajeAdmin += `📍 Dirección: ${session.datos.direccion || 'N/A'}\n`;
-      mensajeAdmin += `📞 Teléfono: ${telefono}\n\n`;
-      mensajeAdmin += `⏳ Verifica el pago y confirma el pedido desde el dashboard`;
+      // Enviar notificación al admin con el comprobante
+      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido);
 
-      await TwilioService.enviarMensajeConImagen(
-        config.admin.phoneNumber,
-        mensajeAdmin,
-        mediaUrl
-      );
+      // Mensaje al cliente
+      let mensajeCliente = `✅ *COMPROBANTE RECIBIDO*\n\n`;
+      mensajeCliente += `📝 Tu número de pedido es: *#${pedido.numero_pedido}*\n\n`;
+      mensajeCliente += `⏳ *Estamos verificando tu pago*\n`;
+      mensajeCliente += `Tu pedido será confirmado una vez que verifiquemos la transferencia.\n\n`;
+      mensajeCliente += `📱 Te notificaremos cuando tu pago sea verificado y tu pedido esté en preparación.\n\n`;
+      mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
 
-      logger.info(`Comprobante reenviado al admin: ${mediaUrl}`);
+      // Limpiar sesión DESPUÉS de enviar notificación
+      SessionService.deleteSession(telefono);
 
-      // Ir a confirmación con pago pendiente
-      return await this.mostrarConfirmacionConPagoPendiente(telefono);
+      logger.info(`Pedido #${pedido.numero_pedido} creado con comprobante, esperando aprobación`);
+
+      return {
+        success: true,
+        mensaje: mensajeCliente
+      };
     }
 
     // Si no recibió imagen pero envió texto (número de referencia)
@@ -858,22 +875,42 @@ class BotService {
         comprobante_info: mensaje.substring(0, 100)
       });
 
-      // Notificar al admin por texto
-      const session = SessionService.getSession(telefono);
-      const total = SessionService.calcularTotalCarrito(telefono);
-      const cliente = session.datos.nombre || 'Cliente';
+      // CREAR EL PEDIDO INMEDIATAMENTE con estado PENDIENTE_PAGO
+      const resultado = await OrderService.crearPedidoDesdeBot(telefono);
 
-      let mensajeAdmin = `📝 *COMPROBANTE DE PAGO (TEXTO)*\n\n`;
-      mensajeAdmin += `👤 Cliente: *${cliente}*\n`;
-      mensajeAdmin += `💰 Total: *${formatearPrecio(total)}*\n`;
-      mensajeAdmin += `📍 Dirección: ${session.datos.direccion || 'N/A'}\n`;
-      mensajeAdmin += `📞 Teléfono: ${telefono}\n`;
-      mensajeAdmin += `📝 Referencia: *${mensaje.trim()}*\n\n`;
-      mensajeAdmin += `⏳ Verifica el pago y confirma el pedido desde el dashboard`;
+      if (!resultado.success) {
+        logger.error('Error al crear pedido con referencia:', resultado.error);
+        return {
+          success: false,
+          mensaje: `Lo sentimos, ocurrió un error al procesar tu pedido: ${resultado.error}\n\nPor favor intenta de nuevo.`
+        };
+      }
 
-      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+      const { pedido } = resultado;
 
-      return await this.mostrarConfirmacionConPagoPendiente(telefono);
+      // Cambiar estado a PENDIENTE_PAGO
+      await OrderService.cambiarEstado(pedido.id, ESTADOS_PEDIDO.PENDIENTE_PAGO);
+
+      // Enviar notificación al admin
+      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido);
+
+      // Mensaje al cliente
+      let mensajeCliente = `✅ *REFERENCIA RECIBIDA*\n\n`;
+      mensajeCliente += `📝 Tu número de pedido es: *#${pedido.numero_pedido}*\n\n`;
+      mensajeCliente += `⏳ *Estamos verificando tu pago*\n`;
+      mensajeCliente += `Tu pedido será confirmado una vez que verifiquemos la transferencia.\n\n`;
+      mensajeCliente += `📱 Te notificaremos cuando tu pago sea verificado y tu pedido esté en preparación.\n\n`;
+      mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
+
+      // Limpiar sesión
+      SessionService.deleteSession(telefono);
+
+      logger.info(`Pedido #${pedido.numero_pedido} creado con referencia, esperando aprobación`);
+
+      return {
+        success: true,
+        mensaje: mensajeCliente
+      };
     }
 
     // Si no envió nada válido
