@@ -13,6 +13,7 @@ import {
   TIPOS_PEDIDO,
   METODOS_PAGO,
   DATOS_BANCARIOS,
+  ESTADOS_PEDIDO,
   TIEMPO_ENTREGA,
   MAX_CANTIDAD_POR_PRODUCTO,
   MAX_CAMBIO_REPARTIDOR
@@ -977,37 +978,7 @@ class BotService {
   async confirmarPedido(telefono) {
     const session = SessionService.getSession(telefono);
 
-    // Si es pago por transferencia y no está verificado, NO crear pedido todavía
-    if (session.datos.metodo_pago === METODOS_PAGO.TRANSFERENCIA && !session.datos.pago_verificado) {
-      // Marcar que está pendiente de aprobación
-      SessionService.guardarDatos(telefono, {
-        pedido_pendiente_aprobacion: true,
-        fecha_solicitud: new Date().toISOString()
-      });
-
-      // Enviar notificación al admin para que apruebe el pedido
-      await this.notificarAdminPedidoPendiente(telefono);
-
-      const tiempoEstimado = TIEMPO_ENTREGA.DOMICILIO;
-
-      let mensaje = `✅ *PEDIDO EN REVISIÓN*\n\n`;
-      mensaje += `📋 Tu pedido ha sido registrado y está pendiente de aprobación.\n\n`;
-      mensaje += `⏳ *Estamos verificando tu pago*\n`;
-      mensaje += `Una vez que confirmemos tu transferencia, comenzaremos a preparar tu pedido.\n\n`;
-      mensaje += `📱 Te notificaremos cuando tu pedido sea aprobado y esté en preparación.\n\n`;
-      mensaje += `${EMOJIS.RELOJ} Tiempo estimado después de aprobar: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos\n\n`;
-      mensaje += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
-
-      // Cambiar estado pero NO eliminar sesión
-      SessionService.updateEstado(telefono, BOT_STATES.PEDIDO_COMPLETADO);
-
-      return {
-        success: true,
-        mensaje
-      };
-    }
-
-    // Si es efectivo o pago ya verificado, crear pedido normalmente
+    // SIEMPRE crear el pedido en la base de datos
     const resultado = await OrderService.crearPedidoDesdeBot(telefono);
 
     if (!resultado.success) {
@@ -1020,14 +991,39 @@ class BotService {
 
     const { pedido, cliente } = resultado;
 
-    // Enviar notificación al administrador
-    await NotificationService.notificarNuevoPedido(pedido, cliente);
-
     // Obtener tiempo estimado
     const tipoPedido = session.datos.tipo_pedido;
     const tiempoEstimado = tipoPedido ? TIEMPO_ENTREGA[tipoPedido.toUpperCase()] : TIEMPO_ENTREGA.DOMICILIO;
 
-    // Pago en efectivo o verificado
+    // Si es pago por transferencia, cambiar estado a PENDIENTE_PAGO
+    if (session.datos.metodo_pago === METODOS_PAGO.TRANSFERENCIA && !session.datos.pago_verificado) {
+      // Cambiar estado del pedido a PENDIENTE_PAGO
+      await OrderService.cambiarEstado(pedido.id, ESTADOS_PEDIDO.PENDIENTE_PAGO);
+
+      // Enviar notificación al admin con el comprobante
+      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido);
+
+      let mensaje = `✅ *PEDIDO REGISTRADO*\n\n`;
+      mensaje += `${EMOJIS.TICKET} Tu número de pedido es: *#${pedido.numero_pedido}*\n\n`;
+      mensaje += `⏳ *Estamos verificando tu pago*\n`;
+      mensaje += `Tu pedido será confirmado una vez que verifiquemos la transferencia.\n\n`;
+      mensaje += `📱 Te notificaremos cuando tu pedido esté confirmado y en preparación.\n\n`;
+      mensaje += `${EMOJIS.RELOJ} Tiempo estimado después de confirmar: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos\n\n`;
+      mensaje += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
+
+      // Limpiar sesión
+      SessionService.deleteSession(telefono);
+
+      return {
+        success: true,
+        mensaje,
+        pedido
+      };
+    }
+
+    // Si es efectivo o pago ya verificado, notificar normalmente
+    await NotificationService.notificarNuevoPedido(pedido, cliente);
+
     const mensaje = MENSAJES_BOT.PEDIDO_CONFIRMADO(
       pedido.numero_pedido,
       tiempoEstimado
@@ -1046,14 +1042,15 @@ class BotService {
   /**
    * Notificar al admin sobre pedido pendiente de aprobación
    */
-  async notificarAdminPedidoPendiente(telefono) {
+  async notificarAdminPedidoPendiente(telefono, numeroPedido) {
     const session = SessionService.getSession(telefono);
     const total = SessionService.calcularTotalCarrito(telefono);
     const cliente = session.datos.nombre || 'Cliente';
     const resumenCarrito = OrderService.generarResumenCarrito(session);
 
     let mensajeAdmin = `🔔 *NUEVO PEDIDO PENDIENTE DE APROBACIÓN*\n\n`;
-    mensajeAdmin += `👤 Cliente: *${cliente}*\n`;
+    mensajeAdmin += `� Pedido: *#${numeroPedido}*\n`;
+    mensajeAdmin += `�👤 Cliente: *${cliente}*\n`;
     mensajeAdmin += `📞 Teléfono: ${telefono}\n`;
     mensajeAdmin += `📍 Dirección: ${session.datos.direccion || 'N/A'}\n`;
 
@@ -1070,9 +1067,9 @@ class BotService {
 
     mensajeAdmin += `\n⏳ *ACCIÓN REQUERIDA:*\n`;
     mensajeAdmin += `Para aprobar este pedido, responde:\n`;
-    mensajeAdmin += `*aprobar ${telefono}*\n\n`;
+    mensajeAdmin += `*aprobar #${numeroPedido}*\n\n`;
     mensajeAdmin += `Para rechazar:\n`;
-    mensajeAdmin += `*rechazar ${telefono}*\n\n`;
+    mensajeAdmin += `*rechazar #${numeroPedido}*\n\n`;
     mensajeAdmin += `👉 También puedes gestionarlo desde el dashboard:\n`;
     mensajeAdmin += `${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/pedidos`;
 
@@ -1083,10 +1080,10 @@ class BotService {
         mensajeAdmin,
         session.datos.comprobante_url
       );
-      logger.info(`Notificación de pedido pendiente enviada al admin con imagen: ${telefono}`);
+      logger.info(`Notificación de pedido #${numeroPedido} pendiente enviada al admin con imagen`);
     } else {
       await TwilioService.enviarMensajeAdmin(mensajeAdmin);
-      logger.info(`Notificación de pedido pendiente enviada al admin: ${telefono}`);
+      logger.info(`Notificación de pedido #${numeroPedido} pendiente enviada al admin`);
     }
   }
 
@@ -1651,49 +1648,53 @@ class BotService {
    * Aprobar pedido pendiente (solo admin)
    */
   async aprobarPedidoPendiente(mensaje) {
-    // Extraer teléfono del mensaje: "aprobar +5213349420820" o "aprobar 3349420820"
+    // Extraer número de pedido del mensaje: "aprobar #2602106719" o "aprobar 2602106719"
     const partes = mensaje.trim().split(/\s+/);
 
     if (partes.length < 2) {
       return {
         success: false,
-        mensaje: '❌ Formato incorrecto.\n\nUsa: *aprobar +5213349420820*'
+        mensaje: '❌ Formato incorrecto.\n\nUsa: *aprobar #2602106719*'
       };
     }
 
-    let telefono = partes[1];
+    let numeroPedido = partes[1].replace('#', '');
 
-    // Limpiar y formatear el teléfono
-    telefono = limpiarNumeroWhatsApp(telefono);
+    // Buscar el pedido en la base de datos
+    const { data: pedido, error } = await supabase
+      .from('pedidos')
+      .select('*, clientes(*)')
+      .eq('numero_pedido', numeroPedido)
+      .eq('estado', ESTADOS_PEDIDO.PENDIENTE_PAGO)
+      .single();
 
-    // Verificar que existe una sesión pendiente
-    const session = SessionService.getSession(telefono);
-
-    if (!session || !session.datos.pedido_pendiente_aprobacion) {
+    if (error || !pedido) {
       return {
         success: false,
-        mensaje: `❌ No hay pedido pendiente para el teléfono ${telefono}`
+        mensaje: `❌ No se encontró pedido pendiente #${numeroPedido}\n\nVerifica que el número sea correcto y que el pedido esté pendiente de pago.`
       };
     }
 
-    // Marcar como pago verificado
-    SessionService.guardarDatos(telefono, { pago_verificado: true });
+    // Cambiar estado a PENDIENTE
+    const { error: errorUpdate } = await supabase
+      .from('pedidos')
+      .update({
+        estado: ESTADOS_PEDIDO.PENDIENTE,
+        pago_verificado: true,
+        fecha_verificacion_pago: new Date().toISOString()
+      })
+      .eq('id', pedido.id);
 
-    // Crear el pedido en la base de datos
-    const resultado = await OrderService.crearPedidoDesdeBot(telefono);
-
-    if (!resultado.success) {
-      logger.error('Error al crear pedido aprobado:', resultado.error);
+    if (errorUpdate) {
+      logger.error('Error al aprobar pedido:', errorUpdate);
       return {
         success: false,
-        mensaje: `❌ Error al crear el pedido: ${resultado.error}`
+        mensaje: `❌ Error al aprobar el pedido: ${errorUpdate.message}`
       };
     }
-
-    const { pedido, cliente } = resultado;
 
     // Notificar al administrador
-    await NotificationService.notificarNuevoPedido(pedido, cliente);
+    await NotificationService.notificarNuevoPedido(pedido, pedido.clientes);
 
     // Notificar al cliente
     const tiempoEstimado = TIEMPO_ENTREGA.DOMICILIO;
@@ -1702,14 +1703,13 @@ class BotService {
       tiempoEstimado
     );
 
-    await TwilioService.enviarMensajeCliente(telefono, mensajeCliente);
+    await TwilioService.enviarMensajeCliente(pedido.telefono, mensajeCliente);
 
-    // Limpiar sesión
-    SessionService.deleteSession(telefono);
+    logger.info(`Pedido #${numeroPedido} aprobado por admin`);
 
     return {
       success: true,
-      mensaje: `✅ *PEDIDO APROBADO*\n\n📝 Pedido #${pedido.numero_pedido}\n👤 Cliente: ${cliente.nombre}\n📞 Teléfono: ${telefono}\n\nEl cliente ha sido notificado.`
+      mensaje: `✅ *PEDIDO APROBADO*\n\n📝 Pedido #${pedido.numero_pedido}\n👤 Cliente: ${pedido.clientes.nombre}\n📞 Teléfono: ${pedido.telefono}\n💰 Total: ${formatearPrecio(pedido.total)}\n\nEl cliente ha sido notificado y el pedido está en preparación.`
     };
   }
 
@@ -1717,48 +1717,66 @@ class BotService {
    * Rechazar pedido pendiente (solo admin)
    */
   async rechazarPedidoPendiente(mensaje) {
-    // Extraer teléfono del mensaje: "rechazar +5213349420820" o "rechazar 3349420820"
+    // Extraer número de pedido del mensaje: "rechazar #2602106719" o "rechazar 2602106719"
     const partes = mensaje.trim().split(/\s+/);
 
     if (partes.length < 2) {
       return {
         success: false,
-        mensaje: '❌ Formato incorrecto.\n\nUsa: *rechazar +5213349420820*'
+        mensaje: '❌ Formato incorrecto.\n\nUsa: *rechazar #2602106719*'
       };
     }
 
-    let telefono = partes[1];
+    let numeroPedido = partes[1].replace('#', '');
 
-    // Limpiar y formatear el teléfono
-    telefono = limpiarNumeroWhatsApp(telefono);
+    // Buscar el pedido en la base de datos
+    const { data: pedido, error } = await supabase
+      .from('pedidos')
+      .select('*, clientes(*)')
+      .eq('numero_pedido', numeroPedido)
+      .eq('estado', ESTADOS_PEDIDO.PENDIENTE_PAGO)
+      .single();
 
-    // Verificar que existe una sesión pendiente
-    const session = SessionService.getSession(telefono);
-
-    if (!session || !session.datos.pedido_pendiente_aprobacion) {
+    if (error || !pedido) {
       return {
         success: false,
-        mensaje: `❌ No hay pedido pendiente para el teléfono ${telefono}`
+        mensaje: `❌ No se encontró pedido pendiente #${numeroPedido}\n\nVerifica que el número sea correcto y que el pedido esté pendiente de pago.`
       };
     }
 
-    const cliente = session.datos.nombre || 'Cliente';
+    // Cambiar estado a CANCELADO
+    const { error: errorUpdate } = await supabase
+      .from('pedidos')
+      .update({
+        estado: ESTADOS_PEDIDO.CANCELADO,
+        motivo_cancelacion: 'Pago no verificado por administrador',
+        fecha_cancelacion: new Date().toISOString()
+      })
+      .eq('id', pedido.id);
+
+    if (errorUpdate) {
+      logger.error('Error al rechazar pedido:', errorUpdate);
+      return {
+        success: false,
+        mensaje: `❌ Error al rechazar el pedido: ${errorUpdate.message}`
+      };
+    }
 
     // Notificar al cliente
     let mensajeCliente = `❌ *PEDIDO RECHAZADO*\n\n`;
+    mensajeCliente += `Pedido #${pedido.numero_pedido}\n\n`;
     mensajeCliente += `Lo sentimos, no pudimos verificar tu pago.\n\n`;
     mensajeCliente += `Por favor contacta con nosotros para más información:\n`;
     mensajeCliente += `📞 ${config.admin.phoneNumber}\n\n`;
     mensajeCliente += `Si deseas hacer un nuevo pedido, escribe *hola*`;
 
-    await TwilioService.enviarMensajeCliente(telefono, mensajeCliente);
+    await TwilioService.enviarMensajeCliente(pedido.telefono, mensajeCliente);
 
-    // Limpiar sesión
-    SessionService.deleteSession(telefono);
+    logger.info(`Pedido #${numeroPedido} rechazado por admin`);
 
     return {
       success: true,
-      mensaje: `❌ *PEDIDO RECHAZADO*\n\n👤 Cliente: ${cliente}\n📞 Teléfono: ${telefono}\n\nEl cliente ha sido notificado.`
+      mensaje: `❌ *PEDIDO RECHAZADO*\n\n📝 Pedido #${pedido.numero_pedido}\n👤 Cliente: ${pedido.clientes.nombre}\n📞 Teléfono: ${pedido.telefono}\n\nEl cliente ha sido notificado.`
     };
   }
 }

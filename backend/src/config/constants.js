@@ -4,6 +4,7 @@
 
 // Estados de pedidos
 export const ESTADOS_PEDIDO = {
+  PENDIENTE_PAGO: 'pendiente_pago', // Esperando verificación de pago por transferencia
   PENDIENTE: 'pendiente',
   PREPARANDO: 'preparando',
   LISTO: 'listo',
