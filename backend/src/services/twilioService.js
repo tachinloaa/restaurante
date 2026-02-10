@@ -7,7 +7,51 @@ import logger from '../utils/logger.js';
  */
 class TwilioService {
   /**
+   * Límite de caracteres de WhatsApp (Twilio)
+   * Usamos 1500 para dejar un margen de seguridad
+   */
+  static MAX_CARACTERES = 1500;
+
+  /**
+   * Dividir mensaje en partes si excede el límite
+   */
+  static dividirMensaje(mensaje) {
+    if (mensaje.length <= this.MAX_CARACTERES) {
+      return [mensaje];
+    }
+
+    const partes = [];
+    let textoRestante = mensaje;
+
+    while (textoRestante.length > 0) {
+      if (textoRestante.length <= this.MAX_CARACTERES) {
+        partes.push(textoRestante);
+        break;
+      }
+
+      // Buscar el último salto de línea antes del límite
+      let puntoCorte = textoRestante.lastIndexOf('\n', this.MAX_CARACTERES);
+      
+      // Si no hay salto de línea, buscar el último espacio
+      if (puntoCorte === -1 || puntoCorte < this.MAX_CARACTERES * 0.7) {
+        puntoCorte = textoRestante.lastIndexOf(' ', this.MAX_CARACTERES);
+      }
+      
+      // Si no hay espacio, cortar en el límite
+      if (puntoCorte === -1 || puntoCorte < this.MAX_CARACTERES * 0.7) {
+        puntoCorte = this.MAX_CARACTERES;
+      }
+
+      partes.push(textoRestante.substring(0, puntoCorte).trim());
+      textoRestante = textoRestante.substring(puntoCorte).trim();
+    }
+
+    return partes;
+  }
+
+  /**
    * Enviar mensaje de WhatsApp a un cliente
+   * Si el mensaje es muy largo, lo divide automáticamente
    */
   static async enviarMensajeCliente(numeroDestino, mensaje) {
     try {
@@ -16,14 +60,36 @@ class TwilioService {
         ? numeroDestino 
         : `whatsapp:${numeroDestino}`;
 
-      const message = await twilioClient.messages.create({
-        body: mensaje,
-        from: config.twilio.whatsappClientes,
-        to: numeroFormateado
-      });
+      // Dividir mensaje si es necesario
+      const partes = this.dividirMensaje(mensaje);
+      const messageSids = [];
 
-      logger.info(`Mensaje enviado a cliente ${numeroDestino}: ${message.sid}`);
-      return { success: true, messageSid: message.sid };
+      // Enviar cada parte con un pequeño delay
+      for (let i = 0; i < partes.length; i++) {
+        const parte = partes[i];
+        let mensajeConEncabezado = parte;
+        
+        // Agregar número de parte si hay múltiples
+        if (partes.length > 1) {
+          mensajeConEncabezado = `📱 *Parte ${i + 1}/${partes.length}*\n\n${parte}`;
+        }
+
+        const message = await twilioClient.messages.create({
+          body: mensajeConEncabezado,
+          from: config.twilio.whatsappClientes,
+          to: numeroFormateado
+        });
+
+        messageSids.push(message.sid);
+        logger.info(`Mensaje enviado a cliente ${numeroDestino} (parte ${i + 1}/${partes.length}): ${message.sid}`);
+
+        // Pequeño delay entre mensajes para evitar sobrecarga
+        if (i < partes.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+      }
+
+      return { success: true, messageSid: messageSids[0], messageSids, partes: partes.length };
     } catch (error) {
       logger.error(`Error al enviar mensaje a cliente ${numeroDestino}:`, error);
       return { success: false, error: error.message };
@@ -32,6 +98,7 @@ class TwilioService {
 
   /**
    * Enviar mensaje de WhatsApp al administrador
+   * Si el mensaje es muy largo, lo divide automáticamente
    */
   static async enviarMensajeAdmin(mensaje) {
     try {
@@ -41,14 +108,36 @@ class TwilioService {
         ? numeroAdmin 
         : `whatsapp:${numeroAdmin}`;
 
-      const message = await twilioClient.messages.create({
-        body: mensaje,
-        from: config.twilio.whatsappClientes,
-        to: numeroFormateado
-      });
+      // Dividir mensaje si es necesario
+      const partes = this.dividirMensaje(mensaje);
+      const messageSids = [];
 
-      logger.info(`Mensaje enviado a admin ${numeroAdmin}: ${message.sid}`);
-      return { success: true, messageSid: message.sid };
+      // Enviar cada parte
+      for (let i = 0; i < partes.length; i++) {
+        const parte = partes[i];
+        let mensajeConEncabezado = parte;
+        
+        // Agregar número de parte si hay múltiples
+        if (partes.length > 1) {
+          mensajeConEncabezado = `📱 *Parte ${i + 1}/${partes.length}*\n\n${parte}`;
+        }
+
+        const message = await twilioClient.messages.create({
+          body: mensajeConEncabezado,
+          from: config.twilio.whatsappClientes,
+          to: numeroFormateado
+        });
+
+        messageSids.push(message.sid);
+        logger.info(`Mensaje enviado a admin ${numeroAdmin} (parte ${i + 1}/${partes.length}): ${message.sid}`);
+
+        // Pequeño delay entre mensajes
+        if (i < partes.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+      }
+
+      return { success: true, messageSid: messageSids[0], messageSids, partes: partes.length };
     } catch (error) {
       logger.error('Error al enviar mensaje a admin:', error);
       return { success: false, error: error.message };
