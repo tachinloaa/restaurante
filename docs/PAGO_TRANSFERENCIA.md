@@ -13,22 +13,7 @@ Ejecuta el archivo `docs/ADD_PAYMENT_FIELDS.sql` en Supabase SQL Editor:
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS metodo_pago VARCHAR(20)...
 ```
 
-### 2️⃣ Configurar Variables de Entorno en Render
-
-Agrega estas variables en el dashboard de Render (Settings → Environment):
-
-```env
-BANCO_NOMBRE=BBVA
-BANCO_TITULAR=El Rinconcito
-BANCO_CUENTA=1234567890
-BANCO_CLABE=012345678901234567
-```
-
-**⚠️ IMPORTANTE:** Reemplaza con tus datos bancarios reales.
-
-### 3️⃣ Redesplegar
-
-Render redesplegará automáticamente con el push o manualmente desde el dashboard.
+**Eso es todo!** No necesitas configurar variables de entorno.
 
 ## 🎯 Cómo funciona
 
@@ -40,9 +25,9 @@ Render redesplegará automáticamente con el push o manualmente desde el dashboa
    - **2** 🏦 Transferencia
 
 3. Si elige **Transferencia**:
-   - Recibe datos bancarios
-   - Realiza la transferencia
-   - Envía comprobante
+   - Bot le pide que envíe comprobante
+   - Cliente realiza transferencia a tu cuenta
+   - Cliente envía foto/captura del comprobante
    - Pedido queda pendiente de verificación
 
 4. Si elige **Efectivo**:
@@ -51,11 +36,12 @@ Render redesplegará automáticamente con el push o manualmente desde el dashboa
 
 ### Para el Admin:
 
-1. Recibe notificación del pedido
+1. Recibes notificación del pedido
 2. Si es transferencia:
    - Aparece "⚠️ PAGO PENDIENTE DE VERIFICACIÓN"
-   - Verifica el pago en su banco
-   - Actualiza el pedido a "preparando" cuando confirme
+   - Recibes el comprobante del cliente
+   - Verificas el pago en tu banco
+   - Actualizas el pedido a "preparando" cuando confirmes
 
 3. Al cambiar estado a "preparando", el cliente recibe notificación
 
@@ -78,9 +64,9 @@ Cliente envía comprobante
     ↓
 Pedido creado (pendiente, pago_verificado=false)
     ↓
-Admin verifica pago
+Admin verifica pago en su banco
     ↓
-Admin cambia a "preparando" (pago_verificado=true automático)
+Admin cambia a "preparando" en dashboard
     ↓
 Cliente recibe notificación de confirmación
     ↓

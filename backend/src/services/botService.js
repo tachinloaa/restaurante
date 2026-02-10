@@ -754,15 +754,10 @@ class BotService {
     const total = OrderService.calcularTotal(session);
 
     let mensaje = `${EMOJIS.DINERO} *PAGO POR TRANSFERENCIA*\n\n`;
-    mensaje += `*Total a pagar: ${formatearPrecio(total)}*\n\n`;
-    mensaje += `📋 *DATOS BANCARIOS:*\n`;
-    mensaje += `🏦 Banco: *${config.datosBancarios.banco}*\n`;
-    mensaje += `👤 Titular: *${config.datosBancarios.titular}*\n`;
-    mensaje += `💳 Cuenta: *${config.datosBancarios.cuenta}*\n`;
-    mensaje += `🔢 CLABE: *${config.datosBancarios.clabe}*\n\n`;
+    mensaje += `Total a pagar: *${formatearPrecio(total)}*\n\n`;
     mensaje += `⚠️ *IMPORTANTE:*\n`;
-    mensaje += `• Realiza la transferencia por el monto exacto\n`;
-    mensaje += `• Una vez realizada, *envía tu comprobante de pago* (foto o captura)\n`;
+    mensaje += `• Realiza la transferencia bancaria por el monto exacto\n`;
+    mensaje += `• Una vez realizada, *envía tu comprobante de pago* (foto o captura de pantalla)\n`;
     mensaje += `• Tu pedido será confirmado cuando verifiquemos el pago\n\n`;
     mensaje += `📸 *Envía tu comprobante ahora*`;
 
