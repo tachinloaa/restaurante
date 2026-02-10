@@ -54,7 +54,10 @@ function Orders() {
    * Determinar nivel de urgencia del pedido
    */
   const getNivelUrgencia = (estado, minutos) => {
-    if (estado === 'entregado' || estado === 'cancelado') return 'normal';
+    // Sin alertas para pedidos finalizados o ya enviados
+    if (estado === 'entregado' || estado === 'cancelado' || estado === 'enviado') {
+      return 'normal';
+    }
     
     // Tiempos iguales para TODOS (domicilio, restaurante, para llevar)
     if (estado === 'pendiente') {
@@ -69,7 +72,8 @@ function Orders() {
       if (minutos >= 15) return 'atencion';
     }
     
-    if (estado === 'listo' || estado === 'enviado') {
+    // Solo "listo" necesita alerta (esperando ser recogido/entregado)
+    if (estado === 'listo') {
       if (minutos >= 20) return 'urgente';
       if (minutos >= 10) return 'atencion';
     }
