@@ -1000,9 +1000,6 @@ class BotService {
       // Cambiar estado del pedido a PENDIENTE_PAGO
       await OrderService.cambiarEstado(pedido.id, ESTADOS_PEDIDO.PENDIENTE_PAGO);
 
-      // Enviar notificación al admin con el comprobante
-      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido);
-
       let mensaje = `✅ *PEDIDO REGISTRADO*\n\n`;
       mensaje += `${EMOJIS.TICKET} Tu número de pedido es: *#${pedido.numero_pedido}*\n\n`;
       mensaje += `⏳ *Estamos verificando tu pago*\n`;
@@ -1011,7 +1008,10 @@ class BotService {
       mensaje += `${EMOJIS.RELOJ} Tiempo estimado después de confirmar: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos\n\n`;
       mensaje += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
 
-      // Limpiar sesión
+      // Enviar notificación al admin con el comprobante ANTES de eliminar sesión
+      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido);
+
+      // Limpiar sesión DESPUÉS de enviar notificación
       SessionService.deleteSession(telefono);
 
       return {
