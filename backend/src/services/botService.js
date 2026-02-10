@@ -826,6 +826,11 @@ class BotService {
         comprobante_info: 'Imagen recibida'
       });
 
+      // GENERAR RESUMEN ANTES DE QUE SE BORRE EL CARRITO
+      const session = SessionService.getSession(telefono);
+      const resumenCarrito = OrderService.generarResumenCarrito(session);
+      const resumenTexto = resumenCarrito ? resumenCarrito.resumen : null;
+
       // CREAR EL PEDIDO INMEDIATAMENTE con estado PENDIENTE_PAGO
       const resultado = await OrderService.crearPedidoDesdeBot(telefono);
 
@@ -842,11 +847,8 @@ class BotService {
       // Cambiar estado a PENDIENTE_PAGO
       await OrderService.cambiarEstado(pedido.id, ESTADOS_PEDIDO.PENDIENTE_PAGO);
 
-      // Obtener sesión para notificación al admin
-      const session = SessionService.getSession(telefono);
-
-      // Enviar notificación al admin con el comprobante
-      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido);
+      // Enviar notificación al admin con el comprobante y resumen
+      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto);
 
       // Mensaje al cliente
       let mensajeCliente = `✅ *COMPROBANTE RECIBIDO*\n\n`;
@@ -875,6 +877,11 @@ class BotService {
         comprobante_info: mensaje.substring(0, 100)
       });
 
+      // GENERAR RESUMEN ANTES DE QUE SE BORRE EL CARRITO
+      const session = SessionService.getSession(telefono);
+      const resumenCarrito = OrderService.generarResumenCarrito(session);
+      const resumenTexto = resumenCarrito ? resumenCarrito.resumen : null;
+
       // CREAR EL PEDIDO INMEDIATAMENTE con estado PENDIENTE_PAGO
       const resultado = await OrderService.crearPedidoDesdeBot(telefono);
 
@@ -892,7 +899,7 @@ class BotService {
       await OrderService.cambiarEstado(pedido.id, ESTADOS_PEDIDO.PENDIENTE_PAGO);
 
       // Enviar notificación al admin
-      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido);
+      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto);
 
       // Mensaje al cliente
       let mensajeCliente = `✅ *REFERENCIA RECIBIDA*\n\n`;
@@ -1015,6 +1022,10 @@ class BotService {
   async confirmarPedido(telefono) {
     const session = SessionService.getSession(telefono);
 
+    // GENERAR RESUMEN ANTES DE QUE SE BORRE EL CARRITO
+    const resumenCarrito = OrderService.generarResumenCarrito(session);
+    const resumenTexto = resumenCarrito ? resumenCarrito.resumen : null;
+
     // SIEMPRE crear el pedido en la base de datos
     const resultado = await OrderService.crearPedidoDesdeBot(telefono);
 
@@ -1045,8 +1056,8 @@ class BotService {
       mensaje += `${EMOJIS.RELOJ} Tiempo estimado después de confirmar: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos\n\n`;
       mensaje += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
 
-      // Enviar notificación al admin con el comprobante ANTES de eliminar sesión
-      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido);
+      // Enviar notificación al admin con el comprobante y resumen
+      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto);
 
       // Limpiar sesión DESPUÉS de enviar notificación
       SessionService.deleteSession(telefono);
@@ -1079,11 +1090,15 @@ class BotService {
   /**
    * Notificar al admin sobre pedido pendiente de aprobación
    */
-  async notificarAdminPedidoPendiente(telefono, numeroPedido) {
+  async notificarAdminPedidoPendiente(telefono, numeroPedido, resumenTexto = null) {
     const session = SessionService.getSession(telefono);
-    const total = SessionService.calcularTotalCarrito(telefono);
     const cliente = session.datos.nombre || 'Cliente';
-    const resumenCarrito = OrderService.generarResumenCarrito(session);
+
+    // Si no se proporcionó resumen, intentar generarlo
+    if (!resumenTexto) {
+      const resumenCarrito = OrderService.generarResumenCarrito(session);
+      resumenTexto = resumenCarrito ? resumenCarrito.resumen : '⚠️ Detalles del pedido no disponibles';
+    }
 
     let mensajeAdmin = `🔔 *NUEVO PEDIDO PENDIENTE DE APROBACIÓN*\n\n`;
     mensajeAdmin += `� Pedido: *#${numeroPedido}*\n`;
@@ -1095,7 +1110,7 @@ class BotService {
       mensajeAdmin += `🏠 Referencias: ${session.datos.referencias}\n`;
     }
 
-    mensajeAdmin += `\n${resumenCarrito.resumen}\n\n`;
+    mensajeAdmin += `\n${resumenTexto}\n\n`;
     mensajeAdmin += `💳 *Método de pago:* Transferencia bancaria\n`;
 
     if (session.datos.comprobante_info) {
