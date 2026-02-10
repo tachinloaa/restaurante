@@ -1548,13 +1548,5 @@ class BotService {
   }
 }
 
-// Función auxiliar de formateo
-function formatearPrecio(precio) {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN'
-  }).format(precio);
-}
-
 // Exportar instancia única (Singleton)
 export default new BotService();
