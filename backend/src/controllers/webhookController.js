@@ -12,7 +12,14 @@ class WebhookController {
     try {
       const { From, Body, NumMedia, MediaUrl0, MediaContentType0 } = req.body;
 
-      logger.info(`Webhook WhatsApp recibido de ${From}: ${Body}`);
+      logger.info(`📱 Webhook WhatsApp recibido de ${From}`);
+      logger.info(`📝 Body: ${Body}`);
+      logger.info(`📊 NumMedia: ${NumMedia}`);
+      
+      if (NumMedia > 0) {
+        logger.info(`🖼️ MediaUrl0: ${MediaUrl0}`);
+        logger.info(`📋 MediaContentType0: ${MediaContentType0}`);
+      }
 
       // Preparar datos del mensaje
       const mensajeData = {
@@ -22,11 +29,13 @@ class WebhookController {
         mediaType: MediaContentType0 || null
       };
 
+      logger.info(`📦 Datos del mensaje preparados:`, JSON.stringify(mensajeData, null, 2));
+
       // Procesar mensaje con el bot
       const respuesta = await BotService.procesarMensaje(From, mensajeData);
 
       if (!respuesta.success) {
-        logger.error('Error al procesar mensaje del bot:', respuesta.mensaje);
+        logger.error('❌ Error al procesar mensaje del bot:', respuesta.mensaje);
       }
 
       // Enviar respuesta al cliente
@@ -38,7 +47,7 @@ class WebhookController {
       res.type('text/xml');
       res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
     } catch (error) {
-      logger.error('Error en webhook WhatsApp:', error);
+      logger.error('💥 Error en webhook WhatsApp:', error);
       
       res.type('text/xml');
       res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');

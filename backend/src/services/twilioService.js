@@ -153,6 +153,9 @@ class TwilioService {
         ? numeroDestino 
         : `whatsapp:${numeroDestino}`;
 
+      logger.info(`📤 Enviando mensaje con imagen a ${numeroDestino}`);
+      logger.info(`🖼️ URL de media: ${mediaUrl}`);
+
       const message = await twilioClient.messages.create({
         body: mensaje,
         from: config.twilio.whatsappClientes,
@@ -160,11 +163,16 @@ class TwilioService {
         mediaUrl: [mediaUrl]
       });
 
-      logger.info(`Mensaje con imagen enviado a ${numeroDestino}: ${message.sid}`);
+      logger.info(`✅ Mensaje con imagen enviado exitosamente a ${numeroDestino}: ${message.sid}`);
+      logger.info(`📊 Estado del mensaje: ${message.status}`);
+      
       return { success: true, messageSid: message.sid };
     } catch (error) {
-      logger.error(`Error al enviar mensaje con imagen a ${numeroDestino}:`, error);
-      return { success: false, error: error.message };
+      logger.error(`❌ Error al enviar mensaje con imagen a ${numeroDestino}:`, error);
+      logger.error(`📍 Detalles del error: ${error.message}`);
+      logger.error(`🔍 Código de error: ${error.code}`);
+      
+      return { success: false, error: error.message, errorCode: error.code };
     }
   }
 

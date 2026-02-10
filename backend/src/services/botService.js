@@ -817,6 +817,8 @@ class BotService {
   async procesarComprobante(telefono, mensaje, mediaData = {}) {
     const { mediaUrl, numMedia } = mediaData;
 
+    logger.info(`📥 Procesando comprobante de ${telefono}. NumMedia: ${numMedia}, MediaUrl: ${mediaUrl}`);
+
     // Verificar si recibió una imagen
     if (numMedia > 0 && mediaUrl) {
       // Guardar URL del comprobante
@@ -826,8 +828,18 @@ class BotService {
         comprobante_info: 'Imagen recibida'
       });
 
+      logger.info(`✅ Comprobante guardado en sesión con URL: ${mediaUrl}`);
+
       // GENERAR RESUMEN ANTES DE QUE SE BORRE EL CARRITO
       const session = SessionService.getSession(telefono);
+      
+      // Verificar que la sesión tenga el comprobante guardado
+      if (session && session.datos && session.datos.comprobante_url) {
+        logger.info(`✅ Verificado: comprobante_url está en la sesión`);
+      } else {
+        logger.error(`❌ WARNING: comprobante_url NO está en la sesión después de guardar!`);
+      }
+
       const resumenCarrito = OrderService.generarResumenCarrito(session);
       const resumenTexto = resumenCarrito ? resumenCarrito.resumen : null;
 
@@ -848,6 +860,7 @@ class BotService {
       await OrderService.cambiarEstado(pedido.id, ESTADOS_PEDIDO.PENDIENTE_PAGO);
 
       // Enviar notificación al admin con el comprobante y resumen
+      logger.info(`📨 Enviando notificación al admin para pedido #${pedido.numero_pedido}`);
       await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto);
 
       // Mensaje al cliente
@@ -861,7 +874,7 @@ class BotService {
       // Limpiar sesión DESPUÉS de enviar notificación
       SessionService.deleteSession(telefono);
 
-      logger.info(`Pedido #${pedido.numero_pedido} creado con comprobante, esperando aprobación`);
+      logger.info(`✅ Pedido #${pedido.numero_pedido} creado con comprobante, esperando aprobación`);
 
       return {
         success: true,
@@ -1092,6 +1105,12 @@ class BotService {
    */
   async notificarAdminPedidoPendiente(telefono, numeroPedido, resumenTexto = null) {
     const session = SessionService.getSession(telefono);
+    
+    if (!session) {
+      logger.error(`❌ No se encontró sesión para ${telefono} al notificar admin`);
+      return;
+    }
+
     const cliente = session.datos.nombre || 'Cliente';
 
     // Si no se proporcionó resumen, intentar generarlo
@@ -1101,8 +1120,8 @@ class BotService {
     }
 
     let mensajeAdmin = `🔔 *NUEVO PEDIDO PENDIENTE DE APROBACIÓN*\n\n`;
-    mensajeAdmin += `� Pedido: *#${numeroPedido}*\n`;
-    mensajeAdmin += `�👤 Cliente: *${cliente}*\n`;
+    mensajeAdmin += `📝 Pedido: *#${numeroPedido}*\n`;
+    mensajeAdmin += `👤 Cliente: *${cliente}*\n`;
     mensajeAdmin += `📞 Teléfono: ${telefono}\n`;
     mensajeAdmin += `📍 Dirección: ${session.datos.direccion || 'N/A'}\n`;
 
@@ -1114,7 +1133,7 @@ class BotService {
     mensajeAdmin += `💳 *Método de pago:* Transferencia bancaria\n`;
 
     if (session.datos.comprobante_info) {
-      mensajeAdmin += `📝 Comprobante: ${session.datos.comprobante_info}\n`;
+      mensajeAdmin += `📝 Info: ${session.datos.comprobante_info}\n`;
     }
 
     mensajeAdmin += `\n⏳ *ACCIÓN REQUERIDA:*\n`;
@@ -1125,17 +1144,38 @@ class BotService {
     mensajeAdmin += `👉 También puedes gestionarlo desde el dashboard:\n`;
     mensajeAdmin += `${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/pedidos`;
 
-    // Si hay imagen del comprobante, enviarla
-    if (session.datos.comprobante_url) {
-      await TwilioService.enviarMensajeConImagen(
-        config.admin.phoneNumber,
-        mensajeAdmin,
-        session.datos.comprobante_url
-      );
-      logger.info(`Notificación de pedido #${numeroPedido} pendiente enviada al admin con imagen`);
-    } else {
-      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
-      logger.info(`Notificación de pedido #${numeroPedido} pendiente enviada al admin`);
+    try {
+      // Si hay imagen del comprobante, enviarla
+      if (session.datos.comprobante_url) {
+        logger.info(`📸 Enviando comprobante al admin con URL: ${session.datos.comprobante_url}`);
+        
+        const resultado = await TwilioService.enviarMensajeConImagen(
+          config.admin.phoneNumber,
+          mensajeAdmin,
+          session.datos.comprobante_url
+        );
+        
+        if (resultado.success) {
+          logger.info(`✅ Notificación de pedido #${numeroPedido} enviada al admin CON IMAGEN`);
+        } else {
+          logger.error(`❌ Error al enviar imagen del comprobante: ${resultado.error}`);
+          // Enviar mensaje sin imagen como respaldo
+          mensajeAdmin += `\n\n⚠️ El comprobante no pudo enviarse automáticamente`;
+          await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+        }
+      } else {
+        logger.warn(`⚠️ No hay comprobante_url en la sesión de ${telefono}`);
+        await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+        logger.info(`📨 Notificación de pedido #${numeroPedido} enviada al admin SIN IMAGEN`);
+      }
+    } catch (error) {
+      logger.error(`❌ Error al notificar admin sobre pedido #${numeroPedido}:`, error);
+      // Intentar enviar al menos el mensaje sin imagen
+      try {
+        await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+      } catch (e) {
+        logger.error('💥 Error crítico al enviar notificación al admin:', e);
+      }
     }
   }
 
