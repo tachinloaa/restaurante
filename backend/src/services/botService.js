@@ -5,11 +5,11 @@ import NotificationService from './notificationService.js';
 import TwilioService from './twilioService.js';
 import { supabase } from '../config/database.js';
 import config from '../config/environment.js';
-import { 
-  BOT_STATES, 
-  COMANDOS_BOT, 
-  EMOJIS, 
-  MENSAJES_BOT, 
+import {
+  BOT_STATES,
+  COMANDOS_BOT,
+  EMOJIS,
+  MENSAJES_BOT,
   TIPOS_PEDIDO,
   METODOS_PAGO,
   TIEMPO_ENTREGA,
@@ -31,16 +31,16 @@ class BotService {
   async procesarMensaje(from, mensajeData) {
     try {
       const telefono = limpiarNumeroWhatsApp(from);
-      
+
       // Extraer datos del mensaje
       const body = typeof mensajeData === 'string' ? mensajeData : mensajeData.body;
       const numMedia = mensajeData.numMedia || 0;
       const mediaUrl = mensajeData.mediaUrl || null;
       const mediaType = mensajeData.mediaType || null;
-      
+
       // Sanitizar input del usuario
       const bodySanitizado = sanitizarInput(body);
-      
+
       // Normalizar mensaje: minúsculas, sin espacios extras, sin acentos
       const mensajeLimpio = bodySanitizado
         .trim()
@@ -53,7 +53,7 @@ class BotService {
 
       // Verificar si es admin
       const isAdmin = this.esAdmin(telefono);
-      
+
       // Comandos especiales para admin
       if (isAdmin) {
         if (mensajeLimpio === 'pedidos' || mensajeLimpio === 'pendientes') {
@@ -183,7 +183,7 @@ class BotService {
   async iniciarConversacion(telefono) {
     SessionService.resetSession(telefono);
     SessionService.updateEstado(telefono, BOT_STATES.MENU_PRINCIPAL);
-    
+
     return {
       success: true,
       mensaje: MENSAJES_BOT.BIENVENIDA
@@ -240,16 +240,16 @@ class BotService {
    */
   async solicitarTipoPedido(telefono) {
     SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
-    
+
     // Si hay un producto preseleccionado, moverlo a seleccionado
     const session = SessionService.getSession(telefono);
     if (session?.datos?.producto_preseleccionado) {
-      SessionService.guardarDatos(telefono, { 
+      SessionService.guardarDatos(telefono, {
         producto_seleccionado: session.datos.producto_preseleccionado,
         producto_preseleccionado: null
       });
     }
-    
+
     return {
       success: true,
       mensaje: `¿Cómo deseas recibir tu pedido?\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n*3.* ${EMOJIS.RESTAURANTE} Comer aquí\n\nResponde con el número de tu opción.`
@@ -298,9 +298,9 @@ class BotService {
 
     if (productoSeleccionado) {
       // Ya seleccionó producto antes, moverlo a producto_temporal y continuar con cantidad
-      SessionService.guardarDatos(telefono, { 
+      SessionService.guardarDatos(telefono, {
         producto_temporal: productoSeleccionado,
-        producto_seleccionado: null 
+        producto_seleccionado: null
       });
       SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_CANTIDAD);
       return {
@@ -441,7 +441,7 @@ class BotService {
     const mensajeLimpio = body.trim().toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, ''); // Normalizar como en procesarMensaje
-    
+
     // Verificar comandos especiales primero
     if (this.esComandoMenu(mensajeLimpio)) {
       return await this.mostrarMenuSoloVer(telefono);
@@ -454,7 +454,7 @@ class BotService {
     if (this.esComandoPedir(mensajeLimpio)) {
       return await this.solicitarTipoPedido(telefono);
     }
-    
+
     // Buscar por número o nombre
     let producto = null;
 
@@ -478,7 +478,7 @@ class BotService {
     if (!session?.datos?.tipo_pedido) {
       // Guardar el producto seleccionado temporalmente
       SessionService.guardarDatos(telefono, { producto_preseleccionado: producto });
-      
+
       return {
         success: true,
         mensaje: `${EMOJIS.CHECK} *${producto.nombre}* - ${formatearPrecio(producto.precio)}\n\n¿Deseas ordenar este producto?\n\nEscribe *pedir* para iniciar tu pedido o *menu* para seguir viendo.`
@@ -512,7 +512,7 @@ class BotService {
 
     const session = SessionService.getSession(telefono);
     const producto = session.datos.producto_temporal;
-    
+
     if (!producto) {
       return await this.iniciarConversacion(telefono);
     }
@@ -540,7 +540,7 @@ class BotService {
 
     // Mostrar carrito y preguntar si quiere más
     const resumenCarrito = OrderService.generarResumenCarrito(resultado.session);
-    
+
     let mensajeRespuesta = `Perfecto!\n\n${resumenCarrito.resumen}\n\n¿Deseas agregar más productos?\n\nResponde:\n• *SI* para agregar más\n• *NO* para continuar con tu pedido`;
 
     SessionService.updateEstado(telefono, BOT_STATES.CONFIRMAR_MAS_PRODUCTOS);
@@ -557,7 +557,7 @@ class BotService {
   async procesarMasProductos(telefono, mensaje) {
     if (COMANDOS_BOT.SI.includes(mensaje)) {
       SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_PRODUCTO);
-      
+
       return {
         success: true,
         mensaje: '¿Qué más deseas ordenar?\nEscribe el número o nombre del producto.\n\nEscribe *menu* para ver todas las opciones.'
@@ -606,7 +606,7 @@ class BotService {
    */
   async procesarNombre(telefono, nombre) {
     const nombreLimpio = nombre.trim();
-    
+
     if (!esValidoNombre(nombreLimpio)) {
       return {
         success: true,
@@ -614,9 +614,9 @@ class BotService {
       };
     }
 
-    SessionService.guardarDatos(telefono, { 
+    SessionService.guardarDatos(telefono, {
       nombre: nombreLimpio,
-      telefono: telefono 
+      telefono: telefono
     });
 
     const session = SessionService.getSession(telefono);
@@ -624,14 +624,14 @@ class BotService {
 
     if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
       SessionService.updateEstado(telefono, BOT_STATES.SOLICITAR_DIRECCION);
-      
+
       return {
         success: true,
         mensaje: `Gracias ${nombreLimpio} ${EMOJIS.PERSONA}\n\nAhora necesito tu *DIRECCIÓN COMPLETA* para la entrega.\n\nEjemplo: Calle 5 de Mayo #123, Col. Centro\nO si es sin número: Calle Morelos S/N, Col. Centro`
       };
     } else if (tipoPedido === TIPOS_PEDIDO.RESTAURANTE) {
       SessionService.updateEstado(telefono, BOT_STATES.SOLICITAR_NUM_PERSONAS);
-      
+
       return {
         success: true,
         mensaje: `Gracias ${nombreLimpio} ${EMOJIS.PERSONA}\n\n¿Para cuántas personas es el pedido? ${EMOJIS.GRUPO}`
@@ -647,7 +647,7 @@ class BotService {
    */
   async procesarDireccion(telefono, direccion) {
     const direccionLimpia = direccion.trim();
-    
+
     if (!esValidaDireccion(direccionLimpia)) {
       return {
         success: true,
@@ -732,8 +732,7 @@ class BotService {
   async solicitarMetodoPago(telefono) {
     SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_METODO_PAGO);
 
-    const session = SessionService.getSession(telefono);
-    const total = OrderService.calcularTotal(session);
+    const total = SessionService.calcularTotalCarrito(telefono);
 
     let mensaje = `${EMOJIS.DINERO} *MÉTODO DE PAGO*\n\n`;
     mensaje += `Total a pagar: *${formatearPrecio(total)}*\n\n`;
@@ -782,8 +781,7 @@ class BotService {
   async solicitarComprobante(telefono) {
     SessionService.updateEstado(telefono, BOT_STATES.ESPERANDO_COMPROBANTE);
 
-    const session = SessionService.getSession(telefono);
-    const total = OrderService.calcularTotal(session);
+    const total = SessionService.calcularTotalCarrito(telefono);
 
     let mensaje = `${EMOJIS.DINERO} *PAGO POR TRANSFERENCIA*\n\n`;
     mensaje += `Total a pagar: *${formatearPrecio(total)}*\n\n`;
@@ -804,11 +802,11 @@ class BotService {
    */
   async procesarComprobante(telefono, mensaje, mediaData = {}) {
     const { mediaUrl, numMedia } = mediaData;
-    
+
     // Verificar si recibió una imagen
     if (numMedia > 0 && mediaUrl) {
       // Guardar URL del comprobante
-      SessionService.guardarDatos(telefono, { 
+      SessionService.guardarDatos(telefono, {
         comprobante_recibido: true,
         comprobante_url: mediaUrl,
         comprobante_info: 'Imagen recibida'
@@ -818,7 +816,7 @@ class BotService {
       const session = SessionService.getSession(telefono);
       const total = OrderService.calcularTotal(session);
       const cliente = session.datos.nombre || 'Cliente';
-      
+
       let mensajeAdmin = `📸 *COMPROBANTE DE PAGO RECIBIDO*\n\n`;
       mensajeAdmin += `👤 Cliente: *${cliente}*\n`;
       mensajeAdmin += `💰 Total: *${formatearPrecio(total)}*\n`;
@@ -837,11 +835,11 @@ class BotService {
       // Ir a confirmación con pago pendiente
       return await this.mostrarConfirmacionConPagoPendiente(telefono);
     }
-    
+
     // Si no recibió imagen pero envió texto (número de referencia)
     if (mensaje && mensaje.trim().length >= 5) {
       // Guardar que se recibió comprobante como texto
-      SessionService.guardarDatos(telefono, { 
+      SessionService.guardarDatos(telefono, {
         comprobante_recibido: true,
         comprobante_info: mensaje.substring(0, 100)
       });
@@ -850,7 +848,7 @@ class BotService {
       const session = SessionService.getSession(telefono);
       const total = OrderService.calcularTotal(session);
       const cliente = session.datos.nombre || 'Cliente';
-      
+
       let mensajeAdmin = `📝 *COMPROBANTE DE PAGO (TEXTO)*\n\n`;
       mensajeAdmin += `👤 Cliente: *${cliente}*\n`;
       mensajeAdmin += `💰 Total: *${formatearPrecio(total)}*\n`;
@@ -922,7 +920,7 @@ class BotService {
 
     let mensaje = resumen.resumen;
     mensaje += `\n\n${EMOJIS.RELOJ} Tiempo estimado: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos`;
-    
+
     // Mostrar método de pago si es domicilio
     if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
       const metodoPago = session.datos.metodo_pago;
@@ -931,7 +929,7 @@ class BotService {
         mensaje += `\n💵 El repartidor lleva cambio máximo de $${MAX_CAMBIO_REPARTIDOR} pesos`;
       }
     }
-    
+
     mensaje += `\n\n¿Todo está correcto?\n\nResponde:\n• *SI* para confirmar tu pedido\n• *NO* para cancelar y empezar de nuevo`;
 
     SessionService.updateEstado(telefono, BOT_STATES.CONFIRMAR_PEDIDO);
@@ -965,7 +963,7 @@ class BotService {
    */
   async confirmarPedido(telefono) {
     const session = SessionService.getSession(telefono);
-    
+
     // Crear pedido en la base de datos
     const resultado = await OrderService.crearPedidoDesdeBot(telefono);
 
@@ -988,7 +986,7 @@ class BotService {
 
     // Mensaje diferente según método de pago
     let mensaje = '';
-    
+
     if (session.datos.metodo_pago === METODOS_PAGO.TRANSFERENCIA && !pedido.pago_verificado) {
       // Pago por transferencia pendiente
       mensaje = `✅ *PEDIDO REGISTRADO*\n\n`;
@@ -1021,7 +1019,7 @@ class BotService {
    */
   async cancelarProceso(telefono) {
     SessionService.resetSession(telefono);
-    
+
     return {
       success: true,
       mensaje: MENSAJES_BOT.PEDIDO_CANCELADO
@@ -1089,27 +1087,27 @@ class BotService {
   }
 
   esComandoMenu(mensaje) {
-    return mensaje.includes('menu') || 
-           mensaje.includes('carta') || 
-           mensaje.includes('ver menu') ||
-           mensaje.includes('productos') ||
-           mensaje.includes('comida');
+    return mensaje.includes('menu') ||
+      mensaje.includes('carta') ||
+      mensaje.includes('ver menu') ||
+      mensaje.includes('productos') ||
+      mensaje.includes('comida');
   }
 
   esComandoPedir(mensaje) {
-    return mensaje.includes('pedir') || 
-           mensaje.includes('ordenar') ||
-           mensaje.includes('pedido') ||
-           mensaje.includes('orden') ||
-           mensaje.includes('comprar');
+    return mensaje.includes('pedir') ||
+      mensaje.includes('ordenar') ||
+      mensaje.includes('pedido') ||
+      mensaje.includes('orden') ||
+      mensaje.includes('comprar');
   }
 
   esComandoContacto(mensaje) {
-    return mensaje.includes('contacto') || 
-           mensaje.includes('info') ||
-           mensaje.includes('telefono') ||
-           mensaje.includes('ubicacion') ||
-           mensaje.includes('direccion');
+    return mensaje.includes('contacto') ||
+      mensaje.includes('info') ||
+      mensaje.includes('telefono') ||
+      mensaje.includes('ubicacion') ||
+      mensaje.includes('direccion');
   }
 
   esComandoEstado(mensaje) {
@@ -1120,11 +1118,11 @@ class BotService {
    * Verificar si es comando para ver pedidos
    */
   esComandoMisPedidos(mensaje) {
-    return mensaje.includes('mis pedidos') || 
-           mensaje.includes('pedidos recientes') || 
-           mensaje === 'pedidos' ||
-           mensaje.includes('ver pedidos') ||
-           mensaje.includes('historial');
+    return mensaje.includes('mis pedidos') ||
+      mensaje.includes('pedidos recientes') ||
+      mensaje === 'pedidos' ||
+      mensaje.includes('ver pedidos') ||
+      mensaje.includes('historial');
   }
 
   /**
@@ -1223,7 +1221,7 @@ class BotService {
     try {
       // Extraer ID del pedido del mensaje
       const match = mensaje.match(/#(\d+)/);
-      
+
       if (!match) {
         return {
           success: true,
@@ -1234,7 +1232,7 @@ class BotService {
       const pedidoId = parseInt(match[1]);
 
       // Buscar el pedido
-      const {data: pedido, error: fetchError } = await supabase
+      const { data: pedido, error: fetchError } = await supabase
         .from('pedidos')
         .select('*')
         .eq('id', pedidoId)
@@ -1272,9 +1270,9 @@ class BotService {
         return {
           success: true,
           mensaje: `❌ El pedido #${pedidoId} ya no puede ser cancelado.\n\n` +
-                  `Han pasado ${minutosTranscurridos} minutos desde que fue creado.\n` +
-                  `Solo puedes cancelar dentro de los primeros 20 minutos.\n\n` +
-                  `Para más información, contáctanos.`
+            `Han pasado ${minutosTranscurridos} minutos desde que fue creado.\n` +
+            `Solo puedes cancelar dentro de los primeros 20 minutos.\n\n` +
+            `Para más información, contáctanos.`
         };
       }
 
@@ -1297,8 +1295,8 @@ class BotService {
       return {
         success: true,
         mensaje: `✅ *Pedido #${pedidoId} cancelado exitosamente*\n\n` +
-                `Total: $${pedido.total} MXN\n\n` +
-                `Tu pedido ha sido cancelado. Esperamos verte pronto! 😊`
+          `Total: $${pedido.total} MXN\n\n` +
+          `Tu pedido ha sido cancelado. Esperamos verte pronto! 😊`
       };
     } catch (error) {
       logger.error('Error al procesar cancelación del cliente:', error);
@@ -1360,7 +1358,7 @@ class BotService {
         const estado = pedido.estado === 'pendiente' ? '🔴 NUEVO' : '🟡 EN PROCESO';
         const tipo = pedido.tipo_pedido === 'domicilio' ? '🏠 Domicilio' : '🏪 Para llevar';
         const tiempo = new Date(pedido.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-        
+
         mensaje += `*#${pedido.id}* - ${estado}\n`;
         mensaje += `👤 ${pedido.clientes?.nombre || 'Sin nombre'}\n`;
         mensaje += `${tipo} | ${formatearPrecio(pedido.total)}\n`;
@@ -1437,7 +1435,7 @@ class BotService {
       }
 
       let respuesta = `📋 *PEDIDO #${pedido.id}*\n${'='.repeat(35)}\n\n`;
-      
+
       // Estado y tipo
       const estadoEmoji = {
         'pendiente': '🔴',
@@ -1505,16 +1503,16 @@ class BotService {
     try {
       // Formato: "estado #123 completado" o "estado 123 en_proceso"
       const match = mensaje.match(/estado\s+#?(\d+)\s+(pendiente|en_proceso|completado|cancelado)/i);
-      
+
       if (!match) {
         return {
           success: true,
           mensaje: '⚠️ Usa el formato: *estado #123 completado*\n\n' +
-                  'Estados disponibles:\n' +
-                  '• pendiente\n' +
-                  '• en_proceso\n' +
-                  '• completado\n' +
-                  '• cancelado'
+            'Estados disponibles:\n' +
+            '• pendiente\n' +
+            '• en_proceso\n' +
+            '• completado\n' +
+            '• cancelado'
         };
       }
 
@@ -1561,8 +1559,8 @@ class BotService {
       return {
         success: true,
         mensaje: `${estadoEmoji[nuevoEstado]} *Pedido #${pedidoId} actualizado*\n\n` +
-                `Estado: *${nuevoEstado.toUpperCase()}*\n\n` +
-                `Cliente: ${pedido.clientes?.nombre || 'Sin nombre'}`
+          `Estado: *${nuevoEstado.toUpperCase()}*\n\n` +
+          `Cliente: ${pedido.clientes?.nombre || 'Sin nombre'}`
       };
     } catch (error) {
       logger.error('Error al cambiar estado de pedido:', error);
