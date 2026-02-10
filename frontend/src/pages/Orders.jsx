@@ -24,7 +24,7 @@ import Badge from '../components/Common/Badge';
 import LoadingSpinner from '../components/Common/LoadingSpinner';
 import orderService from '../services/orderService';
 import toast from 'react-hot-toast';
-import { formatearPrecio, formatearFecha } from '../utils/helpers';
+import { formatearPrecio, formatearFecha, formatearTelefono } from '../utils/helpers';
 import { ICONOS_TIPO } from '../utils/constants';
 
 function Orders() {
