@@ -347,10 +347,9 @@ class BotService {
     mensajeFinal += `• *menu* - Ver otras categorías\n`;
     mensajeFinal += `• *todo* - Ver menú completo`;
 
-    // Si ya está en proceso de pedido, permitir seleccionar producto
-    if (session?.datos?.tipo_pedido) {
-      SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_PRODUCTO);
-    }
+    // SIEMPRE cambiar a VER_MENU para que pueda seleccionar productos
+    // El handler procesarSeleccionProducto manejará tanto ver como ordenar
+    SessionService.updateEstado(telefono, BOT_STATES.VER_MENU);
 
     return {
       success: true,
@@ -400,17 +399,32 @@ class BotService {
    * Procesar selección de producto
    */
   async procesarSeleccionProducto(telefono, body) {
-    const mensajeLimpio = body.trim();
+    const mensajeLimpio = body.trim().toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, ''); // Normalizar como en procesarMensaje
+    
+    // Verificar comandos especiales primero
+    if (this.esComandoMenu(mensajeLimpio)) {
+      return await this.mostrarMenuSoloVer(telefono);
+    }
+
+    if (mensajeLimpio === 'todo' || mensajeLimpio === 'completo' || mensajeLimpio === 'ver todo') {
+      return await this.mostrarMenuCompletoDirecto(telefono);
+    }
+
+    if (this.esComandoPedir(mensajeLimpio)) {
+      return await this.solicitarTipoPedido(telefono);
+    }
     
     // Buscar por número o nombre
     let producto = null;
 
-    if (/^\d+$/.test(mensajeLimpio)) {
+    if (/^\d+$/.test(body.trim())) {
       // Es un número
-      producto = await MenuService.buscarPorNumero(parseInt(mensajeLimpio));
+      producto = await MenuService.buscarPorNumero(parseInt(body.trim()));
     } else {
       // Es un nombre
-      producto = await MenuService.buscarPorNombre(mensajeLimpio);
+      producto = await MenuService.buscarPorNombre(body.trim());
     }
 
     if (!producto) {
@@ -420,7 +434,19 @@ class BotService {
       };
     }
 
-    // Guardar producto seleccionado temporalmente
+    // Verificar si ya inició pedido, si no, preguntar
+    const session = SessionService.getSession(telefono);
+    if (!session?.datos?.tipo_pedido) {
+      // Guardar el producto seleccionado temporalmente
+      SessionService.guardarDatos(telefono, { producto_preseleccionado: producto });
+      
+      return {
+        success: true,
+        mensaje: `${EMOJIS.CHECK} *${producto.nombre}* - ${formatearPrecio(producto.precio)}\n\n¿Deseas ordenar este producto?\n\nEscribe *pedir* para iniciar tu pedido o *menu* para seguir viendo.`
+      };
+    }
+
+    // Si ya tiene tipo de pedido, continuar con la selección
     SessionService.guardarDatos(telefono, { producto_temporal: producto });
     SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_CANTIDAD);
 
