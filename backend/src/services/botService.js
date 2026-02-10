@@ -11,11 +11,12 @@ import {
   EMOJIS, 
   MENSAJES_BOT, 
   TIPOS_PEDIDO,
+  METODOS_PAGO,
   TIEMPO_ENTREGA,
   MAX_CANTIDAD_POR_PRODUCTO,
   MAX_CAMBIO_REPARTIDOR
 } from '../config/constants.js';
-import { limpiarNumeroWhatsApp } from '../utils/formatters.js';
+import { limpiarNumeroWhatsApp, formatearPrecio } from '../utils/formatters.js';
 import { sanitizarInput, esValidoNombre, esValidaDireccion } from '../utils/validators.js';
 import logger from '../utils/logger.js';
 
@@ -155,6 +156,12 @@ class BotService {
 
       case BOT_STATES.SOLICITAR_NUM_MESA:
         return await this.procesarNumMesa(telefono, mensajeLimpio);
+
+      case BOT_STATES.SELECCIONAR_METODO_PAGO:
+        return await this.procesarMetodoPago(telefono, mensajeLimpio);
+
+      case BOT_STATES.ESPERANDO_COMPROBANTE:
+        return await this.procesarComprobante(telefono, body);
 
       case BOT_STATES.CONFIRMAR_PEDIDO:
         return await this.procesarConfirmacion(telefono, mensajeLimpio);
@@ -633,6 +640,13 @@ class BotService {
       SessionService.guardarDatos(telefono, { referencias: referencias.trim() });
     }
 
+    // Si es domicilio, preguntar método de pago
+    const session = SessionService.getSession(telefono);
+    if (session.datos.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
+      return await this.solicitarMetodoPago(telefono);
+    }
+
+    // Si no es domicilio, ir a confirmación
     return await this.mostrarConfirmacion(telefono);
   }
 
@@ -681,6 +695,140 @@ class BotService {
   }
 
   /**
+   * Solicitar método de pago (solo para domicilio)
+   */
+  async solicitarMetodoPago(telefono) {
+    SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_METODO_PAGO);
+
+    const session = SessionService.getSession(telefono);
+    const total = OrderService.calcularTotal(session);
+
+    let mensaje = `${EMOJIS.DINERO} *MÉTODO DE PAGO*\n\n`;
+    mensaje += `Total a pagar: *${formatearPrecio(total)}*\n\n`;
+    mensaje += `¿Cómo deseas pagar?\n\n`;
+    mensaje += `*1* 💵 Efectivo (el repartidor lleva cambio)\n`;
+    mensaje += `*2* 🏦 Transferencia bancaria\n\n`;
+    mensaje += `Responde con el número de tu opción`;
+
+    return {
+      success: true,
+      mensaje
+    };
+  }
+
+  /**
+   * Procesar método de pago seleccionado
+   */
+  async procesarMetodoPago(telefono, mensaje) {
+    let metodoPago = null;
+
+    if (mensaje === '1' || mensaje.includes('efectivo')) {
+      metodoPago = METODOS_PAGO.EFECTIVO;
+    } else if (mensaje === '2' || mensaje.includes('transferencia')) {
+      metodoPago = METODOS_PAGO.TRANSFERENCIA;
+    } else {
+      return {
+        success: true,
+        mensaje: `Por favor elige una opción válida:\n\n*1* 💵 Efectivo\n*2* 🏦 Transferencia`
+      };
+    }
+
+    SessionService.guardarDatos(telefono, { metodo_pago: metodoPago });
+
+    // Si es efectivo, ir a confirmación
+    if (metodoPago === METODOS_PAGO.EFECTIVO) {
+      return await this.mostrarConfirmacion(telefono);
+    }
+
+    // Si es transferencia, mostrar datos bancarios
+    return await this.solicitarComprobante(telefono);
+  }
+
+  /**
+   * Solicitar comprobante de pago
+   */
+  async solicitarComprobante(telefono) {
+    SessionService.updateEstado(telefono, BOT_STATES.ESPERANDO_COMPROBANTE);
+
+    const session = SessionService.getSession(telefono);
+    const total = OrderService.calcularTotal(session);
+
+    let mensaje = `${EMOJIS.DINERO} *PAGO POR TRANSFERENCIA*\n\n`;
+    mensaje += `*Total a pagar: ${formatearPrecio(total)}*\n\n`;
+    mensaje += `📋 *DATOS BANCARIOS:*\n`;
+    mensaje += `🏦 Banco: *${config.datosBancarios.banco}*\n`;
+    mensaje += `👤 Titular: *${config.datosBancarios.titular}*\n`;
+    mensaje += `💳 Cuenta: *${config.datosBancarios.cuenta}*\n`;
+    mensaje += `🔢 CLABE: *${config.datosBancarios.clabe}*\n\n`;
+    mensaje += `⚠️ *IMPORTANTE:*\n`;
+    mensaje += `• Realiza la transferencia por el monto exacto\n`;
+    mensaje += `• Una vez realizada, *envía tu comprobante de pago* (foto o captura)\n`;
+    mensaje += `• Tu pedido será confirmado cuando verifiquemos el pago\n\n`;
+    mensaje += `📸 *Envía tu comprobante ahora*`;
+
+    return {
+      success: true,
+      mensaje
+    };
+  }
+
+  /**
+   * Procesar comprobante de pago recibido
+   */
+  async procesarComprobante(telefono, mensaje) {
+    // Verificar si recibió una imagen o texto
+    // En este caso, solo verificamos que envió algo
+    
+    if (!mensaje || mensaje.trim().length < 5) {
+      return {
+        success: true,
+        mensaje: `Por favor envía tu comprobante de pago.\n\nPuede ser:\n• Foto del comprobante\n• Captura de pantalla\n• Número de referencia\n\n📸 Envía tu comprobante ahora`
+      };
+    }
+
+    // Guardar que se recibió comprobante (idealmente guardaríamos el media URL)
+    SessionService.guardarDatos(telefono, { 
+      comprobante_recibido: true,
+      comprobante_info: mensaje.substring(0, 100) // Guardar referencia
+    });
+
+    // Ir a confirmación con nota de pago pendiente
+    return await this.mostrarConfirmacionConPagoPendiente(telefono);
+  }
+
+  /**
+   * Mostrar confirmación con pago pendiente de verificación
+   */
+  async mostrarConfirmacionConPagoPendiente(telefono) {
+    const session = SessionService.getSession(telefono);
+    const resumen = OrderService.generarResumenCompleto(session);
+
+    if (!resumen) {
+      return {
+        success: false,
+        mensaje: MENSAJES_BOT.ERROR_GENERAL
+      };
+    }
+
+    const tiempoEstimado = TIEMPO_ENTREGA.DOMICILIO;
+
+    let mensaje = `✅ *COMPROBANTE RECIBIDO*\n\n`;
+    mensaje += resumen.resumen;
+    mensaje += `\n\n💳 *Método de pago:* Transferencia bancaria`;
+    mensaje += `\n\n⚠️ *Tu pedido será confirmado una vez que verifiquemos el pago*\n`;
+    mensaje += `Esto puede tomar unos minutos.\n\n`;
+    mensaje += `${EMOJIS.RELOJ} Tiempo estimado de preparación: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos (después de confirmar el pago)\n\n`;
+    mensaje += `¿Confirmas tu pedido?\n\nResponde:\n• *SI* para confirmar\n• *NO* para cancelar`;
+
+    SessionService.updateEstado(telefono, BOT_STATES.CONFIRMAR_PEDIDO);
+
+    return {
+      success: true,
+      mensaje
+    };
+  }
+
+  /**
    * Mostrar confirmación del pedido
    */
   async mostrarConfirmacion(telefono) {
@@ -700,9 +848,13 @@ class BotService {
     let mensaje = resumen.resumen;
     mensaje += `\n\n${EMOJIS.RELOJ} Tiempo estimado: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos`;
     
-    // Mensaje especial para domicilio sobre el cambio del repartidor
+    // Mostrar método de pago si es domicilio
     if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
-      mensaje += `\n\n${EMOJIS.DINERO} *IMPORTANTE:* El repartidor lleva cambio máximo de $${MAX_CAMBIO_REPARTIDOR} pesos`;
+      const metodoPago = session.datos.metodo_pago;
+      if (metodoPago === METODOS_PAGO.EFECTIVO) {
+        mensaje += `\n\n${EMOJIS.DINERO} *Método de pago:* Efectivo`;
+        mensaje += `\n💵 El repartidor lleva cambio máximo de $${MAX_CAMBIO_REPARTIDOR} pesos`;
+      }
     }
     
     mensaje += `\n\n¿Todo está correcto?\n\nResponde:\n• *SI* para confirmar tu pedido\n• *NO* para cancelar y empezar de nuevo`;
@@ -759,11 +911,25 @@ class BotService {
     const tipoPedido = session.datos.tipo_pedido;
     const tiempoEstimado = tipoPedido ? TIEMPO_ENTREGA[tipoPedido.toUpperCase()] : TIEMPO_ENTREGA.DOMICILIO;
 
-    // Enviar confirmación al cliente
-    const mensaje = MENSAJES_BOT.PEDIDO_CONFIRMADO(
-      pedido.numero_pedido,
-      tiempoEstimado
-    );
+    // Mensaje diferente según método de pago
+    let mensaje = '';
+    
+    if (session.datos.metodo_pago === METODOS_PAGO.TRANSFERENCIA && !pedido.pago_verificado) {
+      // Pago por transferencia pendiente
+      mensaje = `✅ *PEDIDO REGISTRADO*\n\n`;
+      mensaje += `${EMOJIS.TICKET} Tu número de pedido es: *#${pedido.numero_pedido}*\n\n`;
+      mensaje += `⏳ *Estamos verificando tu pago*\n`;
+      mensaje += `Tu pedido será confirmado una vez que verifiquemos la transferencia.\n\n`;
+      mensaje += `📱 Te notificaremos cuando tu pedido esté confirmado y en preparación.\n\n`;
+      mensaje += `${EMOJIS.RELOJ} Tiempo estimado después de confirmar: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos\n\n`;
+      mensaje += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
+    } else {
+      // Pago en efectivo o verificado
+      mensaje = MENSAJES_BOT.PEDIDO_CONFIRMADO(
+        pedido.numero_pedido,
+        tiempoEstimado
+      );
+    }
 
     // Limpiar sesión
     SessionService.deleteSession(telefono);

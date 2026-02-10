@@ -47,6 +47,15 @@ const config = {
     phoneNumber: process.env.ADMIN_PHONE_NUMBER || '+5215519060013'
   },
 
+  // Información bancaria para pagos por transferencia
+  datosBancarios: {
+    banco: process.env.BANCO_NOMBRE || 'BBVA',
+    titular: process.env.BANCO_TITULAR || 'El Rinconcito',
+    cuenta: process.env.BANCO_CUENTA || '1234567890',
+    clabe: process.env.BANCO_CLABE || '012345678901234567',
+    referencia: process.env.BANCO_REFERENCIA || 'PEDIDO'
+  },
+
   // CORS
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 

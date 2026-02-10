@@ -19,6 +19,12 @@ export const TIPOS_PEDIDO = {
   PARA_LLEVAR: 'para_llevar'
 };
 
+// Métodos de pago
+export const METODOS_PAGO = {
+  EFECTIVO: 'efectivo',
+  TRANSFERENCIA: 'transferencia'
+};
+
 // Estados del bot conversacional
 export const BOT_STATES = {
   INICIO: 'inicio',
@@ -35,6 +41,8 @@ export const BOT_STATES = {
   SOLICITAR_REFERENCIAS: 'solicitar_referencias',
   SOLICITAR_NUM_PERSONAS: 'solicitar_num_personas',
   SOLICITAR_NUM_MESA: 'solicitar_num_mesa',
+  SELECCIONAR_METODO_PAGO: 'seleccionar_metodo_pago',
+  ESPERANDO_COMPROBANTE: 'esperando_comprobante',
   CONFIRMAR_PEDIDO: 'confirmar_pedido',
   PEDIDO_COMPLETADO: 'pedido_completado'
 };
@@ -144,6 +152,7 @@ export const HTTP_STATUS = {
 export default {
   ESTADOS_PEDIDO,
   TIPOS_PEDIDO,
+  METODOS_PAGO,
   BOT_STATES,
   COMANDOS_BOT,
   EMOJIS,

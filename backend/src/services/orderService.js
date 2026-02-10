@@ -76,6 +76,9 @@ class OrderService {
         numero_mesa: datosCliente.numero_mesa || null,
         numero_personas: datosCliente.numero_personas || null,
         notas: datosCliente.notas || null,
+        metodo_pago: datosCliente.metodo_pago || 'efectivo',
+        pago_verificado: datosCliente.metodo_pago === 'transferencia' ? false : true,
+        comprobante_pago: datosCliente.comprobante_info || null,
         productos: productosConDetalles.productos
       };
 

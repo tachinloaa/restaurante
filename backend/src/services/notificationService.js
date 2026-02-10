@@ -55,7 +55,22 @@ class NotificationService {
         });
       }
 
-      mensaje += `\n${EMOJIS.DINERO} *TOTAL: ${formatearPrecio(pedido.total)}*\n\n`;
+      mensaje += `\n${EMOJIS.DINERO} *TOTAL: ${formatearPrecio(pedido.total)}*\n`;
+
+      // Información de método de pago
+      if (pedido.metodo_pago) {
+        const metodoPagoTexto = pedido.metodo_pago === 'transferencia' ? '🏦 Transferencia' : '💵 Efectivo';
+        mensaje += `💳 Pago: *${metodoPagoTexto}*\n`;
+        
+        if (pedido.metodo_pago === 'transferencia' && !pedido.pago_verificado) {
+          mensaje += `⚠️ *PAGO PENDIENTE DE VERIFICACIÓN*\n`;
+          if (pedido.comprobante_pago) {
+            mensaje += `📄 Comprobante recibido\n`;
+          }
+        }
+      }
+
+      mensaje += `\n\n`;
 
       // URL al dashboard - página de pedidos
       const dashboardUrl = `${config.frontendUrl}/pedidos`;
