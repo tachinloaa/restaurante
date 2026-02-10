@@ -154,13 +154,28 @@ class TwilioService {
         : `whatsapp:${numeroDestino}`;
 
       logger.info(`📤 Enviando mensaje con imagen a ${numeroDestino}`);
-      logger.info(`🖼️ URL de media: ${mediaUrl}`);
+      logger.info(`🖼️ URL de media original: ${mediaUrl}`);
+
+      // Si la URL es de Twilio, necesitamos autenticarla
+      let urlFinal = mediaUrl;
+      if (mediaUrl.includes('api.twilio.com')) {
+        // Crear URL con autenticación básica embebida
+        const accountSid = config.twilio.accountSid;
+        const authToken = config.twilio.authToken;
+        
+        // Extraer la parte de la URL después de "api.twilio.com"
+        const urlParts = mediaUrl.split('api.twilio.com');
+        if (urlParts.length > 1) {
+          urlFinal = `https://${accountSid}:${authToken}@api.twilio.com${urlParts[1]}`;
+          logger.info(`🔐 URL autenticada para Twilio`);
+        }
+      }
 
       const message = await twilioClient.messages.create({
         body: mensaje,
         from: config.twilio.whatsappClientes,
         to: numeroFormateado,
-        mediaUrl: [mediaUrl]
+        mediaUrl: [urlFinal]
       });
 
       logger.info(`✅ Mensaje con imagen enviado exitosamente a ${numeroDestino}: ${message.sid}`);
