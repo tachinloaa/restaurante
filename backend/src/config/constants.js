@@ -25,6 +25,15 @@ export const METODOS_PAGO = {
   TRANSFERENCIA: 'transferencia'
 };
 
+// Datos bancarios para transferencias
+export const DATOS_BANCARIOS = {
+  BANCO: 'BBVA',
+  TITULAR: 'El Rinconcito SA de CV',
+  CUENTA: '0123456789',
+  CLABE: '012180001234567890',
+  REFERENCIA: 'RINCONCITO'
+};
+
 // Estados del bot conversacional
 export const BOT_STATES = {
   INICIO: 'inicio',
@@ -119,16 +128,16 @@ export const TIEMPO_ENTREGA = {
 // Mensajes del bot
 export const MENSAJES_BOT = {
   BIENVENIDA: `¡Hola! ${EMOJIS.SALUDO} Bienvenido a *El Rinconcito* ${EMOJIS.RESTAURANTE}\n\n¿En qué puedo ayudarte hoy?\n\n📋 *menú* - Ver productos disponibles\n${EMOJIS.CARRITO} *pedir* - Hacer un pedido\n📦 *mis pedidos* - Ver mis pedidos recientes\n${EMOJIS.TELEFONO} *contacto* - Información de contacto\nℹ️ *ayuda* - Ver comandos disponibles\n\nEscribe una opción para comenzar.`,
-  
+
   ERROR_GENERAL: 'Lo siento, ocurrió un error. Por favor intenta de nuevo o escribe *ayuda* para ver las opciones.',
-  
+
   OPCION_INVALIDA: 'No entiendo tu respuesta. Por favor elige una opción válida o escribe *ayuda*.',
-  
+
   SESSION_TIMEOUT: 'Tu sesión ha expirado por inactividad. Escribe *hola* para comenzar de nuevo.',
-  
-  PEDIDO_CONFIRMADO: (numeroPedido, tiempo) => 
+
+  PEDIDO_CONFIRMADO: (numeroPedido, tiempo) =>
     `${EMOJIS.CHECK} *¡PEDIDO CONFIRMADO!*\n\n${EMOJIS.TICKET} Tu número de pedido es: *#${numeroPedido}*\n\nTu pedido está siendo preparado ${EMOJIS.COCINERO}\n${EMOJIS.RELOJ} Llegará en aproximadamente ${tiempo.min}-${tiempo.max} minutos\n\nTe enviaremos actualizaciones del estado de tu pedido.\n\n¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`,
-  
+
   PEDIDO_CANCELADO: 'Tu pedido ha sido cancelado. Si deseas hacer un nuevo pedido, escribe *pedir*.'
 };
 
@@ -153,6 +162,7 @@ export default {
   ESTADOS_PEDIDO,
   TIPOS_PEDIDO,
   METODOS_PAGO,
+  DATOS_BANCARIOS,
   BOT_STATES,
   COMANDOS_BOT,
   EMOJIS,

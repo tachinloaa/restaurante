@@ -12,6 +12,7 @@ import {
   MENSAJES_BOT,
   TIPOS_PEDIDO,
   METODOS_PAGO,
+  DATOS_BANCARIOS,
   TIEMPO_ENTREGA,
   MAX_CANTIDAD_POR_PRODUCTO,
   MAX_CAMBIO_REPARTIDOR
@@ -785,6 +786,12 @@ class BotService {
 
     let mensaje = `${EMOJIS.DINERO} *PAGO POR TRANSFERENCIA*\n\n`;
     mensaje += `Total a pagar: *${formatearPrecio(total)}*\n\n`;
+    mensaje += `🏦 *DATOS BANCARIOS:*\n`;
+    mensaje += `• Banco: *${DATOS_BANCARIOS.BANCO}*\n`;
+    mensaje += `• Titular: *${DATOS_BANCARIOS.TITULAR}*\n`;
+    mensaje += `• Cuenta: *${DATOS_BANCARIOS.CUENTA}*\n`;
+    mensaje += `• CLABE: *${DATOS_BANCARIOS.CLABE}*\n`;
+    mensaje += `• Referencia: *${DATOS_BANCARIOS.REFERENCIA}*\n\n`;
     mensaje += `⚠️ *IMPORTANTE:*\n`;
     mensaje += `• Realiza la transferencia bancaria por el monto exacto\n`;
     mensaje += `• Una vez realizada, *envía tu comprobante de pago* (foto o captura de pantalla)\n`;
@@ -814,7 +821,7 @@ class BotService {
 
       // Reenviar imagen al administrador
       const session = SessionService.getSession(telefono);
-      const total = OrderService.calcularTotal(session);
+      const total = SessionService.calcularTotalCarrito(telefono);
       const cliente = session.datos.nombre || 'Cliente';
 
       let mensajeAdmin = `📸 *COMPROBANTE DE PAGO RECIBIDO*\n\n`;
@@ -846,7 +853,7 @@ class BotService {
 
       // Notificar al admin por texto
       const session = SessionService.getSession(telefono);
-      const total = OrderService.calcularTotal(session);
+      const total = SessionService.calcularTotalCarrito(telefono);
       const cliente = session.datos.nombre || 'Cliente';
 
       let mensajeAdmin = `📝 *COMPROBANTE DE PAGO (TEXTO)*\n\n`;
