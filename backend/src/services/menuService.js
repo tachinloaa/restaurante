@@ -262,34 +262,101 @@ class MenuService {
   }
 
   /**
-   * Generar mensaje de categoría específica
+   * Obtener lista de categorías disponibles
    */
-  async getCategoria(categoriaId) {
+  async getCategorias() {
     try {
-      const categoria = await Category.getById(categoriaId);
-      const productos = await Category.getProductos(categoriaId);
+      const categorias = await Category.getAll();
+      const productos = await Product.getActivosParaMenu();
 
-      if (!categoria.success || !productos.success) {
-        return null;
+      if (!categorias.success || !productos.success) {
+        throw new Error('Error al cargar categorías');
       }
 
-      const emoji = this.getEmojiCategoria(categoria.data.nombre);
-      let mensaje = `${emoji} *${categoria.data.nombre.toUpperCase()}*\n\n`;
+      // Filtrar solo categorías que tengan productos
+      const categoriasConProductos = categorias.data.filter(cat => 
+        productos.data.some(prod => prod.categorias?.id === cat.id)
+      );
 
-      productos.data.forEach((producto, index) => {
-        mensaje += `${index + 1}. ${producto.nombre}`;
-        
-        if (producto.descripcion) {
-          mensaje += ` - ${producto.descripcion}`;
+      return {
+        success: true,
+        categorias: categoriasConProductos.map(cat => ({
+          id: cat.id,
+          nombre: cat.nombre,
+          emoji: this.getEmojiCategoria(cat.nombre)
+        }))
+      };
+    } catch (error) {
+      logger.error('Error al obtener categorías:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Obtener menú de una categoría específica
+   */
+  async getMenuCategoria(categoriaId) {
+    try {
+      const productos = await Product.getActivosParaMenu();
+      if (!productos.success) {
+        throw new Error('Error al cargar productos');
+      }
+
+      // Obtener info de la categoría
+      const categoriaResult = await Category.getById(categoriaId);
+      if (!categoriaResult.success) {
+        throw new Error('Categoría no encontrada');
+      }
+
+      const categoria = categoriaResult.data;
+      const productosCategoria = productos.data.filter(
+        p => p.categorias?.id === categoriaId
+      );
+
+      if (productosCategoria.length === 0) {
+        return {
+          success: false,
+          mensaje: 'Esta categoría no tiene productos disponibles'
+        };
+      }
+
+      // Formatear mensaje
+      const emoji = this.getEmojiCategoria(categoria.nombre);
+      let mensaje = `${emoji} *${categoria.nombre.toUpperCase()}*\n\n`;
+      
+      const productosFormateados = [];
+      const menuCompleto = await this.getMenuCompleto();
+      
+      productosCategoria.forEach(producto => {
+        // Buscar el número del producto en el menú completo
+        const productoConNumero = menuCompleto.productos.find(p => p.id === producto.id);
+        if (productoConNumero) {
+          mensaje += `${productoConNumero.numero}. ${producto.nombre}`;
+          
+          if (producto.descripcion) {
+            mensaje += ` - ${producto.descripcion}`;
+          }
+          
+          mensaje += ` - ${formatearPrecio(producto.precio)}\n`;
+          
+          productosFormateados.push({
+            numero: productoConNumero.numero,
+            id: producto.id,
+            nombre: producto.nombre,
+            precio: producto.precio
+          });
         }
-        
-        mensaje += ` - ${formatearPrecio(producto.precio)}\n`;
       });
 
-      return mensaje;
+      return {
+        success: true,
+        mensaje,
+        productos: productosFormateados,
+        categoria: categoria.nombre
+      };
     } catch (error) {
-      logger.error('Error al generar mensaje de categoría:', error);
-      return null;
+      logger.error('Error al generar menú de categoría:', error);
+      return { success: false, error: error.message };
     }
   }
 

@@ -125,6 +125,9 @@ class BotService {
       case BOT_STATES.SELECCIONAR_TIPO:
         return await this.procesarSeleccionTipo(telefono, mensajeLimpio, body);
 
+      case BOT_STATES.SELECCIONAR_CATEGORIA:
+        return await this.procesarSeleccionCategoria(telefono, mensajeLimpio);
+
       case BOT_STATES.VER_MENU:
       case BOT_STATES.SELECCIONAR_PRODUCTO:
         return await this.procesarSeleccionProducto(telefono, body);
@@ -262,35 +265,42 @@ class BotService {
     let mensajeTipo = '';
     if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
       mensajeTipo = `✅ *Pedido a domicilio seleccionado*\n\n📍 *Entregas en zonas cercanas a Cupido*\n\n`;
+    } else if (tipoPedido === TIPOS_PEDIDO.RESTAURANTE) {
+      mensajeTipo = `Perfecto! ${EMOJIS.RESTAURANTE} Haremos tu pedido para *COMER AQUÍ*.\n\n`;
+    } else if (tipoPedido === TIPOS_PEDIDO.PARA_LLEVAR) {
+      mensajeTipo = `Perfecto! ${EMOJIS.CARRITO} Haremos tu pedido *PARA LLEVAR*.\n\n`;
     }
 
-    // Mostrar menú
-    const menuResponse = await this.mostrarMenuCompleto(telefono);
-    
-    // Agregar mensaje de tipo de pedido antes del menú
-    if (mensajeTipo && menuResponse.success) {
-      menuResponse.mensaje = mensajeTipo + menuResponse.mensaje;
-    }
-    
-    return menuResponse;
+    // Mostrar categorías en lugar de menú completo
+    return await this.mostrarCategorias(telefono, mensajeTipo);
   }
 
   /**
-   * Mostrar menú solo para ver (sin permitir ordenar)
+   * Mostrar categorías disponibles
    */
-  async mostrarMenuSoloVer(telefono) {
-    const menu = await MenuService.getMenuCompleto();
+  async mostrarCategorias(telefono, mensajeExtra = '') {
+    const resultado = await MenuService.getCategorias();
 
-    if (!menu) {
+    if (!resultado.success) {
       return {
         success: false,
-        mensaje: 'Lo siento, no pudimos cargar el menú. Intenta más tarde.'
+        mensaje: 'Lo siento, no pudimos cargar las categorías. Intenta más tarde.'
       };
     }
 
-    // Agregar instrucciones para iniciar pedido
-    let mensaje = menu.mensaje;
-    mensaje += `\n\n🛒 ¿Deseas hacer un pedido? Escribe *pedir*`;
+    let mensaje = mensajeExtra;
+    mensaje += `${EMOJIS.TICKET} *MENÚ DE EL RINCONCITO* ${EMOJIS.TACO}\n\n`;
+    mensaje += `Selecciona una categoría:\n\n`;
+
+    resultado.categorias.forEach((cat, index) => {
+      mensaje += `*${index + 1}* ${cat.emoji} ${cat.nombre}\n`;
+    });
+
+    mensaje += `\n${EMOJIS.FLECHA} Escribe el *número* de la categoría\n`;
+    mensaje += `O escribe *todo* para ver el menú completo`;
+
+    SessionService.guardarDatos(telefono, { categorias: resultado.categorias });
+    SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_CATEGORIA);
 
     return {
       success: true,
@@ -299,9 +309,59 @@ class BotService {
   }
 
   /**
-   * Mostrar menú completo (para pedidos - permite ordenar)
+   * Procesar selección de categoría
    */
-  async mostrarMenuCompleto(telefono) {
+  async procesarSeleccionCategoria(telefono, mensaje) {
+    const session = SessionService.getSession(telefono);
+    const categorias = session?.datos?.categorias || [];
+
+    // Si escribe "todo", mostrar menú completo
+    if (mensaje === 'todo' || mensaje === 'completo' || mensaje === 'ver todo') {
+      return await this.mostrarMenuCompletoDirecto(telefono);
+    }
+
+    // Validar que sea un número
+    const numeroCategoria = parseInt(mensaje);
+    if (isNaN(numeroCategoria) || numeroCategoria < 1 || numeroCategoria > categorias.length) {
+      return {
+        success: true,
+        mensaje: `${EMOJIS.CRUZ} Opción inválida.\n\nEscribe un número del 1 al ${categorias.length}\nO escribe *todo* para ver el menú completo`
+      };
+    }
+
+    // Obtener categoría seleccionada
+    const categoriaSeleccionada = categorias[numeroCategoria - 1];
+    const resultado = await MenuService.getMenuCategoria(categoriaSeleccionada.id);
+
+    if (!resultado.success) {
+      return {
+        success: false,
+        mensaje: resultado.mensaje || 'Error al cargar productos de esta categoría'
+      };
+    }
+
+    // Preparar mensaje
+    let mensajeFinal = resultado.mensaje;
+    mensajeFinal += `\n${EMOJIS.FLECHA} Para ordenar, escribe el *número* del producto\n`;
+    mensajeFinal += `\nO escribe:\n`;
+    mensajeFinal += `• *menu* - Ver otras categorías\n`;
+    mensajeFinal += `• *todo* - Ver menú completo`;
+
+    // Si ya está en proceso de pedido, permitir seleccionar producto
+    if (session?.datos?.tipo_pedido) {
+      SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_PRODUCTO);
+    }
+
+    return {
+      success: true,
+      mensaje: mensajeFinal
+    };
+  }
+
+  /**
+   * Mostrar menú completo directamente (sin categorías)
+   */
+  async mostrarMenuCompletoDirecto(telefono) {
     const menu = await MenuService.getMenuCompleto();
 
     if (!menu) {
@@ -312,23 +372,16 @@ class BotService {
     }
 
     const session = SessionService.getSession(telefono);
-    const datos = session?.datos || {};
+    let mensaje = menu.mensaje;
 
-    let mensaje = '';
-    
-    if (datos.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
-      mensaje = `Perfecto! ${EMOJIS.MOTO} Haremos tu pedido a *DOMICILIO*.\n\n`;
-    } else if (datos.tipo_pedido === TIPOS_PEDIDO.RESTAURANTE) {
-      mensaje = `Perfecto! ${EMOJIS.RESTAURANTE} Haremos tu pedido para *COMER AQUÍ*.\n\n`;
-    } else if (datos.tipo_pedido === TIPOS_PEDIDO.PARA_LLEVAR) {
-      mensaje = `Perfecto! ${EMOJIS.CARRITO} Haremos tu pedido *PARA LLEVAR*.\n\n`;
+    // Si ya inició pedido, permitir seleccionar
+    if (session?.datos?.tipo_pedido) {
+      mensaje += `\n\n${EMOJIS.FLECHA} Para ordenar, escribe el *número* del producto\n`;
+      mensaje += `Ejemplo: "1" o "2, 5" (para varios productos)`;
+      SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_PRODUCTO);
+    } else {
+      mensaje += `\n\n${EMOJIS.CARRITO} *¿Deseas hacer un pedido?*\nEscribe *pedir* para ordenar`;
     }
-
-    mensaje += menu.mensaje;
-    mensaje += `\n\n${EMOJIS.FLECHA} Para ordenar, escribe el *número* del producto.\n`;
-    mensaje += `Ejemplo: "1" o "2, 5" (para varios productos)`;
-
-    SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_PRODUCTO);
 
     return {
       success: true,
@@ -337,27 +390,10 @@ class BotService {
   }
 
   /**
-   * Mostrar menú solo para ver (sin iniciar pedido)
+   * Mostrar menú solo para ver (sin iniciar pedido) - Ahora muestra categorías
    */
   async mostrarMenuSoloVer(telefono) {
-    const menu = await MenuService.getMenuCompleto();
-
-    if (!menu) {
-      return {
-        success: false,
-        mensaje: 'Lo siento, no pudimos cargar el menú. Intenta más tarde.'
-      };
-    }
-
-    const mensaje = menu.mensaje + 
-      `\n\n${EMOJIS.CARRITO} *¿Deseas hacer un pedido?*\nEscribe *pedir* para ordenar`;
-
-    // NO cambiar estado, mantener en MENU_PRINCIPAL
-
-    return {
-      success: true,
-      mensaje
-    };
+    return await this.mostrarCategorias(telefono);
   }
 
   /**

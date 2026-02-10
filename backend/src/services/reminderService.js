@@ -1,5 +1,6 @@
 import Order from '../models/Order.js';
 import TwilioService from './twilioService.js';
+import { supabase } from '../config/database.js';
 import { formatearPrecio, formatearHora, formatearTelefono } from '../utils/formatters.js';
 import { EMOJIS } from '../config/constants.js';
 import logger from '../utils/logger.js';
@@ -11,6 +12,7 @@ import config from '../config/environment.js';
 class ReminderService {
   constructor() {
     this.recordatoriosEnviados = new Set(); // Cache de pedidos con recordatorio enviado
+    this.ultimaVerificacion = null; // Timestamp de la última verificación
   }
 
   /**
@@ -18,6 +20,13 @@ class ReminderService {
    */
   async verificarPedidosPendientes() {
     try {
+      // Si acabamos de verificar hace menos de 1 minuto, saltar
+      const ahora = new Date();
+      if (this.ultimaVerificacion && (ahora - this.ultimaVerificacion) < 60000) {
+        return;
+      }
+      this.ultimaVerificacion = ahora;
+
       // Obtener pedidos pendientes y preparando
       const resultado = await Order.getAll({
         estados: ['pendiente', 'preparando']
@@ -26,19 +35,61 @@ class ReminderService {
       if (!resultado.success || !resultado.data.length) {
         return;
       }
-
-      const ahora = new Date();
       
       for (const pedido of resultado.data) {
         const tiempoTranscurrido = this.calcularMinutosTranscurridos(pedido.created_at, ahora);
         
         // Verificar si necesita recordatorio
         if (this.necesitaRecordatorio(pedido, tiempoTranscurrido)) {
-          await this.enviarRecordatorio(pedido, tiempoTranscurrido);
+          // Verificar en BD si ya se envió recordatorio
+          const yaEnviado = await this.verificarRecordatorioEnviado(pedido.id, pedido.estado);
+          if (!yaEnviado) {
+            await this.enviarRecordatorio(pedido, tiempoTranscurrido);
+          }
         }
       }
     } catch (error) {
       logger.error('Error al verificar pedidos pendientes:', error);
+    }
+  }
+
+  /**
+   * Verificar si ya se envió recordatorio para este pedido en este estado
+   */
+  async verificarRecordatorioEnviado(pedidoId, estado) {
+    try {
+      // Verificar en cache primero
+      const key = `${pedidoId}-${estado}`;
+      if (this.recordatoriosEnviados.has(key)) {
+        return true;
+      }
+
+      // Verificar en base de datos (notificaciones de recordatorio)
+      // Buscar notificaciones que contengan "RECORDATORIO" y el numero de pedido en los últimos 30 minutos
+      const hace30Min = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      
+      const { data, error } = await supabase
+        .from('notificaciones')
+        .select('id')
+        .ilike('mensaje', `%RECORDATORIO%${pedidoId}%`)
+        .gte('created_at', hace30Min)
+        .limit(1);
+
+      if (error) {
+        logger.error('Error al verificar recordatorio en BD:', error);
+        return false;
+      }
+
+      if (data && data.length > 0) {
+        // Marcar en cache para no volver a consultar
+        this.recordatoriosEnviados.add(key);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      logger.error('Error al verificar recordatorio:', error);
+      return false;
     }
   }
 
@@ -120,7 +171,21 @@ class ReminderService {
       const resultado = await TwilioService.enviarMensajeAdmin(mensaje);
 
       if (resultado.success) {
-        // Marcar como enviado
+        // Guardar notificación en BD para tracking
+        await supabase
+          .from('notificaciones')
+          .insert({
+            tipo: 'recordatorio_pedido',
+            mensaje: `Recordatorio: Pedido #${pedido.numero_pedido} - ${pedido.estado} - ${minutos} min`,
+            datos_adicionales: {
+              pedido_id: pedido.id,
+              estado: pedido.estado,
+              minutos_transcurridos: minutos
+            },
+            leida: false
+          });
+
+        // Marcar en cache
         this.recordatoriosEnviados.add(key);
         logger.info(`Recordatorio enviado para pedido #${pedido.numero_pedido} (${minutos} min)`);
       }
@@ -144,15 +209,15 @@ class ReminderService {
    * Iniciar verificación periódica (cada 2 minutos)
    */
   iniciarVerificacionPeriodica() {
-    // Verificar inmediatamente
-    this.verificarPedidosPendientes();
+    // NO verificar inmediatamente para evitar spam al reiniciar servidor
+    // Esperar el primer intervalo (2 minutos)
     
     // Ejecutar cada 2 minutos
     setInterval(() => {
       this.verificarPedidosPendientes();
     }, 2 * 60 * 1000); // 2 minutos
     
-    logger.info('Sistema de recordatorios iniciado - verificando cada 2 minutos');
+    logger.info('Sistema de recordatorios iniciado - verificando cada 2 minutos (primera verificación en 2 min)');
   }
 }
 
