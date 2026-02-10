@@ -297,7 +297,11 @@ class BotService {
     const productoSeleccionado = session?.datos?.producto_seleccionado;
 
     if (productoSeleccionado) {
-      // Ya seleccionó producto antes, continuar con cantidad
+      // Ya seleccionó producto antes, moverlo a producto_temporal y continuar con cantidad
+      SessionService.guardarDatos(telefono, { 
+        producto_temporal: productoSeleccionado,
+        producto_seleccionado: null 
+      });
       SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_CANTIDAD);
       return {
         success: true,
