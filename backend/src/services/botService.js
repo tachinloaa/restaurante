@@ -130,6 +130,29 @@ class BotService {
         return await this.procesarCancelacionPedido(telefono, bodySanitizado);
       }
 
+      // Comandos directos de acción (pedir, domicilio, restaurante)
+      if (this.esComandoPedir(mensajeLimpio)) {
+        return await this.solicitarTipoPedido(telefono);
+      }
+
+      if (COMANDOS_BOT.DOMICILIO.some(cmd => mensajeLimpio.includes(cmd))) {
+        // Forzar selección de domicilio
+        SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
+        return await this.procesarSeleccionTipo(telefono, '2');
+      }
+
+      if (COMANDOS_BOT.RESTAURANTE.some(cmd => mensajeLimpio.includes(cmd))) {
+        // Forzar selección de comer ahí
+        SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
+        return await this.procesarSeleccionTipo(telefono, '3');
+      }
+
+      if (COMANDOS_BOT.PARA_LLEVAR.some(cmd => mensajeLimpio.includes(cmd))) {
+        // Forzar selección de para llevar
+        SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
+        return await this.procesarSeleccionTipo(telefono, '1');
+      }
+
       // Procesar según el estado actual del bot
       return await this.procesarSegunEstado(telefono, bodySanitizado, mensajeLimpio, { mediaUrl, numMedia, latitude, longitude });
     } catch (error) {
@@ -1247,8 +1270,8 @@ class BotService {
     mensaje += `• *estado* - Ver estado de pedido\n`;
     mensaje += `• *cancelar* - Cancelar proceso actual\n`;
     mensaje += `• *ayuda* - Mostrar esta ayuda\n\n`;
-    mensaje += `Para hacer un pedido, simplemente escribe *hola* y sigue las instrucciones.\n\n`;
-    mensaje += `${EMOJIS.TELEFONO} ¿Necesitas ayuda? Un asesor puede atenderte.`;
+    mensaje += `Para hacer un pedido, simplemente escribe *hola* o *pedir* y sigue las instrucciones.\n\n`;
+    mensaje += `📞 ¿Necesitas ayuda personalizada? Un asesor humano puede atenderte pronto en otro número.`;
 
     return {
       success: true,
