@@ -73,6 +73,20 @@ class BotService {
         if (mensajeLimpio.startsWith('rechazar')) {
           return await this.rechazarPedidoPendiente(bodySanitizado);
         }
+        
+        // Comandos rápidos de cambio de estado
+        if (mensajeLimpio.startsWith('preparando')) {
+          return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.PREPARANDO);
+        }
+        if (mensajeLimpio.startsWith('listo')) {
+          return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.LISTO);
+        }
+        if (mensajeLimpio.startsWith('enviado') || mensajeLimpio.startsWith('en camino')) {
+          return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.ENVIADO);
+        }
+        if (mensajeLimpio.startsWith('entregado')) {
+          return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.ENTREGADO);
+        }
       }
 
       // Obtener o crear sesión del usuario
@@ -1490,6 +1504,7 @@ class BotService {
         .from('pedidos')
         .select(`
           id,
+          numero_pedido,
           total,
           estado,
           tipo_pedido,
@@ -1499,7 +1514,7 @@ class BotService {
             telefono
           )
         `)
-        .in('estado', ['pendiente', 'en_proceso'])
+        .in('estado', ['pendiente', 'preparando', 'listo', 'enviado'])
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -1513,28 +1528,46 @@ class BotService {
       if (!pedidos || pedidos.length === 0) {
         return {
           success: true,
-          mensaje: '✅ *No hay pedidos pendientes*\n\nTodos los pedidos están completados o cancelados.'
+          mensaje: '✅ *No hay pedidos activos*\n\nTodos los pedidos están completados o cancelados.'
         };
       }
 
-      let mensaje = `📋 *PEDIDOS PENDIENTES* (${pedidos.length})\n${'='.repeat(35)}\n\n`;
+      let mensaje = `📋 *PEDIDOS ACTIVOS* (${pedidos.length})\n${'='.repeat(35)}\n\n`;
 
       pedidos.forEach(pedido => {
-        const estado = pedido.estado === 'pendiente' ? '🔴 NUEVO' : '🟡 EN PROCESO';
+        const estadoEmojis = {
+          'pendiente': '🔴',
+          'preparando': '👨‍🍳',
+          'listo': '✅',
+          'enviado': '🏍️'
+        };
+        
+        const estadoTextos = {
+          'pendiente': 'NUEVO',
+          'preparando': 'PREPARANDO',
+          'listo': 'LISTO',
+          'enviado': 'EN CAMINO'
+        };
+        
+        const estado = `${estadoEmojis[pedido.estado] || '⚪'} ${estadoTextos[pedido.estado] || pedido.estado.toUpperCase()}`;
         const tipo = pedido.tipo_pedido === 'domicilio' ? '🏠 Domicilio' : '🏪 Para llevar';
         const tiempo = new Date(pedido.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-        mensaje += `*#${pedido.id}* - ${estado}\n`;
+        mensaje += `*#${pedido.numero_pedido}* - ${estado}\n`;
         mensaje += `👤 ${pedido.clientes?.nombre || 'Sin nombre'}\n`;
         mensaje += `${tipo} | ${formatearPrecio(pedido.total)}\n`;
         mensaje += `🕐 ${tiempo}\n\n`;
       });
 
-      mensaje += `\n📝 Comandos:\n`;
-      mensaje += `• *ver #${pedidos[0].id}* - Ver detalles\n`;
-      mensaje += `• *estado #${pedidos[0].id} en_proceso* - Cambiar estado\n`;
-      mensaje += `• *estado #${pedidos[0].id} completado* - Marcar completado\n`;
-      mensaje += `• *estado #${pedidos[0].id} cancelado* - Cancelar pedido`;
+      if (pedidos.length > 0) {
+        mensaje += `\n⚡ *COMANDOS RÁPIDOS:*\n`;
+        mensaje += `• *preparando #${pedidos[0].numero_pedido}*\n`;
+        mensaje += `• *listo #${pedidos[0].numero_pedido}*\n`;
+        mensaje += `• *enviado #${pedidos[0].numero_pedido}*\n`;
+        mensaje += `• *entregado #${pedidos[0].numero_pedido}*\n\n`;
+        mensaje += `📝 Otros comandos:\n`;
+        mensaje += `• *ver #${pedidos[0].numero_pedido}* - Ver detalles`;
+      }
 
       return {
         success: true,
@@ -1767,11 +1800,11 @@ class BotService {
       };
     }
 
-    // Cambiar estado a PENDIENTE
+    // Cambiar estado a PREPARANDO (más lógico que pendiente)
     const { error: errorUpdate } = await supabase
       .from('pedidos')
       .update({
-        estado: ESTADOS_PEDIDO.PENDIENTE,
+        estado: ESTADOS_PEDIDO.PREPARANDO,
         pago_verificado: true,
         fecha_verificacion_pago: new Date().toISOString()
       })
@@ -1801,8 +1834,101 @@ class BotService {
 
     return {
       success: true,
-      mensaje: `✅ *PEDIDO APROBADO*\n\n📝 Pedido #${pedido.numero_pedido}\n👤 Cliente: ${pedido.clientes.nombre}\n📞 Teléfono: ${pedido.telefono}\n💰 Total: ${formatearPrecio(pedido.total)}\n\nEl cliente ha sido notificado y el pedido está en preparación.`
+      mensaje: `✅ *PEDIDO APROBADO Y EN PREPARACIÓN*\n\n` +
+        `📝 Pedido: #${pedido.numero_pedido}\n` +
+        `👤 Cliente: ${pedido.clientes.nombre}\n` +
+        `📞 Teléfono: ${pedido.telefono}\n` +
+        `💰 Total: ${formatearPrecio(pedido.total)}\n\n` +
+        `👨‍🍳 Estado actual: *PREPARANDO*\n\n` +
+        `⚡ *COMANDOS RÁPIDOS:*\n` +
+        `• *listo #${pedido.numero_pedido}* - Marcar como listo\n` +
+        `• *enviado #${pedido.numero_pedido}* - Pedido en camino\n` +
+        `• *entregado #${pedido.numero_pedido}* - Pedido entregado\n\n` +
+        `✅ El cliente ha sido notificado automáticamente.`
     };
+  }
+
+  /**
+   * Cambiar estado de pedido de forma rápida (solo admin)
+   */
+  async cambiarEstadoRapido(mensaje, nuevoEstado) {
+    try {
+      // Extraer número de pedido: "preparando #2602106719" o "listo 2602106719"
+      const partes = mensaje.trim().split(/\s+/);
+      
+      if (partes.length < 2) {
+        return {
+          success: false,
+          mensaje: '❌ Formato incorrecto.\n\nUsa: *preparando #2602106719*\nO: *listo #2602106719*\nO: *enviado #2602106719*\nO: *entregado #2602106719*'
+        };
+      }
+
+      let numeroPedido = partes[1].replace('#', '');
+
+      // Buscar el pedido en la base de datos por numero_pedido
+      const { data: pedido, error } = await supabase
+        .from('pedidos')
+        .select('*, clientes(*)')
+        .eq('numero_pedido', numeroPedido)
+        .single();
+
+      if (error || !pedido) {
+        return {
+          success: false,
+          mensaje: `❌ No se encontró el pedido #${numeroPedido}\n\nVerifica que el número sea correcto.`
+        };
+      }
+
+      // Actualizar estado
+      const { error: errorUpdate } = await supabase
+        .from('pedidos')
+        .update({ estado: nuevoEstado })
+        .eq('id', pedido.id);
+
+      if (errorUpdate) {
+        logger.error('Error al actualizar estado del pedido:', errorUpdate);
+        return {
+          success: false,
+          mensaje: `❌ Error al actualizar el pedido #${numeroPedido}`
+        };
+      }
+
+      // Notificar al cliente sobre el cambio de estado
+      await NotificationService.notificarEstadoPedido(pedido, pedido.clientes);
+
+      // Mensajes según el estado
+      const estadoEmojis = {
+        'preparando': '👨‍🍳',
+        'listo': '✅',
+        'enviado': '🏍️',
+        'entregado': '🎉'
+      };
+
+      const estadoTextos = {
+        'preparando': 'PREPARANDO',
+        'listo': 'LISTO',
+        'enviado': 'EN CAMINO',
+        'entregado': 'ENTREGADO'
+      };
+
+      logger.info(`✅ Pedido #${numeroPedido} actualizado a estado: ${nuevoEstado} por admin`);
+
+      return {
+        success: true,
+        mensaje: `${estadoEmojis[nuevoEstado] || '✅'} *PEDIDO ACTUALIZADO*\n\n` +
+          `📝 Pedido: #${pedido.numero_pedido}\n` +
+          `Estado: *${estadoTextos[nuevoEstado] || nuevoEstado.toUpperCase()}*\n\n` +
+          `👤 Cliente: ${pedido.clientes?.nombre || 'Sin nombre'}\n` +
+          `📞 Teléfono: ${pedido.clientes?.telefono}\n\n` +
+          `✅ El cliente ha sido notificado automáticamente.`
+      };
+    } catch (error) {
+      logger.error('Error al cambiar estado rápido:', error);
+      return {
+        success: false,
+        mensaje: '❌ Error al cambiar el estado. Intenta nuevamente.'
+      };
+    }
   }
 
   /**
