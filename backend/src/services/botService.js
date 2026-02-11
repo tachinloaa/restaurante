@@ -60,7 +60,7 @@ class BotService {
       // Comandos especiales para admin
       if (isAdmin) {
         logger.info(`🔑 Comando de admin detectado: ${mensajeLimpio}`);
-        
+
         if (mensajeLimpio === 'pedidos' || mensajeLimpio === 'pendientes') {
           return await this.mostrarPedidosPendientes();
         }
@@ -76,7 +76,7 @@ class BotService {
         if (mensajeLimpio.startsWith('rechazar')) {
           return await this.rechazarPedidoPendiente(bodySanitizado);
         }
-        
+
         // Comandos rápidos de cambio de estado
         if (mensajeLimpio.startsWith('preparando')) {
           return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.PREPARANDO);
@@ -849,7 +849,7 @@ class BotService {
 
       // GENERAR RESUMEN ANTES DE QUE SE BORRE EL CARRITO
       const session = SessionService.getSession(telefono);
-      
+
       // Verificar que la sesión tenga el comprobante guardado
       if (session && session.datos && session.datos.comprobante_url) {
         logger.info(`✅ Verificado: comprobante_url está en la sesión`);
@@ -1122,7 +1122,7 @@ class BotService {
    */
   async notificarAdminPedidoPendiente(telefono, numeroPedido, resumenTexto = null) {
     const session = SessionService.getSession(telefono);
-    
+
     if (!session) {
       logger.error(`❌ No se encontró sesión para ${telefono} al notificar admin`);
       return;
@@ -1165,13 +1165,13 @@ class BotService {
       // Si hay imagen del comprobante, enviarla
       if (session.datos.comprobante_url) {
         logger.info(`📸 Enviando comprobante al admin con URL: ${session.datos.comprobante_url}`);
-        
+
         const resultado = await TwilioService.enviarMensajeConImagen(
           config.admin.phoneNumber,
           mensajeAdmin,
           session.datos.comprobante_url
         );
-        
+
         if (resultado.success) {
           logger.info(`✅ Notificación de pedido #${numeroPedido} enviada al admin CON IMAGEN`);
         } else {
@@ -1497,12 +1497,12 @@ class BotService {
       logger.warn('⚠️ ADMIN_PHONE_NUMBER no está configurado en las variables de entorno');
       return false;
     }
-    
+
     const adminPhone = config.admin.phoneNumber.replace(/\D/g, '');
     const userPhone = telefono.replace(/\D/g, '');
-    
+
     logger.debug(`🔍 Verificación admin: User=${userPhone} | Admin=${adminPhone} | Match=${userPhone === adminPhone}`);
-    
+
     return userPhone === adminPhone;
   }
 
@@ -1552,14 +1552,14 @@ class BotService {
           'listo': '✅',
           'enviado': '🏍️'
         };
-        
+
         const estadoTextos = {
           'pendiente': 'NUEVO',
           'preparando': 'PREPARANDO',
           'listo': 'LISTO',
           'enviado': 'EN CAMINO'
         };
-        
+
         const estado = `${estadoEmojis[pedido.estado] || '⚪'} ${estadoTextos[pedido.estado] || pedido.estado.toUpperCase()}`;
         const tipo = pedido.tipo_pedido === 'domicilio' ? '🏠 Domicilio' : '🏪 Para llevar';
         const tiempo = new Date(pedido.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -1832,14 +1832,18 @@ class BotService {
     // Notificar al administrador
     await NotificationService.notificarNuevoPedido(pedido, pedido.clientes);
 
-    // Notificar al cliente
+    // Notificar al cliente con mensaje personalizado de aprobación
     const tiempoEstimado = TIEMPO_ENTREGA.DOMICILIO;
-    const mensajeCliente = MENSAJES_BOT.PEDIDO_CONFIRMADO(
-      pedido.numero_pedido,
-      tiempoEstimado
-    );
 
-    await TwilioService.enviarMensajeCliente(pedido.telefono, mensajeCliente);
+    let mensajeCliente = `✅ *¡TU PAGO HA SIDO VERIFICADO!*\\n\\n`;
+    mensajeCliente += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\\n\\n`;
+    mensajeCliente += `${EMOJIS.CHECK} Tu pedido ha sido *APROBADO* y ya está en preparación ${EMOJIS.COCINERO}\\n\\n`;
+    mensajeCliente += `${EMOJIS.RELOJ} Tiempo estimado de entrega: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos\\n\\n`;
+    mensajeCliente += `${EMOJIS.MOTO} Tu pedido saldrá pronto a tu domicilio\\n\\n`;
+    mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\\n`;
+    mensajeCliente += `*El Rinconcito* ${EMOJIS.TACO}`;
+
+    await TwilioService.enviarMensajeCliente(pedido.clientes.telefono, mensajeCliente);
 
     logger.info(`Pedido #${numeroPedido} aprobado por admin`);
 
@@ -1848,7 +1852,7 @@ class BotService {
       mensaje: `✅ *PEDIDO APROBADO Y EN PREPARACIÓN*\n\n` +
         `📝 Pedido: #${pedido.numero_pedido}\n` +
         `👤 Cliente: ${pedido.clientes.nombre}\n` +
-        `📞 Teléfono: ${pedido.telefono}\n` +
+        `📞 Teléfono: ${pedido.clientes.telefono}\n` +
         `💰 Total: ${formatearPrecio(pedido.total)}\n\n` +
         `👨‍🍳 Estado actual: *PREPARANDO*\n\n` +
         `⚡ *COMANDOS RÁPIDOS:*\n` +
@@ -1866,7 +1870,7 @@ class BotService {
     try {
       // Extraer número de pedido: "preparando #2602106719" o "listo 2602106719"
       const partes = mensaje.trim().split(/\s+/);
-      
+
       if (partes.length < 2) {
         return {
           success: false,
@@ -1999,13 +2003,13 @@ class BotService {
     mensajeCliente += `📞 ${config.admin.phoneNumber}\n\n`;
     mensajeCliente += `Si deseas hacer un nuevo pedido, escribe *hola*`;
 
-    await TwilioService.enviarMensajeCliente(pedido.telefono, mensajeCliente);
+    await TwilioService.enviarMensajeCliente(pedido.clientes.telefono, mensajeCliente);
 
     logger.info(`Pedido #${numeroPedido} rechazado por admin`);
 
     return {
       success: true,
-      mensaje: `❌ *PEDIDO RECHAZADO*\n\n📝 Pedido #${pedido.numero_pedido}\n👤 Cliente: ${pedido.clientes.nombre}\n📞 Teléfono: ${pedido.telefono}\n\nEl cliente ha sido notificado.`
+      mensaje: `❌ *PEDIDO RECHAZADO*\n\n📝 Pedido #${pedido.numero_pedido}\n👤 Cliente: ${pedido.clientes.nombre}\n📞 Teléfono: ${pedido.clientes.telefono}\n\nEl cliente ha sido notificado.`
     };
   }
 }

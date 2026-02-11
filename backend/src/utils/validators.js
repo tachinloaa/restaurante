@@ -64,28 +64,34 @@ export const esValidoNombre = (nombre) => {
  */
 export const esValidaDireccion = (direccion) => {
   if (!direccion || direccion.trim().length < 10) return false;
-  
+
   const texto = direccion.toUpperCase();
-  
+
   // Debe contener número O la palabra S/N (sin número)
   const tieneNumero = /\d+/.test(texto);
   const tieneSinNumero = /S\/N|SN|SIN\s*NUMERO|SIN\s*N[UÚ]MERO/.test(texto);
-  
+
   return tieneNumero || tieneSinNumero;
 };
 
 /**
- * Sanitizar input del usuario (prevenir inyecciones)
+ * Sanitizar input del usuario (prevenir inyecciones y limpiar formato)
  */
 export const sanitizarInput = (input) => {
   if (!input) return '';
-  
+
   return input
     .trim()
     .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remover scripts
     .replace(/<[^>]*>/g, '') // Remover HTML
     .replace(/javascript:/gi, '') // Remover javascript:
     .replace(/on\w+=/gi, '') // Remover event handlers
+    // Limpiar formato markdown que aparece al copiar/pegar
+    .replace(/\*\*/g, '') // Remover negritas **
+    .replace(/\*/g, '') // Remover asteriscos simples *
+    .replace(/_/g, '') // Remover guiones bajos _
+    .replace(/~/g, '') // Remover tildes ~
+    .replace(/`/g, '') // Remover backticks `
     .substring(0, 500); // Limitar longitud
 };
 
