@@ -1835,12 +1835,15 @@ class BotService {
     // Notificar al cliente con mensaje personalizado de aprobación
     const tiempoEstimado = TIEMPO_ENTREGA.DOMICILIO;
 
-    let mensajeCliente = `✅ *¡TU PAGO HA SIDO VERIFICADO!*\n\n`;
-    mensajeCliente += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n\n`;
-    mensajeCliente += `${EMOJIS.CHECK} Tu pedido ha sido *APROBADO* y ya está en preparación ${EMOJIS.COCINERO}\n\n`;
-    mensajeCliente += `${EMOJIS.RELOJ} Tiempo estimado de entrega: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos\n\n`;
-    mensajeCliente += `${EMOJIS.MOTO} Tu pedido saldrá pronto a tu domicilio\n\n`;
-    mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n`;
+    // Usar variable explícita para evitar problemas de escape
+    const NL = '\n';
+
+    let mensajeCliente = `✅ *¡TU PAGO HA SIDO VERIFICADO!*${NL}${NL}`;
+    mensajeCliente += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*${NL}${NL}`;
+    mensajeCliente += `${EMOJIS.CHECK} Tu pedido ha sido *APROBADO* y ya está en preparación ${EMOJIS.COCINERO}${NL}${NL}`;
+    mensajeCliente += `${EMOJIS.RELOJ} Tiempo estimado de entrega: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos${NL}${NL}`;
+    mensajeCliente += `${EMOJIS.MOTO} Tu pedido saldrá pronto a tu domicilio${NL}${NL}`;
+    mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}${NL}`;
     mensajeCliente += `*El Rinconcito* ${EMOJIS.TACO}`;
 
     await TwilioService.enviarMensajeCliente(pedido.clientes.telefono, mensajeCliente);
