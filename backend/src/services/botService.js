@@ -39,6 +39,8 @@ class BotService {
       const numMedia = mensajeData.numMedia || 0;
       const mediaUrl = mensajeData.mediaUrl || null;
       const mediaType = mensajeData.mediaType || null;
+      const latitude = mensajeData.latitude || null;
+      const longitude = mensajeData.longitude || null;
 
       // Sanitizar input del usuario
       const bodySanitizado = sanitizarInput(body);
@@ -129,7 +131,7 @@ class BotService {
       }
 
       // Procesar según el estado actual del bot
-      return await this.procesarSegunEstado(telefono, bodySanitizado, mensajeLimpio, { mediaUrl, numMedia });
+      return await this.procesarSegunEstado(telefono, bodySanitizado, mensajeLimpio, { mediaUrl, numMedia, latitude, longitude });
     } catch (error) {
       logger.error('Error al procesar mensaje:', error);
       return {
@@ -174,7 +176,7 @@ class BotService {
         return await this.procesarNombre(telefono, body);
 
       case BOT_STATES.SOLICITAR_DIRECCION:
-        return await this.procesarDireccion(telefono, body);
+        return await this.procesarDireccion(telefono, body, mediaData);
 
       case BOT_STATES.SOLICITAR_TELEFONO:
         return await this.procesarTelefono(telefono, body);
@@ -652,7 +654,7 @@ class BotService {
 
       return {
         success: true,
-        mensaje: `Gracias ${nombreLimpio} ${EMOJIS.PERSONA}\n\nAhora necesito tu *DIRECCIÓN COMPLETA* para la entrega.\n\nEjemplo: Calle 5 de Mayo #123, Col. Centro\nO si es sin número: Calle Morelos S/N, Col. Centro`
+        mensaje: `Gracias ${nombreLimpio} ${EMOJIS.PERSONA}\n\nAhora necesito tu *DIRECCIÓN COMPLETA* para la entrega.\n\nPuedes:\n1. 📍 *Enviarme tu UBICACIÓN* (Recomendado)\n(Toca el clip 📎 y selecciona Ubicación)\n\n2. ✍️ O escribirla manualmente:\nEjemplo: Calle 5 de Mayo #123, Col. Centro`
       };
     } else if (tipoPedido === TIPOS_PEDIDO.RESTAURANTE) {
       SessionService.updateEstado(telefono, BOT_STATES.SOLICITAR_NUM_PERSONAS);
@@ -670,7 +672,24 @@ class BotService {
   /**
    * Procesar dirección
    */
-  async procesarDireccion(telefono, direccion) {
+  async procesarDireccion(telefono, direccion, mediaData = {}) {
+    // Si enviaron ubicación (mapa)
+    if (mediaData.latitude && mediaData.longitude) {
+      const mapsLink = `https://www.google.com/maps/search/?api=1&query=${mediaData.latitude},${mediaData.longitude}`;
+
+      SessionService.guardarDatos(telefono, {
+        direccion: mapsLink,
+        es_ubicacion: true
+      });
+
+      SessionService.updateEstado(telefono, BOT_STATES.SOLICITAR_REFERENCIAS);
+
+      return {
+        success: true,
+        mensaje: `¡Ubicación recibida! 📍\n\n¿Hay alguna *REFERENCIA* adicional para encontrar tu domicilio?\n\nEjemplo: "Portón blanco", "Junto a la tienda"\n\nSi no, escribe *NO*`
+      };
+    }
+
     const direccionLimpia = direccion.trim();
 
     if (!esValidaDireccion(direccionLimpia)) {

@@ -10,12 +10,18 @@ class WebhookController {
    */
   async whatsapp(req, res) {
     try {
-      const { From, Body, NumMedia, MediaUrl0, MediaContentType0 } = req.body;
+      const { From, Body, NumMedia, MediaUrl0, MediaContentType0, Latitude, Longitude } = req.body;
 
       logger.info(`📱 Webhook WhatsApp recibido de ${From}`);
-      logger.info(`📝 Body: ${Body}`);
+
+      if (Latitude && Longitude) {
+        logger.info(`📍 Ubicación recibida: ${Latitude}, ${Longitude}`);
+      } else {
+        logger.info(`📝 Body: ${Body}`);
+      }
+
       logger.info(`📊 NumMedia: ${NumMedia}`);
-      
+
       if (NumMedia > 0) {
         logger.info(`🖼️ MediaUrl0: ${MediaUrl0}`);
         logger.info(`📋 MediaContentType0: ${MediaContentType0}`);
@@ -26,7 +32,9 @@ class WebhookController {
         body: Body,
         numMedia: parseInt(NumMedia) || 0,
         mediaUrl: MediaUrl0 || null,
-        mediaType: MediaContentType0 || null
+        mediaType: MediaContentType0 || null,
+        latitude: Latitude || null,
+        longitude: Longitude || null
       };
 
       logger.info(`📦 Datos del mensaje preparados:`, JSON.stringify(mensajeData, null, 2));
@@ -48,7 +56,7 @@ class WebhookController {
       res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
     } catch (error) {
       logger.error('💥 Error en webhook WhatsApp:', error);
-      
+
       res.type('text/xml');
       res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
     }
