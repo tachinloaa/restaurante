@@ -55,9 +55,12 @@ class BotService {
 
       // Verificar si es admin
       const isAdmin = this.esAdmin(telefono);
+      logger.info(`👤 Usuario: ${telefono} | Admin: ${isAdmin ? 'SÍ' : 'NO'}`);
 
       // Comandos especiales para admin
       if (isAdmin) {
+        logger.info(`🔑 Comando de admin detectado: ${mensajeLimpio}`);
+        
         if (mensajeLimpio === 'pedidos' || mensajeLimpio === 'pendientes') {
           return await this.mostrarPedidosPendientes();
         }
@@ -1490,8 +1493,16 @@ class BotService {
    * Verificar si el número es admin
    */
   esAdmin(telefono) {
+    if (!config.admin.phoneNumber) {
+      logger.warn('⚠️ ADMIN_PHONE_NUMBER no está configurado en las variables de entorno');
+      return false;
+    }
+    
     const adminPhone = config.admin.phoneNumber.replace(/\D/g, '');
     const userPhone = telefono.replace(/\D/g, '');
+    
+    logger.debug(`🔍 Verificación admin: User=${userPhone} | Admin=${adminPhone} | Match=${userPhone === adminPhone}`);
+    
     return userPhone === adminPhone;
   }
 
