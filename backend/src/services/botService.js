@@ -362,8 +362,9 @@ class BotService {
       mensaje += `*${index + 1}* ${cat.emoji} ${cat.nombre}\n`;
     });
 
-    mensaje += `\n${EMOJIS.FLECHA} Escribe el *número* de la categoría\n`;
-    mensaje += `O escribe *todo* para ver el menú completo`;
+    mensaje += `\n👉 Escribe el *número* de la categoría\n`;
+    mensaje += `O escribe *todo* para ver el menú completo\n`;
+    mensaje += `❌ Escribe *salir* para cancelar`;
 
     SessionService.guardarDatos(telefono, { categorias: resultado.categorias });
     SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_CATEGORIA);
@@ -384,6 +385,11 @@ class BotService {
     // Si escribe "todo", mostrar menú completo
     if (mensaje === 'todo' || mensaje === 'completo' || mensaje === 'ver todo') {
       return await this.mostrarMenuCompletoDirecto(telefono);
+    }
+
+    // Si escribe "salir"
+    if (this.esComandoCancelar(mensaje)) {
+      return await this.cancelarProceso(telefono);
     }
 
     // Validar que sea un número
