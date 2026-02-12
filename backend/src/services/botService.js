@@ -1847,12 +1847,7 @@ class BotService {
     // Buscar el pedido en la base de datos
     const { data: pedido, error } = await supabase
       .from('pedidos')
-      .select(`
-        *,
-        direccion_entrega,
-        referencias,
-        clientes(*)
-      `)
+      .select('*, clientes(*)')
       .eq('numero_pedido', numeroPedido)
       .eq('estado', ESTADOS_PEDIDO.PENDIENTE_PAGO)
       .single();
@@ -1911,7 +1906,7 @@ class BotService {
 
       fichaReparto += `👤 *Cliente:* ${pedido.clientes.nombre}${NL}`;
       fichaReparto += `📞 *Tel:* wa.me/${pedido.clientes.telefono.replace('whatsapp:', '').replace('+', '')}${NL}`;
-      fichaReparto += `📍 *Ubicación:* ${pedido.direccion_entrega || 'No especificada'}${NL}`;
+      fichaReparto += `📍 *Ubicación:* ${pedido.direccion || 'No especificada'}${NL}`;
       if (pedido.referencias) fichaReparto += `ℹ️ *Ref:* ${pedido.referencias}${NL}`;
       fichaReparto += `${NL}`;
 
