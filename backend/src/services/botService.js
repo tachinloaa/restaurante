@@ -1847,7 +1847,7 @@ class BotService {
     // Buscar el pedido en la base de datos
     const { data: pedido, error } = await supabase
       .from('pedidos')
-      .select('*, clientes(*)')
+      .select('*, clientes(*), pedidos_productos(cantidad, productos(nombre))')
       .eq('numero_pedido', numeroPedido)
       .eq('estado', ESTADOS_PEDIDO.PENDIENTE_PAGO)
       .single();
@@ -1897,6 +1897,35 @@ class BotService {
     await TwilioService.enviarMensajeCliente(pedido.clientes.telefono, mensajeCliente);
 
     logger.info(`Pedido #${numeroPedido} aprobado por admin`);
+
+    // Generar Ficha de Reparto para reenviar al repartidor (solo si es domicilio)
+    if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
+      const NL = '\n';
+      let fichaReparto = `🛵 *ENTREGA PARA REPARTIDOR* 📦${NL}`;
+      fichaReparto += `🆔 Pedido: *#${pedido.numero_pedido}*${NL}${NL}`;
+
+      fichaReparto += `👤 *Cliente:* ${pedido.clientes.nombre}${NL}`;
+      fichaReparto += `📞 *Tel:* wa.me/${pedido.clientes.telefono.replace('whatsapp:', '').replace('+', '')}${NL}`;
+      fichaReparto += `📍 *Ubicación:* ${pedido.direccion}${NL}`;
+      if (pedido.referencias) fichaReparto += `ℹ️ *Ref:* ${pedido.referencias}${NL}${NL}`;
+
+      fichaReparto += `💰 *COBRAR:* ${formatearPrecio(pedido.total)}${NL}`;
+      fichaReparto += `💳 *Método:* ${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'EFECTIVO'}${NL}${NL}`;
+
+      fichaReparto += `📋 *Productos:*${NL}`;
+      if (pedido.pedidos_productos && pedido.pedidos_productos.length > 0) {
+        pedido.pedidos_productos.forEach(p => {
+          fichaReparto += `• ${p.cantidad}x ${p.productos.nombre}${NL}`;
+        });
+      } else {
+        fichaReparto += `(Ver detalle en app)${NL}`;
+      }
+
+      fichaReparto += `${NL}👉 *Reenvía este mensaje al repartidor*`;
+
+      // Enviar ficha al admin
+      await TwilioService.enviarMensajeAdmin(fichaReparto);
+    }
 
     return {
       success: true,
