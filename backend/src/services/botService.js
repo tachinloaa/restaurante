@@ -1847,7 +1847,6 @@ class BotService {
     // Buscar el pedido en la base de datos
     const { data: pedido, error } = await supabase
       .from('pedidos')
-      .from('pedidos')
       .select('*, clientes(*)')
       .eq('numero_pedido', numeroPedido)
       .eq('estado', ESTADOS_PEDIDO.PENDIENTE_PAGO)

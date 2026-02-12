@@ -12,37 +12,49 @@ export const formatearPrecio = (precio) => {
  * Formatear fecha
  */
 export const formatearFecha = (fecha) => {
+  if (!fecha) return '';
+  // Asegurar que la fecha se interprete como UTC si viene sin zona
+  const fechaObj = new Date(typeof fecha === 'string' && !fecha.endsWith('Z') && !fecha.includes('+') ? fecha + 'Z' : fecha);
+
   return new Intl.DateTimeFormat('es-MX', {
     timeZone: 'America/Mexico_City',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(fecha));
+    minute: '2-digit',
+    hour12: true
+  }).format(fechaObj);
 };
 
 /**
  * Formatear fecha corta
  */
 export const formatearFechaCorta = (fecha) => {
+  if (!fecha) return '';
+  const fechaObj = new Date(typeof fecha === 'string' && !fecha.endsWith('Z') && !fecha.includes('+') ? fecha + 'Z' : fecha);
+
   return new Intl.DateTimeFormat('es-MX', {
     timeZone: 'America/Mexico_City',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
-  }).format(new Date(fecha));
+  }).format(fechaObj);
 };
 
 /**
  * Formatear hora
  */
 export const formatearHora = (fecha) => {
+  if (!fecha) return '';
+  const fechaObj = new Date(typeof fecha === 'string' && !fecha.endsWith('Z') && !fecha.includes('+') ? fecha + 'Z' : fecha);
+
   return new Intl.DateTimeFormat('es-MX', {
     timeZone: 'America/Mexico_City',
     hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(fecha));
+    minute: '2-digit',
+    hour12: true
+  }).format(fechaObj);
 };
 
 /**
