@@ -1847,7 +1847,8 @@ class BotService {
     // Buscar el pedido en la base de datos
     const { data: pedido, error } = await supabase
       .from('pedidos')
-      .select('*, clientes(*), pedidos_productos(cantidad, productos(nombre))')
+      .from('pedidos')
+      .select('*, clientes(*)')
       .eq('numero_pedido', numeroPedido)
       .eq('estado', ESTADOS_PEDIDO.PENDIENTE_PAGO)
       .single();
@@ -1913,8 +1914,15 @@ class BotService {
       fichaReparto += `💳 *Método:* ${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'EFECTIVO'}${NL}${NL}`;
 
       fichaReparto += `📋 *Productos:*${NL}`;
-      if (pedido.pedidos_productos && pedido.pedidos_productos.length > 0) {
-        pedido.pedidos_productos.forEach(p => {
+
+      // Obtener productos en consulta separada para evitar errores de relación
+      const { data: productosData } = await supabase
+        .from('pedidos_productos')
+        .select('cantidad, productos(nombre)')
+        .eq('pedido_id', pedido.id);
+
+      if (productosData && productosData.length > 0) {
+        productosData.forEach(p => {
           fichaReparto += `• ${p.cantidad}x ${p.productos.nombre}${NL}`;
         });
       } else {
