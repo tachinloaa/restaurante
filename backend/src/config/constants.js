@@ -120,10 +120,11 @@ export const MAX_TIPOS_PRODUCTOS = 15;
 export const MAX_CAMBIO_REPARTIDOR = 50;
 
 // Tiempo estimado de entrega (minutos)
+// Todos los pedidos tienen el mismo tiempo para simplificar operaciones
 export const TIEMPO_ENTREGA = {
   DOMICILIO: { min: 30, max: 45 },
-  RESTAURANTE: { min: 15, max: 20 },
-  PARA_LLEVAR: { min: 10, max: 15 }
+  RESTAURANTE: { min: 30, max: 45 },
+  PARA_LLEVAR: { min: 30, max: 45 }
 };
 
 // Mensajes del bot

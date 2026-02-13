@@ -125,6 +125,15 @@ class NotificationService {
 
         case 'entregado':
           mensaje = `${EMOJIS.CHECK} ¡Tu pedido *#${pedido.numero_pedido}* ha sido entregado!\n\n`;
+          
+          if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
+            mensaje += `${EMOJIS.MOTO} Tu pedido llegó a tu domicilio.\n\n`;
+          } else if (pedido.tipo_pedido === TIPOS_PEDIDO.PARA_LLEVAR) {
+            mensaje += `📦 Gracias por recoger tu pedido.\n\n`;
+          } else {
+            mensaje += `${EMOJIS.RESTAURANTE} Tu pedido fue servido.\n\n`;
+          }
+          
           mensaje += `Gracias por tu preferencia ${EMOJIS.SALUDO}\n`;
           mensaje += `*El Rinconcito* ${EMOJIS.TACO}`;
           break;

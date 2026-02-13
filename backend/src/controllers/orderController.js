@@ -100,8 +100,9 @@ class OrderController {
       // Limpiar recordatorios del estado anterior (el admin ya atendió el pedido)
       reminderService.limpiarRecordatorio(id, estadoAnterior);
 
-      // Notificar al cliente si es necesario
-      if (['preparando', 'listo', 'enviado', 'entregado', 'cancelado'].includes(estado)) {
+      // Notificar al cliente SOLO cuando esté entregado o cancelado (optimización de costos Twilio)
+      // Los estados 'listo' y 'enviado' se actualizan internamente sin enviar WhatsApp
+      if (['entregado', 'cancelado'].includes(estado)) {
         const pedido = await Order.getById(id);
         if (pedido.success && pedido.data.clientes) {
           await NotificationService.notificarEstadoPedido(pedido.data, pedido.data.clientes);

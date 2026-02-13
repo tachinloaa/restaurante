@@ -2083,8 +2083,13 @@ class BotService {
         };
       }
 
-      // Notificar al cliente sobre el cambio de estado
-      await NotificationService.notificarEstadoPedido(pedido, pedido.clientes);
+      // Notificar al cliente SOLO cuando esté entregado o cancelado (optimización de costos Twilio)
+      // Los estados 'preparando', 'listo' y 'enviado' se actualizan sin enviar WhatsApp
+      let notificacionEnviada = false;
+      if (['entregado', 'cancelado'].includes(nuevoEstado)) {
+        await NotificationService.notificarEstadoPedido(pedido, pedido.clientes);
+        notificacionEnviada = true;
+      }
 
       // Mensajes según el estado
       const estadoEmojis = {
@@ -2110,7 +2115,7 @@ class BotService {
           `Estado: *${estadoTextos[nuevoEstado] || nuevoEstado.toUpperCase()}*\n\n` +
           `👤 Cliente: ${pedido.clientes?.nombre || 'Sin nombre'}\n` +
           `📞 Teléfono: ${pedido.clientes?.telefono}\n\n` +
-          `✅ El cliente ha sido notificado automáticamente.`
+          `${notificacionEnviada ? '✅ El cliente ha sido notificado por WhatsApp.' : '📝 Estado actualizado (sin notificación WhatsApp).'}`
       };
     } catch (error) {
       logger.error('Error al cambiar estado rápido:', error);
