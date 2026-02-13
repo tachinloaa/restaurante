@@ -962,9 +962,7 @@ class BotService {
       // Mensaje al cliente
       let mensajeCliente = `✅ *COMPROBANTE RECIBIDO*\n\n`;
       mensajeCliente += `📝 Tu número de pedido es: *#${pedido.numero_pedido}*\n\n`;
-      mensajeCliente += `⏳ *Estamos verificando tu pago*\n`;
-      mensajeCliente += `Tu pedido será confirmado una vez que verifiquemos la transferencia.\n\n`;
-      mensajeCliente += `📱 Te notificaremos cuando tu pago sea verificado y tu pedido esté en preparación.\n\n`;
+      mensajeCliente += `📱 Te notificaremos cuando tu pedido esté listo.\n\n`;
       mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
 
       // Limpiar sesión DESPUÉS de enviar notificación
@@ -1656,11 +1654,8 @@ class BotService {
       });
 
       if (pedidos.length > 0) {
-        mensaje += `\n⚡ *COMANDOS RÁPIDOS:*\n`;
-        mensaje += `• *preparando #${pedidos[0].numero_pedido}*\n`;
-        mensaje += `• *listo #${pedidos[0].numero_pedido}*\n`;
-        mensaje += `• *enviado #${pedidos[0].numero_pedido}*\n`;
-        mensaje += `• *entregado #${pedidos[0].numero_pedido}*\n\n`;
+        mensaje += `\n⚡ *COMANDO RÁPIDO:*\n`;
+        mensaje += `• *entregado #${pedidos[0].numero_pedido}* - Marcar como entregado\n\n`;
         mensaje += `📝 Otros comandos:\n`;
         mensaje += `• *ver #${pedidos[0].numero_pedido}* - Ver detalles`;
       }
@@ -1907,23 +1902,10 @@ class BotService {
       };
     }
 
-    // Notificar al cliente con mensaje personalizado de aprobación
-    const tiempoEstimado = TIEMPO_ENTREGA.DOMICILIO;
+    // NO enviar mensaje al cliente aquí - solo se notificará cuando esté entregado
+    // Esto reduce costos de Twilio y evita mensajes innecesarios
 
-    // Usar variable explícita para evitar problemas de escape
-    const NL = '\n';
-
-    let mensajeCliente = `✅ *¡TU PAGO HA SIDO VERIFICADO!*${NL}${NL}`;
-    mensajeCliente += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*${NL}${NL}`;
-    mensajeCliente += `${EMOJIS.CHECK} Tu pedido ha sido *APROBADO* y ya está en preparación ${EMOJIS.COCINERO}${NL}${NL}`;
-    mensajeCliente += `${EMOJIS.RELOJ} Tiempo estimado de entrega: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos${NL}${NL}`;
-    mensajeCliente += `${EMOJIS.MOTO} Tu pedido saldrá pronto a tu domicilio${NL}${NL}`;
-    mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}${NL}`;
-    mensajeCliente += `*El Rinconcito* ${EMOJIS.TACO}`;
-
-    await TwilioService.enviarMensajeCliente(pedido.clientes.telefono, mensajeCliente);
-
-    logger.info(`Pedido #${numeroPedido} aprobado por admin`);
+    logger.info(`Pedido #${numeroPedido} aprobado por admin - NO se notifica al cliente todavía`);
 
     // Generar Ficha de Reparto para reenviar al repartidor (solo si es domicilio)
     if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
@@ -1970,11 +1952,9 @@ class BotService {
         `📞 Teléfono: ${pedido.clientes.telefono}\n` +
         `💰 Total: ${formatearPrecio(pedido.total)}\n\n` +
         `👨‍🍳 Estado actual: *PREPARANDO*\n\n` +
-        `⚡ *COMANDOS RÁPIDOS:*\n` +
-        `• *listo #${pedido.numero_pedido}* - Marcar como listo\n` +
-        `• *enviado #${pedido.numero_pedido}* - Pedido en camino\n` +
-        `• *entregado #${pedido.numero_pedido}* - Pedido entregado\n\n` +
-        `✅ El cliente ha sido notificado automáticamente.`
+        `⚡ *COMANDO RÁPIDO:*\n` +
+        `• *entregado #${pedido.numero_pedido}* - Marcar como entregado (notifica al cliente)\n\n` +
+        `📱 El cliente será notificado cuando marques el pedido como entregado.`
     };
   }
 

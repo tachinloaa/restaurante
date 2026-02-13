@@ -114,11 +114,11 @@ class NotificationService {
           break;
 
         case 'entregado':
-          mensaje = `${EMOJIS.CHECK} ¡Tu pedido *#${pedido.numero_pedido}* está listo!\n\n`;
-          
           if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
-            mensaje += `${EMOJIS.MOTO} Tu pedido fue entregado en tu domicilio.\n\n`;
+            mensaje = `${EMOJIS.CHECK} ¡Tu pedido *#${pedido.numero_pedido}* va en camino!\n\n`;
+            mensaje += `${EMOJIS.MOTO} El repartidor está en camino a tu domicilio.\n\n`;
           } else if (pedido.tipo_pedido === TIPOS_PEDIDO.PARA_LLEVAR) {
+            mensaje = `${EMOJIS.CHECK} ¡Tu pedido *#${pedido.numero_pedido}* está listo!\n\n`;
             mensaje += `📦 *Puedes pasar a recogerlo*\n\n`;
             mensaje += `📍 *Dirección:*\n${DIRECCION_RESTAURANTE.TEXTO}\n${DIRECCION_RESTAURANTE.MAPS}\n\n`;
           }
