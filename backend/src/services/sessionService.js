@@ -24,8 +24,11 @@ class SessionService {
       return null;
     }
 
+    // Si la sesión tiene extensión activa, verificar el tiempo extendido
+    const tiempoLimite = session.extendidaHasta || (session.lastActivity + SESSION_TIMEOUT);
+    
     // Verificar si la sesión ha expirado
-    if (Date.now() - session.lastActivity > SESSION_TIMEOUT) {
+    if (Date.now() > tiempoLimite) {
       this.deleteSession(telefono);
       logger.info(`Sesión expirada para ${telefono}`);
       return null;
@@ -194,7 +197,9 @@ class SessionService {
     let contadorEliminados = 0;
 
     for (const [telefono, session] of this.sessions.entries()) {
-      if (ahora - session.lastActivity > SESSION_TIMEOUT) {
+      const tiempoLimite = session.extendidaHasta || (session.lastActivity + SESSION_TIMEOUT);
+      
+      if (ahora > tiempoLimite) {
         this.sessions.delete(telefono);
         contadorEliminados++;
       }
@@ -226,6 +231,34 @@ class SessionService {
     return carrito.reduce((total, item) => {
       return total + (item.precio * item.cantidad);
     }, 0);
+  }
+
+  /**
+   * Renovar actividad de la sesión (actualizar timestamp)
+   */
+  renovarActividad(telefono) {
+    const session = this.sessions.get(telefono);
+    if (session) {
+      session.lastActivity = Date.now();
+      this.sessions.set(telefono, session);
+      logger.debug(`🔄 Actividad renovada para ${telefono}`);
+    }
+    return session;
+  }
+
+  /**
+   * Extender sesión por un tiempo adicional
+   */
+  extenderSesion(telefono, tiempoExtra) {
+    const session = this.sessions.get(telefono);
+    if (session) {
+      // Marcar cuándo expira la extensión
+      session.extendidaHasta = Date.now() + tiempoExtra;
+      session.lastActivity = Date.now();
+      this.sessions.set(telefono, session);
+      logger.info(`⏰ Sesión extendida para ${telefono} por ${tiempoExtra / 60000} minutos`);
+    }
+    return session;
   }
 
   /**

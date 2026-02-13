@@ -18,7 +18,8 @@ import {
   TIEMPO_ENTREGA,
   MAX_CANTIDAD_POR_PRODUCTO,
   MAX_CAMBIO_REPARTIDOR,
-  COSTO_ENVIO
+  COSTO_ENVIO,
+  COMPROBANTE_TIMEOUT
 } from '../config/constants.js';
 import { limpiarNumeroWhatsApp, formatearPrecio } from '../utils/formatters.js';
 import { sanitizarInput, esValidoNombre, esValidaDireccion } from '../utils/validators.js';
@@ -836,13 +837,13 @@ class BotService {
     let mensaje = `${EMOJIS.DINERO} *MÉTODO DE PAGO*\n\n`;
     mensaje += `Total a pagar: *${formatearPrecio(total)}*\n\n`;
     mensaje += `¿Cómo deseas pagar?\n\n`;
-    
+
     if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
       mensaje += `*1* 💵 Efectivo (el repartidor lleva cambio)\n`;
     } else {
       mensaje += `*1* 💵 Efectivo\n`;
     }
-    
+
     mensaje += `*2* 🏦 Transferencia bancaria\n\n`;
     mensaje += `Responde con el número de tu opción`;
 
@@ -886,6 +887,10 @@ class BotService {
   async solicitarComprobante(telefono) {
     SessionService.updateEstado(telefono, BOT_STATES.ESPERANDO_COMPROBANTE);
 
+    // Extender tiempo de sesión para dar tiempo de hacer la transferencia
+    SessionService.extenderSesion(telefono, COMPROBANTE_TIMEOUT);
+    logger.info(`⏰ Sesión extendida para ${telefono} - Esperando comprobante por ${COMPROBANTE_TIMEOUT / 60000} minutos`);
+
     const total = SessionService.calcularTotalCarrito(telefono);
 
     let mensaje = `${EMOJIS.DINERO} *PAGO POR TRANSFERENCIA*\n\n`;
@@ -900,7 +905,9 @@ class BotService {
     mensaje += `• Realiza la transferencia bancaria por el monto exacto\n`;
     mensaje += `• Una vez realizada, *envía tu comprobante de pago* (foto o captura de pantalla)\n`;
     mensaje += `• Tu pedido será confirmado cuando verifiquemos el pago\n\n`;
-    mensaje += `📸 *Envía tu comprobante ahora*`;
+    mensaje += `⏰ *Tienes ${COMPROBANTE_TIMEOUT / 60000} minutos* para enviar el comprobante\n`;
+    mensaje += `💡 *Tip:* Puedes tomarte tu tiempo para hacer la transferencia\n\n`;
+    mensaje += `📸 *Envía tu comprobante cuando esté listo*`;
 
     return {
       success: true,
@@ -916,6 +923,24 @@ class BotService {
 
     logger.info(`📥 Procesando comprobante de ${telefono}. NumMedia: ${numMedia}, MediaUrl: ${mediaUrl}`);
 
+    // PRIMERO: Verificar que la sesión aún exista
+    let session = SessionService.getSession(telefono);
+    if (!session) {
+      logger.error(`❌ ERROR: Sesión expirada para ${telefono} al intentar procesar comprobante`);
+      return {
+        success: false,
+        mensaje: `⏰ *Tu sesión ha expirado*\n\n` +
+          `Lo sentimos, tu sesión expiró mientras esperábamos el comprobante.\n\n` +
+          `Por favor inicia un nuevo pedido escribiendo *pedir*.\n\n` +
+          `💡 *Tip:* Envía el comprobante lo antes posible después de seleccionar transferencia.`
+      };
+    }
+
+    // SEGUNDO: Renovar actividad de sesión y extenderla nuevamente
+    SessionService.renovarActividad(telefono);
+    SessionService.extenderSesion(telefono, COMPROBANTE_TIMEOUT);
+    logger.info(`� Sesión renovada y extendida para ${telefono} - ${COMPROBANTE_TIMEOUT / 60000} minutos más`);
+
     // Verificar si recibió una imagen
     if (numMedia > 0 && mediaUrl) {
       // Guardar URL del comprobante
@@ -928,7 +953,7 @@ class BotService {
       logger.info(`✅ Comprobante guardado en sesión con URL: ${mediaUrl}`);
 
       // GENERAR RESUMEN ANTES DE QUE SE BORRE EL CARRITO
-      const session = SessionService.getSession(telefono);
+      session = SessionService.getSession(telefono);
 
       // Verificar que la sesión tenga el comprobante guardado
       if (session && session.datos && session.datos.comprobante_url) {
@@ -940,6 +965,16 @@ class BotService {
       const resumenCarrito = OrderService.generarResumenCarrito(session);
       const resumenTexto = resumenCarrito ? resumenCarrito.resumen : null;
 
+      // Verificar que el carrito tenga productos
+      if (!session.carrito || session.carrito.length === 0) {
+        logger.error(`❌ ERROR: Carrito vacío para ${telefono} al crear pedido`);
+        return {
+          success: false,
+          mensaje: `❌ *Error al procesar tu pedido*\n\n` +
+            `Tu carrito está vacío. Por favor inicia un nuevo pedido escribiendo *pedir*.`
+        };
+      }
+
       // CREAR EL PEDIDO INMEDIATAMENTE con estado PENDIENTE_PAGO
       const resultado = await OrderService.crearPedidoDesdeBot(telefono);
 
@@ -947,7 +982,9 @@ class BotService {
         logger.error('Error al crear pedido con comprobante:', resultado.error);
         return {
           success: false,
-          mensaje: `Lo sentimos, ocurrió un error al procesar tu pedido: ${resultado.error}\n\nPor favor intenta de nuevo.`
+          mensaje: `❌ *Error al procesar tu pedido*\n\n` +
+            `${resultado.error || 'Error desconocido'}\n\n` +
+            `Por favor intenta de nuevo o contacta con nosotros.`
         };
       }
 
@@ -1030,10 +1067,19 @@ class BotService {
       };
     }
 
-    // Si no envió nada válido
+    // Si no envió nada válido, extender sesión nuevamente para darle más tiempo
+    SessionService.extenderSesion(telefono, COMPROBANTE_TIMEOUT);
+    logger.info(`⏰ Sesión extendida nuevamente para ${telefono} - esperando comprobante válido`);
+
     return {
       success: true,
-      mensaje: `Por favor envía tu comprobante de pago.\n\nPuede ser:\n• Foto del comprobante\n• Captura de pantalla\n• Número de referencia\n\n📸 Envía tu comprobante ahora`
+      mensaje: `⚠️ *No recibimos un comprobante válido*\n\n` +
+        `Por favor envía:\n` +
+        `📸 Foto del comprobante\n` +
+        `📱 Captura de pantalla\n` +
+        `🔢 Número de referencia (mínimo 5 caracteres)\n\n` +
+        `⏰ Tienes ${COMPROBANTE_TIMEOUT / 60000} minutos para enviarlo.\n\n` +
+        `� *Tip:* Si ya realizaste la transferencia, envía la captura ahora.`
     };
   }
 
@@ -1221,7 +1267,7 @@ class BotService {
     mensajeAdmin += `📝 Pedido: *#${numeroPedido}*\n`;
     mensajeAdmin += `👤 Cliente: *${cliente}*\n`;
     mensajeAdmin += `📞 Teléfono: ${telefono}\n`;
-    
+
     // Mostrar dirección solo para domicilio, tipo de pedido para llevar
     if (session.datos.tipo_pedido === 'domicilio') {
       mensajeAdmin += `📍 Dirección: ${session.datos.direccion || 'N/A'}\n`;
@@ -1449,7 +1495,7 @@ class BotService {
         const fecha = new Date(pedido.created_at);
         const ahora = new Date();
         const minutosTranscurridos = Math.floor((ahora - fecha) / 60000);
-        
+
         // Formatear tiempo transcurrido
         let tiempoTexto;
         if (minutosTranscurridos < 60) {
@@ -1966,8 +2012,8 @@ class BotService {
     }
 
     // Notificar al cliente que su pago fue verificado
-    const tiempoEstimado = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO 
-      ? TIEMPO_ENTREGA.DOMICILIO 
+    const tiempoEstimado = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO
+      ? TIEMPO_ENTREGA.DOMICILIO
       : TIEMPO_ENTREGA.PARA_LLEVAR;
 
     const NL = '\n';
@@ -1976,7 +2022,7 @@ class BotService {
     mensajeCliente += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*${NL}${NL}`;
     mensajeCliente += `${EMOJIS.CHECK} Tu pedido ha sido *APROBADO* y ya está en preparación ${EMOJIS.COCINERO}${NL}${NL}`;
     mensajeCliente += `${EMOJIS.RELOJ} Tiempo estimado: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos${NL}${NL}`;
-    
+
     if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
       mensajeCliente += `${EMOJIS.MOTO} Tu pedido saldrá pronto a tu domicilio${NL}${NL}`;
     } else {
@@ -1984,7 +2030,7 @@ class BotService {
       mensajeCliente += `${DIRECCION_RESTAURANTE.TEXTO}${NL}`;
       mensajeCliente += `${DIRECCION_RESTAURANTE.MAPS}${NL}${NL}`;
     }
-    
+
     mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}${NL}`;
     mensajeCliente += `*El Rinconcito* ${EMOJIS.TACO}`;
 
@@ -2005,17 +2051,17 @@ class BotService {
       fichaReparto += `${NL}`;
 
       // Si el pago fue por transferencia, el repartidor solo cobra el envío
-      const montoCobrar = pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA 
-        ? COSTO_ENVIO 
+      const montoCobrar = pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA
+        ? COSTO_ENVIO
         : pedido.total;
-      
+
       fichaReparto += `💰 *COBRAR:* ${formatearPrecio(montoCobrar)}${NL}`;
       fichaReparto += `💳 *Método:* ${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'EFECTIVO'}${NL}`;
-      
+
       if (pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA) {
         fichaReparto += `📝 *Nota:* Comida pagada por transferencia, solo cobrar envío${NL}`;
       }
-      
+
       fichaReparto += `${NL}`;
 
       fichaReparto += `📋 *Productos:*${NL}`;
@@ -2117,7 +2163,7 @@ class BotService {
       if (['entregado', 'cancelado'].includes(nuevoEstado)) {
         // Usar pedido actualizado para que tenga el estado correcto
         await NotificationService.notificarEstadoPedido(
-          pedidoActualizado || { ...pedido, estado: nuevoEstado }, 
+          pedidoActualizado || { ...pedido, estado: nuevoEstado },
           pedido.clientes
         );
         notificacionEnviada = true;

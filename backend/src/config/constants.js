@@ -106,6 +106,9 @@ export const EMOJIS = {
 // Tiempo de sesión en milisegundos (30 minutos)
 export const SESSION_TIMEOUT = 30 * 60 * 1000;
 
+// Tiempo extendido para esperar comprobante (15 minutos)
+export const COMPROBANTE_TIMEOUT = 15 * 60 * 1000;
+
 // Límite de productos por pedido
 export const MAX_PRODUCTOS_POR_PEDIDO = 20;
 
@@ -182,6 +185,7 @@ export default {
   COMANDOS_BOT,
   EMOJIS,
   SESSION_TIMEOUT,
+  COMPROBANTE_TIMEOUT,
   MAX_PRODUCTOS_POR_PEDIDO,
   MAX_CANTIDAD_POR_PRODUCTO,
   MAX_ITEMS_CARRITO,

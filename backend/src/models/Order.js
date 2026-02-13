@@ -166,7 +166,6 @@ class Order {
           tipo_pedido: pedidoData.tipo_pedido,
           estado: pedidoData.estado || 'pendiente',
           direccion_entrega: pedidoData.direccion_entrega || null,
-          referencias: pedidoData.referencias || null,
           notas: pedidoData.notas || null,
           metodo_pago: pedidoData.metodo_pago || 'efectivo',
           pago_verificado: pedidoData.pago_verificado !== undefined ? pedidoData.pago_verificado : true,
@@ -193,7 +192,7 @@ class Order {
       if (errorDetalles) throw errorDetalles;
 
       logger.info(`Pedido creado: #${numeroPedido} (${pedido.id})`);
-      
+
       // Retornar pedido completo
       return await this.getById(pedido.id);
     } catch (error) {
@@ -341,7 +340,7 @@ class Order {
    * Obtener pedidos pendientes
    */
   static async getPendientes() {
-    return await this.getAll({ 
+    return await this.getAll({
       estado: 'pendiente',
       limit: 50
     });
