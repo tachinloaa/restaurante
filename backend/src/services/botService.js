@@ -1906,7 +1906,7 @@ class BotService {
 
       fichaReparto += `👤 *Cliente:* ${pedido.clientes.nombre}${NL}`;
       fichaReparto += `📞 *Tel:* wa.me/${pedido.clientes.telefono.replace('whatsapp:', '').replace('+', '')}${NL}`;
-      fichaReparto += `📍 *Ubicación:* ${pedido.direccion || 'No especificada'}${NL}`;
+      fichaReparto += `📍 *Ubicación:* ${pedido.direccion_entrega || 'No especificada'}${NL}`;
       if (pedido.referencias) fichaReparto += `ℹ️ *Ref:* ${pedido.referencias}${NL}`;
       fichaReparto += `${NL}`;
 
