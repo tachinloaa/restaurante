@@ -1917,7 +1917,16 @@ class BotService {
     // Buscar el pedido en la base de datos
     const { data: pedido, error } = await supabase
       .from('pedidos')
-      .select('*, clientes(*)')
+      .select(`
+        *,
+        clientes(
+          id,
+          nombre,
+          telefono,
+          direccion,
+          referencias
+        )
+      `)
       .eq('numero_pedido', numeroPedido)
       .eq('estado', ESTADOS_PEDIDO.PENDIENTE_PAGO)
       .single();
@@ -1927,6 +1936,15 @@ class BotService {
         success: false,
         mensaje: `❌ No se encontró pedido pendiente #${numeroPedido}\n\nVerifica que el número sea correcto y que el pedido esté pendiente de pago.`
       };
+    }
+
+    // Log para debug - verificar que traiga el método de pago
+    logger.info(`📋 Pedido #${numeroPedido} - Método de pago: ${pedido.metodo_pago || 'NO DEFINIDO'}`);
+
+    // Si no tiene método de pago definido, usar efectivo por defecto
+    if (!pedido.metodo_pago) {
+      logger.warn(`⚠️ Pedido #${numeroPedido} sin método de pago, usando 'efectivo' por defecto`);
+      pedido.metodo_pago = 'efectivo';
     }
 
     // Cambiar estado a PREPARANDO (más lógico que pendiente)

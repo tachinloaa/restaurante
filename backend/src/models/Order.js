@@ -166,7 +166,11 @@ class Order {
           tipo_pedido: pedidoData.tipo_pedido,
           estado: pedidoData.estado || 'pendiente',
           direccion_entrega: pedidoData.direccion_entrega || null,
-          notas: pedidoData.notas || null
+          referencias: pedidoData.referencias || null,
+          notas: pedidoData.notas || null,
+          metodo_pago: pedidoData.metodo_pago || 'efectivo',
+          pago_verificado: pedidoData.pago_verificado !== undefined ? pedidoData.pago_verificado : true,
+          comprobante_pago: pedidoData.comprobante_pago || null
         }])
         .select()
         .single();
