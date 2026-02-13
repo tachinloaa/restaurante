@@ -121,6 +121,9 @@ export const MAX_TIPOS_PRODUCTOS = 15;
 // Cambio máximo que lleva el repartidor
 export const MAX_CAMBIO_REPARTIDOR = 50;
 
+// Costo de envío a domicilio
+export const COSTO_ENVIO = 15;
+
 // Tiempo estimado de entrega (minutos)
 export const TIEMPO_ENTREGA = {
   DOMICILIO: { min: 30, max: 45 },
@@ -184,6 +187,7 @@ export default {
   MAX_ITEMS_CARRITO,
   MAX_TIPOS_PRODUCTOS,
   MAX_CAMBIO_REPARTIDOR,
+  COSTO_ENVIO,
   TIEMPO_ENTREGA,
   MENSAJES_BOT,
   PAGINATION,

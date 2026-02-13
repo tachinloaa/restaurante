@@ -17,7 +17,8 @@ import {
   ESTADOS_PEDIDO,
   TIEMPO_ENTREGA,
   MAX_CANTIDAD_POR_PRODUCTO,
-  MAX_CAMBIO_REPARTIDOR
+  MAX_CAMBIO_REPARTIDOR,
+  COSTO_ENVIO
 } from '../config/constants.js';
 import { limpiarNumeroWhatsApp, formatearPrecio } from '../utils/formatters.js';
 import { sanitizarInput, esValidoNombre, esValidaDireccion } from '../utils/validators.js';
@@ -962,7 +963,9 @@ class BotService {
       // Mensaje al cliente
       let mensajeCliente = `✅ *COMPROBANTE RECIBIDO*\n\n`;
       mensajeCliente += `📝 Tu número de pedido es: *#${pedido.numero_pedido}*\n\n`;
-      mensajeCliente += `📱 Te notificaremos cuando tu pedido esté listo.\n\n`;
+      mensajeCliente += `⏳ *Estamos verificando tu pago*\n`;
+      mensajeCliente += `Tu pedido será confirmado una vez que verifiquemos la transferencia.\n\n`;
+      mensajeCliente += `📱 Te notificaremos cuando tu pago sea verificado y tu pedido esté en preparación.\n\n`;
       mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
 
       // Limpiar sesión DESPUÉS de enviar notificación
@@ -1402,10 +1405,34 @@ class BotService {
    */
   async mostrarPedidosCliente(telefono) {
     try {
+      // Primero buscar el cliente por su teléfono
+      const { data: cliente, error: errorCliente } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('telefono', telefono)
+        .single();
+
+      if (errorCliente || !cliente) {
+        return {
+          success: true,
+          mensaje: '📦 No tienes pedidos registrados.\n\nEscribe *pedir* para hacer tu primer pedido.'
+        };
+      }
+
+      // Buscar pedidos del cliente con productos
       const { data: pedidos, error } = await supabase
         .from('pedidos')
-        .select('*')
-        .eq('telefono', telefono)
+        .select(`
+          id,
+          numero_pedido,
+          total,
+          estado,
+          tipo_pedido,
+          metodo_pago,
+          created_at,
+          direccion_entrega
+        `)
+        .eq('cliente_id', cliente.id)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -1422,31 +1449,49 @@ class BotService {
         const fecha = new Date(pedido.created_at);
         const ahora = new Date();
         const minutosTranscurridos = Math.floor((ahora - fecha) / 60000);
-
-        const estadoEmoji = {
-          pendiente: '⏳',
-          preparando: '👨‍🍳',
-          en_camino: '🚚',
-          entregado: '✅',
-          cancelado: '❌'
-        };
-
-        mensaje += `${estadoEmoji[pedido.estado] || '📦'} *Pedido #${pedido.id}*\n`;
-        mensaje += `   Estado: ${pedido.estado}\n`;
-        mensaje += `   Total: $${pedido.total.toFixed(2)} MXN\n`;
-        mensaje += `   Hace: ${minutosTranscurridos} minutos\n`;
-
-        // Mostrar si puede cancelar (solo pendientes dentro de 20 min)
-        if (pedido.estado === 'pendiente' && minutosTranscurridos <= 20) {
-          mensaje += `   ⚠️ Puedes cancelar\n`;
+        
+        // Formatear tiempo transcurrido
+        let tiempoTexto;
+        if (minutosTranscurridos < 60) {
+          tiempoTexto = `${minutosTranscurridos} min`;
+        } else if (minutosTranscurridos < 1440) {
+          const horas = Math.floor(minutosTranscurridos / 60);
+          tiempoTexto = `${horas}h`;
+        } else {
+          const dias = Math.floor(minutosTranscurridos / 1440);
+          tiempoTexto = `${dias}d`;
         }
 
-        mensaje += `\n`;
+        const estadoEmoji = {
+          'pendiente_pago': '⏳',
+          'pendiente': '⏳',
+          'preparando': '👨‍🍳',
+          'listo': '✅',
+          'enviado': '🛵',
+          'entregado': '✅',
+          'cancelado': '❌'
+        };
+
+        const estadoTexto = {
+          'pendiente_pago': 'Verificando pago',
+          'pendiente': 'Pendiente',
+          'preparando': 'Preparando',
+          'listo': 'Listo',
+          'enviado': 'En camino',
+          'entregado': 'Entregado',
+          'cancelado': 'Cancelado'
+        };
+
+        const tipoEmoji = pedido.tipo_pedido === 'domicilio' ? '🛵' : '🛒';
+
+        mensaje += `${estadoEmoji[pedido.estado] || '📦'} *#${pedido.numero_pedido}*\n`;
+        mensaje += `├ ${estadoTexto[pedido.estado] || pedido.estado}\n`;
+        mensaje += `├ ${tipoEmoji} ${pedido.tipo_pedido === 'domicilio' ? 'Domicilio' : 'Para llevar'}\n`;
+        mensaje += `├ 💰 ${formatearPrecio(pedido.total)}\n`;
+        mensaje += `└ 🕐 Hace ${tiempoTexto}\n\n`;
       }
 
-      mensaje += `💡 Para cancelar un pedido pendiente:\n`;
-      mensaje += `"cancelar pedido #X"\n\n`;
-      mensaje += `⚠️ Solo puedes cancelar pedidos pendientes dentro de los primeros 20 minutos.`;
+      mensaje += `${EMOJIS.FLECHA} Para hacer un nuevo pedido, escribe *pedir*`;
 
       return {
         success: true,
@@ -1941,8 +1986,19 @@ class BotService {
       if (pedido.referencias) fichaReparto += `ℹ️ *Ref:* ${pedido.referencias}${NL}`;
       fichaReparto += `${NL}`;
 
-      fichaReparto += `💰 *COBRAR:* ${formatearPrecio(pedido.total)}${NL}`;
-      fichaReparto += `💳 *Método:* ${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'EFECTIVO'}${NL}${NL}`;
+      // Si el pago fue por transferencia, el repartidor solo cobra el envío
+      const montoCobrar = pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA 
+        ? COSTO_ENVIO 
+        : pedido.total;
+      
+      fichaReparto += `💰 *COBRAR:* ${formatearPrecio(montoCobrar)}${NL}`;
+      fichaReparto += `💳 *Método:* ${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'EFECTIVO'}${NL}`;
+      
+      if (pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA) {
+        fichaReparto += `📝 *Nota:* Comida pagada por transferencia, solo cobrar envío${NL}`;
+      }
+      
+      fichaReparto += `${NL}`;
 
       fichaReparto += `📋 *Productos:*${NL}`;
 
