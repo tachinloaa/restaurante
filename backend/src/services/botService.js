@@ -2025,11 +2025,27 @@ class BotService {
         };
       }
 
+      // Obtener pedido actualizado con el nuevo estado
+      const { data: pedidoActualizado, error: errorGet } = await supabase
+        .from('pedidos')
+        .select('*, clientes(*)')
+        .eq('id', pedido.id)
+        .single();
+
+      if (errorGet || !pedidoActualizado) {
+        logger.error('Error al obtener pedido actualizado:', errorGet);
+        // Continuar con el pedido original si falla
+      }
+
       // Notificar al cliente SOLO cuando esté entregado o cancelado (optimización de costos Twilio)
       // Los estados 'preparando', 'listo' y 'enviado' se actualizan sin enviar WhatsApp
       let notificacionEnviada = false;
       if (['entregado', 'cancelado'].includes(nuevoEstado)) {
-        await NotificationService.notificarEstadoPedido(pedido, pedido.clientes);
+        // Usar pedido actualizado para que tenga el estado correcto
+        await NotificationService.notificarEstadoPedido(
+          pedidoActualizado || { ...pedido, estado: nuevoEstado }, 
+          pedido.clientes
+        );
         notificacionEnviada = true;
       }
 
