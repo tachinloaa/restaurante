@@ -2100,6 +2100,115 @@ class BotService {
       mensaje: `❌ *PEDIDO RECHAZADO*\n\n📝 Pedido #${pedido.numero_pedido}\n👤 Cliente: ${pedido.clientes.nombre}\n📞 Teléfono: ${pedido.clientes.telefono}\n\nEl cliente ha sido notificado.`
     };
   }
+
+  /**
+   * Calcular similitud entre dos strings (Levenshtein distance simplificado)
+   */
+  calcularSimilitud(str1, str2) {
+    const s1 = str1.toLowerCase();
+    const s2 = str2.toLowerCase();
+
+    if (s1 === s2) return 1;
+    if (s1.includes(s2) || s2.includes(s1)) return 0.8;
+
+    // Contar caracteres en común
+    let comunes = 0;
+    for (let char of s1) {
+      if (s2.includes(char)) comunes++;
+    }
+
+    return comunes / Math.max(s1.length, s2.length);
+  }
+
+  /**
+   * Verificar si es comando "menu" con tolerancia
+   */
+  esComandoMenu(mensaje) {
+    const comandos = ['menu', 'menú', 'carta', 'productos'];
+    const msg = mensaje.toLowerCase().trim();
+
+    // Coincidencia exacta
+    if (comandos.includes(msg)) return true;
+
+    // Fuzzy matching
+    for (let cmd of comandos) {
+      if (this.calcularSimilitud(msg, cmd) >= 0.7) return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Verificar si es comando "pedir" con tolerancia
+   */
+  esComandoPedir(mensaje) {
+    const comandos = ['pedir', 'ordenar', 'comprar', 'orden', 'pedido'];
+    const msg = mensaje.toLowerCase().trim();
+
+    // Coincidencia exacta
+    if (comandos.includes(msg)) return true;
+
+    // Fuzzy matching
+    for (let cmd of comandos) {
+      if (this.calcularSimilitud(msg, cmd) >= 0.7) return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Verificar si es comando "mis pedidos" con tolerancia
+   */
+  esComandoMisPedidos(mensaje) {
+    const comandos = ['mis pedidos', 'pedidos', 'mispedidos', 'historial', 'ordenes'];
+    const msg = mensaje.toLowerCase().trim();
+
+    // Coincidencia exacta
+    if (comandos.includes(msg)) return true;
+
+    // Fuzzy matching
+    for (let cmd of comandos) {
+      if (this.calcularSimilitud(msg, cmd) >= 0.6) return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Verificar si es comando "contacto" con tolerancia
+   */
+  esComandoContacto(mensaje) {
+    const comandos = ['contacto', 'telefono', 'teléfono', 'llamar', 'ubicacion', 'ubicación', 'direccion', 'dirección'];
+    const msg = mensaje.toLowerCase().trim();
+
+    // Coincidencia exacta
+    if (comandos.includes(msg)) return true;
+
+    // Fuzzy matching
+    for (let cmd of comandos) {
+      if (this.calcularSimilitud(msg, cmd) >= 0.7) return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Verificar si es comando "ayuda" con tolerancia
+   */
+  esComandoAyuda(mensaje) {
+    const comandos = ['ayuda', 'help', 'info', 'información', 'informacion', 'comandos'];
+    const msg = mensaje.toLowerCase().trim();
+
+    // Coincidencia exacta
+    if (comandos.includes(msg)) return true;
+
+    // Fuzzy matching
+    for (let cmd of comandos) {
+      if (this.calcularSimilitud(msg, cmd) >= 0.7) return true;
+    }
+
+    return false;
+  }
 }
 
 // Exportar instancia única (Singleton)
