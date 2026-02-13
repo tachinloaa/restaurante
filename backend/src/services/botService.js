@@ -2196,12 +2196,18 @@ class BotService {
     const s2 = str2.toLowerCase();
 
     if (s1 === s2) return 1;
-    if (s1.includes(s2) || s2.includes(s1)) return 0.8;
 
-    // Contar caracteres en común
+    // Si la diferencia de longitud es muy grande, no son similares
+    const diffLongitud = Math.abs(s1.length - s2.length);
+    if (diffLongitud > 3) return 0;
+
+    if (s1.includes(s2) || s2.includes(s1)) return 0.9;
+
+    // Contar caracteres en común en el mismo orden
     let comunes = 0;
-    for (let char of s1) {
-      if (s2.includes(char)) comunes++;
+    const minLen = Math.min(s1.length, s2.length);
+    for (let i = 0; i < minLen; i++) {
+      if (s1[i] === s2[i]) comunes++;
     }
 
     return comunes / Math.max(s1.length, s2.length);
@@ -2217,9 +2223,9 @@ class BotService {
     // Coincidencia exacta
     if (comandos.includes(msg)) return true;
 
-    // Fuzzy matching
+    // Fuzzy matching MUY ESTRICTO
     for (let cmd of comandos) {
-      if (this.calcularSimilitud(msg, cmd) >= 0.7) return true;
+      if (this.calcularSimilitud(msg, cmd) >= 0.85) return true;
     }
 
     return false;
