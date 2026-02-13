@@ -511,7 +511,15 @@ class BotService {
       return await this.solicitarTipoPedido(telefono);
     }
 
-    // Buscar por número o nombre
+    // Detectar si hay múltiples números (separados por comas, espacios, o ambos)
+    const numerosMatch = body.trim().match(/\d+/g);
+
+    if (numerosMatch && numerosMatch.length > 1) {
+      // Selección múltiple
+      return await this.procesarSeleccionMultiple(telefono, numerosMatch);
+    }
+
+    // Buscar por número o nombre (selección individual)
     let producto = null;
 
     if (/^\d+$/.test(body.trim())) {
@@ -546,6 +554,77 @@ class BotService {
     SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_CANTIDAD);
 
     const mensaje = `${EMOJIS.CHECK} Has seleccionado:\n*${producto.nombre}*\n${formatearPrecio(producto.precio)}\n\n¿Cuántos deseas?\nEscribe la cantidad (ejemplo: 2)`;
+
+    return {
+      success: true,
+      mensaje
+    };
+  }
+
+  /**
+   * Procesar selección múltiple de productos
+   */
+  async procesarSeleccionMultiple(telefono, numeros) {
+    const session = SessionService.getSession(telefono);
+
+    // Verificar si ya inició pedido
+    if (!session?.datos?.tipo_pedido) {
+      return {
+        success: true,
+        mensaje: `Para ordenar múltiples productos, primero escribe *pedir* para iniciar tu pedido. ${EMOJIS.CARRITO}`
+      };
+    }
+
+    const productosEncontrados = [];
+    const productosNoEncontrados = [];
+
+    // Buscar cada producto
+    for (const num of numeros) {
+      const producto = await MenuService.buscarPorNumero(parseInt(num));
+      if (producto) {
+        productosEncontrados.push(producto);
+      } else {
+        productosNoEncontrados.push(num);
+      }
+    }
+
+    if (productosEncontrados.length === 0) {
+      return {
+        success: true,
+        mensaje: `No encontramos ninguno de esos productos. ${EMOJIS.CRUZ}\n\nPor favor verifica los números e intenta de nuevo.`
+      };
+    }
+
+    // Agregar todos los productos al carrito con cantidad 1
+    for (const producto of productosEncontrados) {
+      SessionService.agregarAlCarrito(telefono, {
+        id: producto.id,
+        nombre: producto.nombre,
+        precio: producto.precio,
+        cantidad: 1
+      });
+    }
+
+    // Construir mensaje de confirmación
+    let mensaje = `${EMOJIS.CHECK} *Productos agregados al carrito:*\n\n`;
+
+    productosEncontrados.forEach(p => {
+      mensaje += `• 1x ${p.nombre} - ${formatearPrecio(p.precio)}\n`;
+    });
+
+    if (productosNoEncontrados.length > 0) {
+      mensaje += `\n⚠️ No encontrados: ${productosNoEncontrados.join(', ')}\n`;
+    }
+
+    const carrito = SessionService.getSession(telefono)?.carrito || [];
+    const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+
+    mensaje += `\n💰 *Subtotal:* ${formatearPrecio(total)}\n\n`;
+    mensaje += `¿Deseas agregar más productos?\n\n`;
+    mensaje += `*Sí* - Agregar más\n`;
+    mensaje += `*No* - Continuar con el pedido`;
+
+    SessionService.updateEstado(telefono, BOT_STATES.CONFIRMAR_MAS_PRODUCTOS);
 
     return {
       success: true,
