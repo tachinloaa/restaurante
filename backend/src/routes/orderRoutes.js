@@ -9,7 +9,7 @@ const router = express.Router();
 const orderValidation = [
   body('cliente_id').notEmpty().withMessage('Cliente es requerido'),
   body('total').isFloat({ min: 0 }).withMessage('Total inválido'),
-  body('tipo_pedido').isIn(['domicilio', 'restaurante', 'para_llevar']).withMessage('Tipo de pedido inválido'),
+  body('tipo_pedido').isIn(['domicilio', 'para_llevar']).withMessage('Tipo de pedido inválido'),
   body('productos').isArray({ min: 1 }).withMessage('Productos son requeridos'),
   validateRequest
 ];

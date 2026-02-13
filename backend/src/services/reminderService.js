@@ -133,7 +133,6 @@ class ReminderService {
       // Obtener tipo de pedido en español
       const tipoPedidoTexto = {
         'domicilio': 'DOMICILIO',
-        'restaurante': 'RESTAURANTE',
         'para_llevar': 'PARA LLEVAR'
       }[pedido.tipo_pedido] || 'PEDIDO';
 
@@ -153,10 +152,6 @@ class ReminderService {
 
       if (pedido.direccion_entrega) {
         mensaje += `${EMOJIS.UBICACION} ${pedido.direccion_entrega}\n`;
-      }
-
-      if (pedido.numero_mesa) {
-        mensaje += `🪑 Mesa: ${pedido.numero_mesa}\n`;
       }
 
       mensaje += `${EMOJIS.DINERO} Total: ${formatearPrecio(pedido.total)}\n\n`;

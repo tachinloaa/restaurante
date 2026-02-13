@@ -166,8 +166,6 @@ class Order {
           tipo_pedido: pedidoData.tipo_pedido,
           estado: pedidoData.estado || 'pendiente',
           direccion_entrega: pedidoData.direccion_entrega || null,
-          numero_mesa: pedidoData.numero_mesa || null,
-          numero_personas: pedidoData.numero_personas || null,
           notas: pedidoData.notas || null
         }])
         .select()

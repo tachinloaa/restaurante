@@ -16,9 +16,7 @@ class NotificationService {
     try {
       const tipoPedido = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO
         ? 'DOMICILIO'
-        : pedido.tipo_pedido === TIPOS_PEDIDO.RESTAURANTE
-          ? 'RESTAURANTE'
-          : 'PARA LLEVAR';
+        : 'PARA LLEVAR';
 
       let mensaje = `${EMOJIS.CAMPANA} *NUEVO PEDIDO - ${tipoPedido}*\n\n`;
       mensaje += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
@@ -33,14 +31,6 @@ class NotificationService {
 
         if (cliente.referencias) {
           mensaje += `${EMOJIS.CASA} Referencias: ${cliente.referencias}\n`;
-        }
-      } else if (pedido.tipo_pedido === TIPOS_PEDIDO.RESTAURANTE) {
-        if (pedido.numero_mesa) {
-          mensaje += `🪑 Mesa: ${pedido.numero_mesa}\n`;
-        }
-
-        if (pedido.numero_personas) {
-          mensaje += `${EMOJIS.GRUPO} Personas: ${pedido.numero_personas}\n`;
         }
       }
 
@@ -130,8 +120,6 @@ class NotificationService {
             mensaje += `${EMOJIS.MOTO} Tu pedido llegó a tu domicilio.\n\n`;
           } else if (pedido.tipo_pedido === TIPOS_PEDIDO.PARA_LLEVAR) {
             mensaje += `📦 Gracias por recoger tu pedido.\n\n`;
-          } else {
-            mensaje += `${EMOJIS.RESTAURANTE} Tu pedido fue servido.\n\n`;
           }
           
           mensaje += `Gracias por tu preferencia ${EMOJIS.SALUDO}\n`;
@@ -325,9 +313,7 @@ class NotificationService {
     try {
       const tipoPedido = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO
         ? 'DOMICILIO'
-        : pedido.tipo_pedido === TIPOS_PEDIDO.RESTAURANTE
-          ? 'RESTAURANTE'
-          : 'PARA LLEVAR';
+        : 'PARA LLEVAR';
 
       const mensaje = `Nuevo pedido #${pedido.numero_pedido} - ${tipoPedido} - ${formatearPrecio(pedido.total)}`;
 

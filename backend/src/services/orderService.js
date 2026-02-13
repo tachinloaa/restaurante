@@ -73,8 +73,6 @@ class OrderService {
         tipo_pedido: datosCliente.tipo_pedido || TIPOS_PEDIDO.DOMICILIO,
         estado: ESTADOS_PEDIDO.PENDIENTE,
         direccion_entrega: datosCliente.direccion || null,
-        numero_mesa: datosCliente.numero_mesa || null,
-        numero_personas: datosCliente.numero_personas || null,
         notas: datosCliente.notas || null,
         metodo_pago: datosCliente.metodo_pago || 'efectivo',
         pago_verificado: datosCliente.metodo_pago === 'transferencia' ? false : true,
@@ -213,14 +211,6 @@ class OrderService {
       
       if (datos.referencias) {
         resumen += `🏠 Referencias: ${datos.referencias}\n`;
-      }
-    } else if (datos.tipo_pedido === TIPOS_PEDIDO.RESTAURANTE) {
-      if (datos.numero_mesa) {
-        resumen += `🪑 Mesa: ${datos.numero_mesa}\n`;
-      }
-      
-      if (datos.numero_personas) {
-        resumen += `👥 Personas: ${datos.numero_personas}\n`;
       }
     }
 

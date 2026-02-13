@@ -130,7 +130,7 @@ class BotService {
         return await this.procesarCancelacionPedido(telefono, bodySanitizado);
       }
 
-      // Comandos directos de acción (pedir, domicilio, restaurante)
+      // Comandos directos de acción (pedir, domicilio, para llevar)
       if (this.esComandoPedir(mensajeLimpio)) {
         return await this.solicitarTipoPedido(telefono);
       }
@@ -141,7 +141,7 @@ class BotService {
         return await this.procesarSeleccionTipo(telefono, '2');
       }
 
-      if (COMANDOS_BOT.RESTAURANTE.some(cmd => mensajeLimpio.includes(cmd))) {
+      if (COMANDOS_BOT.PARA_LLEVAR.some(cmd => mensajeLimpio.includes(cmd))) {
         // Forzar selección de comer ahí
         SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
         return await this.procesarSeleccionTipo(telefono, '3');
@@ -179,8 +179,6 @@ class BotService {
       BOT_STATES.SOLICITAR_NOMBRE,
       BOT_STATES.SOLICITAR_DIRECCION,
       BOT_STATES.SOLICITAR_REFERENCIAS,
-      BOT_STATES.SOLICITAR_NUM_PERSONAS,
-      BOT_STATES.SOLICITAR_NUM_MESA,
       BOT_STATES.SELECCIONAR_CANTIDAD,
       BOT_STATES.ESPERANDO_COMPROBANTE
     ];
@@ -217,12 +215,6 @@ class BotService {
 
       case BOT_STATES.SOLICITAR_REFERENCIAS:
         return await this.procesarReferencias(telefono, body);
-
-      case BOT_STATES.SOLICITAR_NUM_PERSONAS:
-        return await this.procesarNumPersonas(telefono, mensajeLimpio);
-
-      case BOT_STATES.SOLICITAR_NUM_MESA:
-        return await this.procesarNumMesa(telefono, mensajeLimpio);
 
       case BOT_STATES.SELECCIONAR_METODO_PAGO:
         return await this.procesarMetodoPago(telefono, mensajeLimpio);
@@ -313,7 +305,7 @@ class BotService {
 
     return {
       success: true,
-      mensaje: `¿Cómo deseas recibir tu pedido?\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n*3.* ${EMOJIS.RESTAURANTE} Comer aquí\n\nResponde con el número de tu opción.`
+      mensaje: `¿Cómo deseas recibir tu pedido?\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n\nResponde con el número de tu opción.`
     };
   }
 
@@ -328,15 +320,13 @@ class BotService {
       tipoPedido = TIPOS_PEDIDO.PARA_LLEVAR;
     } else if (mensaje === '2' || COMANDOS_BOT.DOMICILIO.some(cmd => mensaje.includes(cmd))) {
       tipoPedido = TIPOS_PEDIDO.DOMICILIO;
-    } else if (mensaje === '3' || COMANDOS_BOT.RESTAURANTE.some(cmd => mensaje.includes(cmd))) {
-      tipoPedido = TIPOS_PEDIDO.RESTAURANTE;
     }
 
     if (!tipoPedido) {
       const textoMostrar = (mensajeOriginal || mensaje).substring(0, 20);
       return {
         success: true,
-        mensaje: `❌ Opción inválida "${textoMostrar}"\n\nPor favor elige:\n\n*1* ${EMOJIS.CARRITO} Para llevar\n*2* ${EMOJIS.MOTO} A domicilio\n*3* ${EMOJIS.RESTAURANTE} Comer aquí\n\nResponde con el número (1, 2 o 3)`
+        mensaje: `❌ Opción inválida "${textoMostrar}"\n\nPor favor elige:\n\n*1* ${EMOJIS.CARRITO} Para llevar\n*2* ${EMOJIS.MOTO} A domicilio\n\nResponde con el número (1 o 2)`
       };
     }
 
@@ -347,8 +337,6 @@ class BotService {
     let mensajeTipo = '';
     if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
       mensajeTipo = `✅ *Pedido a domicilio seleccionado*\n\n📍 *Entregas en zonas cercanas a Cupido*\n\n`;
-    } else if (tipoPedido === TIPOS_PEDIDO.RESTAURANTE) {
-      mensajeTipo = `Perfecto! ${EMOJIS.RESTAURANTE} Haremos tu pedido para *COMER AQUÍ*.\n\n`;
     } else if (tipoPedido === TIPOS_PEDIDO.PARA_LLEVAR) {
       mensajeTipo = `Perfecto! ${EMOJIS.CARRITO} Haremos tu pedido *PARA LLEVAR*.\n\n`;
     }
@@ -732,7 +720,7 @@ class BotService {
       SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
       return {
         success: true,
-        mensaje: `Antes de continuar, necesito saber cómo recibirás tu pedido:\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n*3.* ${EMOJIS.RESTAURANTE} Comer aquí\n\nResponde con el número de tu opción.`
+        mensaje: `Antes de continuar, necesito saber cómo recibirás tu pedido:\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n\nResponde con el número de tu opción.`
       };
     }
 
@@ -775,16 +763,9 @@ class BotService {
         success: true,
         mensaje: `Gracias ${nombreLimpio} ${EMOJIS.PERSONA}\n\nAhora necesito tu *DIRECCIÓN COMPLETA* para la entrega.\n\nPuedes:\n1. 📍 *Enviarme tu UBICACIÓN* (Recomendado)\n(Toca el clip 📎 y selecciona Ubicación)\n\n2. ✍️ O escribirla manualmente:\nEjemplo: Calle 5 de Mayo #123, Col. Centro`
       };
-    } else if (tipoPedido === TIPOS_PEDIDO.RESTAURANTE) {
-      SessionService.updateEstado(telefono, BOT_STATES.SOLICITAR_NUM_PERSONAS);
-
-      return {
-        success: true,
-        mensaje: `Gracias ${nombreLimpio} ${EMOJIS.PERSONA}\n\n¿Para cuántas personas es el pedido? ${EMOJIS.GRUPO}`
-      };
     } else {
-      // Para llevar, ir directamente a confirmación
-      return await this.mostrarConfirmacion(telefono);
+      // Para llevar, solicitar método de pago
+      return await this.solicitarMetodoPago(telefono);
     }
   }
 
@@ -835,72 +816,31 @@ class BotService {
       SessionService.guardarDatos(telefono, { referencias: referencias.trim() });
     }
 
-    // Si es domicilio, preguntar método de pago
+    // Preguntar método de pago
     const session = SessionService.getSession(telefono);
-    if (session.datos.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
-      return await this.solicitarMetodoPago(telefono);
-    }
-
-    // Si no es domicilio, ir a confirmación
-    return await this.mostrarConfirmacion(telefono);
+    return await this.solicitarMetodoPago(telefono);
   }
 
   /**
-   * Procesar número de personas
-   */
-  async procesarNumPersonas(telefono, mensaje) {
-    const numeroPersonas = parseInt(mensaje);
-
-    if (isNaN(numeroPersonas) || numeroPersonas < 1 || numeroPersonas > 20) {
-      return {
-        success: true,
-        mensaje: 'Por favor indica un número válido de personas (1-20)'
-      };
-    }
-
-    SessionService.guardarDatos(telefono, { numero_personas: numeroPersonas });
-    SessionService.updateEstado(telefono, BOT_STATES.SOLICITAR_NUM_MESA);
-
-    return {
-      success: true,
-      mensaje: `Perfecto! Para ${numeroPersonas} ${numeroPersonas === 1 ? 'persona' : 'personas'}. ${EMOJIS.GRUPO}\n\n¿En qué *NÚMERO DE MESA* te encuentras? 🪑\n\nSi aún no tienes mesa, escribe *SIN MESA*`
-    };
-  }
-
-  /**
-   * Procesar número de mesa
-   */
-  async procesarNumMesa(telefono, mensaje) {
-    if (mensaje === 'sin mesa' || mensaje === 'sin') {
-      SessionService.guardarDatos(telefono, { numero_mesa: null });
-    } else {
-      const numeroMesa = parseInt(mensaje);
-
-      if (isNaN(numeroMesa) || numeroMesa < 1) {
-        return {
-          success: true,
-          mensaje: 'Por favor indica un número de mesa válido o escribe *SIN MESA*'
-        };
-      }
-
-      SessionService.guardarDatos(telefono, { numero_mesa: numeroMesa });
-    }
-
-    return await this.mostrarConfirmacion(telefono);
-  }
-
-  /**
-   * Solicitar método de pago (solo para domicilio)
+   * Solicitar método de pago (domicilio y para llevar)
    */
   async solicitarMetodoPago(telefono) {
     SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_METODO_PAGO);
 
     const total = SessionService.calcularTotalCarrito(telefono);
+    const session = SessionService.getSession(telefono);
+    const tipoPedido = session.datos.tipo_pedido;
 
     let mensaje = `${EMOJIS.DINERO} *MÉTODO DE PAGO*\n\n`;
     mensaje += `Total a pagar: *${formatearPrecio(total)}*\n\n`;
     mensaje += `¿Cómo deseas pagar?\n\n`;
-    mensaje += `*1* 💵 Efectivo (el repartidor lleva cambio)\n`;
+    
+    if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
+      mensaje += `*1* 💵 Efectivo (el repartidor lleva cambio)\n`;
+    } else {
+      mensaje += `*1* 💵 Efectivo\n`;
+    }
+    
     mensaje += `*2* 🏦 Transferencia bancaria\n\n`;
     mensaje += `Responde con el número de tu opción`;
 
@@ -1356,7 +1296,7 @@ class BotService {
     mensaje += `• *menu* - Ver menú completo\n`;
     mensaje += `• *pedir* - Hacer un pedido\n`;
     mensaje += `• *domicilio* - Pedido a domicilio\n`;
-    mensaje += `• *restaurante* - Pedido en local\n`;
+    mensaje += `• *domicilio* - Pedido a domicilio\n`;
     mensaje += `• *estado* - Ver estado de pedido\n`;
     mensaje += `• *cancelar* - Cancelar proceso actual\n`;
     mensaje += `• *ayuda* - Mostrar esta ayuda\n\n`;
@@ -1752,10 +1692,8 @@ class BotService {
           id,
           total,
           estado,
-          tipo_pedido,
           direccion_entrega,
           referencias,
-          numero_personas,
           created_at,
           clientes (
             nombre,
@@ -1805,11 +1743,6 @@ class BotService {
           respuesta += `Referencias: ${pedido.referencias}\n`;
         }
         respuesta += `\n`;
-      }
-
-      // Número de personas (si es para llevar)
-      if (pedido.tipo_pedido === 'llevar' && pedido.numero_personas) {
-        respuesta += `👥 Para ${pedido.numero_personas} personas\n\n`;
       }
 
       // Productos

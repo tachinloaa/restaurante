@@ -282,7 +282,6 @@ class DashboardController {
 
       const distribucionTipos = {
         domicilio: { cantidad: 0, total: 0 },
-        restaurante: { cantidad: 0, total: 0 },
         para_llevar: { cantidad: 0, total: 0 }
       };
 
