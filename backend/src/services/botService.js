@@ -1902,10 +1902,32 @@ class BotService {
       };
     }
 
-    // NO enviar mensaje al cliente aquí - solo se notificará cuando esté entregado
-    // Esto reduce costos de Twilio y evita mensajes innecesarios
+    // Notificar al cliente que su pago fue verificado
+    const tiempoEstimado = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO 
+      ? TIEMPO_ENTREGA.DOMICILIO 
+      : TIEMPO_ENTREGA.PARA_LLEVAR;
 
-    logger.info(`Pedido #${numeroPedido} aprobado por admin - NO se notifica al cliente todavía`);
+    const NL = '\n';
+
+    let mensajeCliente = `✅ *¡TU PAGO HA SIDO VERIFICADO!*${NL}${NL}`;
+    mensajeCliente += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*${NL}${NL}`;
+    mensajeCliente += `${EMOJIS.CHECK} Tu pedido ha sido *APROBADO* y ya está en preparación ${EMOJIS.COCINERO}${NL}${NL}`;
+    mensajeCliente += `${EMOJIS.RELOJ} Tiempo estimado: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos${NL}${NL}`;
+    
+    if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
+      mensajeCliente += `${EMOJIS.MOTO} Tu pedido saldrá pronto a tu domicilio${NL}${NL}`;
+    } else {
+      mensajeCliente += `📦 *Puedes pasar a recogerlo en:*${NL}`;
+      mensajeCliente += `${DIRECCION_RESTAURANTE.TEXTO}${NL}`;
+      mensajeCliente += `${DIRECCION_RESTAURANTE.MAPS}${NL}${NL}`;
+    }
+    
+    mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}${NL}`;
+    mensajeCliente += `*El Rinconcito* ${EMOJIS.TACO}`;
+
+    await TwilioService.enviarMensajeCliente(pedido.clientes.telefono, mensajeCliente);
+
+    logger.info(`Pedido #${numeroPedido} aprobado por admin - Cliente notificado`);
 
     // Generar Ficha de Reparto para reenviar al repartidor (solo si es domicilio)
     if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
@@ -1953,8 +1975,8 @@ class BotService {
         `💰 Total: ${formatearPrecio(pedido.total)}\n\n` +
         `👨‍🍳 Estado actual: *PREPARANDO*\n\n` +
         `⚡ *COMANDO RÁPIDO:*\n` +
-        `• *entregado #${pedido.numero_pedido}* - Marcar como entregado (notifica al cliente)\n\n` +
-        `📱 El cliente será notificado cuando marques el pedido como entregado.`
+        `• *entregado #${pedido.numero_pedido}* - Pedido listo para entregar\n\n` +
+        `✅ El cliente ya fue notificado de la aprobación del pago.`
     };
   }
 
