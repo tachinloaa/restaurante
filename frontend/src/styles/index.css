@@ -59,6 +59,11 @@
     @apply dark:bg-secondary-600 dark:hover:bg-secondary-700;
   }
   
+  .btn-success {
+    @apply bg-green-600 text-white hover:bg-green-700 hover:shadow-lg focus:ring-green-500;
+    @apply dark:bg-green-700 dark:hover:bg-green-800;
+  }
+  
   .btn-outline {
     @apply border-2 border-gray-300 hover:bg-gray-50 hover:shadow-md focus:ring-gray-500;
     @apply dark:border-gray-600 dark:hover:bg-gray-800 dark:text-gray-200;

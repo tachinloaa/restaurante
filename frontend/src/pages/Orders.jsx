@@ -289,6 +289,24 @@ function Orders() {
                           🚗 Enviado
                         </button>
                       )}
+                      {order.estado === 'enviado' && (
+                        <button
+                          onClick={() => handleCambiarEstado(order.id, 'entregado')}
+                          className="btn btn-success text-xs sm:text-sm"
+                          aria-label="Marcar como entregado"
+                        >
+                          ✅ Entregado
+                        </button>
+                      )}
+                      {order.estado === 'listo' && order.tipo_pedido === 'para_llevar' && (
+                        <button
+                          onClick={() => handleCambiarEstado(order.id, 'entregado')}
+                          className="btn btn-success text-xs sm:text-sm"
+                          aria-label="Marcar como entregado"
+                        >
+                          ✅ Entregado
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
