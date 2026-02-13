@@ -31,12 +31,12 @@ class TwilioService {
 
       // Buscar el último salto de línea antes del límite
       let puntoCorte = textoRestante.lastIndexOf('\n', this.MAX_CARACTERES);
-      
+
       // Si no hay salto de línea, buscar el último espacio
       if (puntoCorte === -1 || puntoCorte < this.MAX_CARACTERES * 0.7) {
         puntoCorte = textoRestante.lastIndexOf(' ', this.MAX_CARACTERES);
       }
-      
+
       // Si no hay espacio, cortar en el límite
       if (puntoCorte === -1 || puntoCorte < this.MAX_CARACTERES * 0.7) {
         puntoCorte = this.MAX_CARACTERES;
@@ -55,9 +55,15 @@ class TwilioService {
    */
   static async enviarMensajeCliente(numeroDestino, mensaje) {
     try {
+      // Modo de prueba: No enviar mensajes reales
+      if (process.env.TWILIO_TEST_MODE === 'true') {
+        logger.info(`[TEST MODE] Mensaje a cliente ${numeroDestino}: ${mensaje.substring(0, 100)}...`);
+        return { success: true, messageSid: 'TEST_MODE', test: true };
+      }
+
       // Asegurar formato de WhatsApp
-      const numeroFormateado = numeroDestino.startsWith('whatsapp:') 
-        ? numeroDestino 
+      const numeroFormateado = numeroDestino.startsWith('whatsapp:')
+        ? numeroDestino
         : `whatsapp:${numeroDestino}`;
 
       // Dividir mensaje si es necesario
@@ -68,7 +74,7 @@ class TwilioService {
       for (let i = 0; i < partes.length; i++) {
         const parte = partes[i];
         let mensajeConEncabezado = parte;
-        
+
         // Agregar número de parte si hay múltiples
         if (partes.length > 1) {
           mensajeConEncabezado = `📱 *Parte ${i + 1}/${partes.length}*\n\n${parte}`;
@@ -102,10 +108,16 @@ class TwilioService {
    */
   static async enviarMensajeAdmin(mensaje) {
     try {
+      // Modo de prueba: No enviar mensajes reales
+      if (process.env.TWILIO_TEST_MODE === 'true') {
+        logger.info(`[TEST MODE] Mensaje a admin: ${mensaje.substring(0, 100)}...`);
+        return { success: true, messageSid: 'TEST_MODE', test: true };
+      }
+
       // Obtener número del admin y formatear
       const numeroAdmin = config.admin.phoneNumber;
-      const numeroFormateado = numeroAdmin.startsWith('whatsapp:') 
-        ? numeroAdmin 
+      const numeroFormateado = numeroAdmin.startsWith('whatsapp:')
+        ? numeroAdmin
         : `whatsapp:${numeroAdmin}`;
 
       // Dividir mensaje si es necesario
@@ -116,7 +128,7 @@ class TwilioService {
       for (let i = 0; i < partes.length; i++) {
         const parte = partes[i];
         let mensajeConEncabezado = parte;
-        
+
         // Agregar número de parte si hay múltiples
         if (partes.length > 1) {
           mensajeConEncabezado = `📱 *Parte ${i + 1}/${partes.length}*\n\n${parte}`;
@@ -149,8 +161,8 @@ class TwilioService {
    */
   static async enviarMensajeConImagen(numeroDestino, mensaje, mediaUrl) {
     try {
-      const numeroFormateado = numeroDestino.startsWith('whatsapp:') 
-        ? numeroDestino 
+      const numeroFormateado = numeroDestino.startsWith('whatsapp:')
+        ? numeroDestino
         : `whatsapp:${numeroDestino}`;
 
       logger.info(`📤 Enviando mensaje con imagen a ${numeroDestino}`);
@@ -162,7 +174,7 @@ class TwilioService {
         // Crear URL con autenticación básica embebida
         const accountSid = config.twilio.accountSid;
         const authToken = config.twilio.authToken;
-        
+
         // Extraer la parte de la URL después de "api.twilio.com"
         const urlParts = mediaUrl.split('api.twilio.com');
         if (urlParts.length > 1) {
@@ -180,13 +192,13 @@ class TwilioService {
 
       logger.info(`✅ Mensaje con imagen enviado exitosamente a ${numeroDestino}: ${message.sid}`);
       logger.info(`📊 Estado del mensaje: ${message.status}`);
-      
+
       return { success: true, messageSid: message.sid };
     } catch (error) {
       logger.error(`❌ Error al enviar mensaje con imagen a ${numeroDestino}:`, error);
       logger.error(`📍 Detalles del error: ${error.message}`);
       logger.error(`🔍 Código de error: ${error.code}`);
-      
+
       return { success: false, error: error.message, errorCode: error.code };
     }
   }
@@ -197,7 +209,7 @@ class TwilioService {
   static async obtenerEstadoMensaje(messageSid) {
     try {
       const message = await twilioClient.messages(messageSid).fetch();
-      
+
       return {
         success: true,
         data: {
@@ -220,7 +232,7 @@ class TwilioService {
   static validarNumeroWhatsApp(numero) {
     // Remover prefijo whatsapp: si existe
     const limpio = numero.replace('whatsapp:', '');
-    
+
     // Verificar que sea un número válido (10-15 dígitos)
     const regex = /^\+?[1-9]\d{9,14}$/;
     return regex.test(limpio);

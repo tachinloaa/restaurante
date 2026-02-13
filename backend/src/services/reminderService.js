@@ -107,23 +107,19 @@ class ReminderService {
   necesitaRecordatorio(pedido, minutos) {
     const key = `${pedido.id}-${pedido.estado}`;
 
-    // Si ya enviamos recordatorio para este pedido en este estado, no enviar otro
+    // Si ya enviamos recordatorio para este pedido en este estado, NO enviar otro
     if (this.recordatoriosEnviados.has(key)) {
       return false;
     }
 
-    // Tiempos iguales para TODOS los tipos de pedido (domicilio, restaurante, para llevar)
-    // Recordatorio para pedidos pendientes sin atender
+    // SOLO 1 recordatorio por pedido:
+    // - Pendiente: después de 10 minutos sin atender
+    // - Preparando: NO se envía recordatorio (el admin ya lo vio)
     if (pedido.estado === 'pendiente' && minutos >= 10) {
       return true;
     }
 
-    // Recordatorio para pedidos en preparación que tardan mucho
-    // 35 minutos permite 30-45min totales (preparación + entrega)
-    if (pedido.estado === 'preparando' && minutos >= 35) {
-      return true;
-    }
-
+    // No enviar recordatorios para pedidos en preparación
     return false;
   }
 
@@ -206,18 +202,15 @@ class ReminderService {
   }
 
   /**
-   * Iniciar verificación periódica (cada 2 minutos)
+   * Iniciar verificación periódica (cada 5 minutos)
    */
   iniciarVerificacionPeriodica() {
-    // NO verificar inmediatamente para evitar spam al reiniciar servidor
-    // Esperar el primer intervalo (2 minutos)
-
-    // Ejecutar cada 2 minutos
+    // Ejecutar cada 5 minutos (suficiente para detectar pedidos a los 10 min)
     setInterval(() => {
       this.verificarPedidosPendientes();
-    }, 2 * 60 * 1000); // 2 minutos
+    }, 5 * 60 * 1000); // 5 minutos
 
-    logger.info('Sistema de recordatorios iniciado - verificando cada 2 minutos (primera verificación en 2 min)');
+    logger.info('Sistema de recordatorios ACTIVADO - verificando cada 5 minutos, enviando 1 solo recordatorio a los 10 min');
   }
 }
 

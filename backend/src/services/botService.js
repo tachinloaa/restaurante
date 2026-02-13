@@ -1956,9 +1956,6 @@ class BotService {
       };
     }
 
-    // Notificar al administrador
-    await NotificationService.notificarNuevoPedido(pedido, pedido.clientes);
-
     // Notificar al cliente con mensaje personalizado de aprobación
     const tiempoEstimado = TIEMPO_ENTREGA.DOMICILIO;
 
