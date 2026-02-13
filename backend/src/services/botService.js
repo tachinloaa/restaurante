@@ -13,6 +13,7 @@ import {
   TIPOS_PEDIDO,
   METODOS_PAGO,
   DATOS_BANCARIOS,
+  DIRECCION_RESTAURANTE,
   ESTADOS_PEDIDO,
   TIEMPO_ENTREGA,
   MAX_CANTIDAD_POR_PRODUCTO,
@@ -1182,7 +1183,8 @@ class BotService {
 
     const mensaje = MENSAJES_BOT.PEDIDO_CONFIRMADO(
       pedido.numero_pedido,
-      tiempoEstimado
+      tiempoEstimado,
+      tipoPedido
     );
 
     // Limpiar sesión
@@ -1218,10 +1220,15 @@ class BotService {
     mensajeAdmin += `📝 Pedido: *#${numeroPedido}*\n`;
     mensajeAdmin += `👤 Cliente: *${cliente}*\n`;
     mensajeAdmin += `📞 Teléfono: ${telefono}\n`;
-    mensajeAdmin += `📍 Dirección: ${session.datos.direccion || 'N/A'}\n`;
-
-    if (session.datos.referencias) {
-      mensajeAdmin += `🏠 Referencias: ${session.datos.referencias}\n`;
+    
+    // Mostrar dirección solo para domicilio, tipo de pedido para llevar
+    if (session.datos.tipo_pedido === 'domicilio') {
+      mensajeAdmin += `📍 Dirección: ${session.datos.direccion || 'N/A'}\n`;
+      if (session.datos.referencias) {
+        mensajeAdmin += `🏠 Referencias: ${session.datos.referencias}\n`;
+      }
+    } else {
+      mensajeAdmin += `📦 Tipo: *PARA LLEVAR*\n`;
     }
 
     mensajeAdmin += `\n${resumenTexto}\n\n`;

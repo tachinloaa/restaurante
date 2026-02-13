@@ -34,6 +34,12 @@ export const DATOS_BANCARIOS = {
   REFERENCIA: 'RINCONCITO'
 };
 
+// Dirección del restaurante
+export const DIRECCION_RESTAURANTE = {
+  TEXTO: 'El Rinconcito - Cupido, Jalisco',
+  MAPS: 'https://maps.app.goo.gl/8uDmDHQmDanc2Pde9'
+};
+
 // Estados del bot conversacional
 export const BOT_STATES = {
   INICIO: 'inicio',
@@ -131,8 +137,17 @@ export const MENSAJES_BOT = {
 
   SESSION_TIMEOUT: 'Tu sesión ha expirado por inactividad. Escribe *hola* para comenzar de nuevo.',
 
-  PEDIDO_CONFIRMADO: (numeroPedido, tiempo) =>
-    `${EMOJIS.CHECK} *¡PEDIDO CONFIRMADO!*\n\n${EMOJIS.TICKET} Tu número de pedido es: *#${numeroPedido}*\n\nTu pedido está siendo preparado ${EMOJIS.COCINERO}\n${EMOJIS.RELOJ} Llegará en aproximadamente ${tiempo.min}-${tiempo.max} minutos\n\nTe enviaremos actualizaciones del estado de tu pedido.\n\n¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`,
+  PEDIDO_CONFIRMADO: (numeroPedido, tiempo, tipoPedido = 'domicilio') => {
+    let mensaje = `${EMOJIS.CHECK} *¡PEDIDO CONFIRMADO!*\n\n${EMOJIS.TICKET} Tu número de pedido es: *#${numeroPedido}*\n\nTu pedido está siendo preparado ${EMOJIS.COCINERO}\n${EMOJIS.RELOJ} Estará listo en aproximadamente ${tiempo.min}-${tiempo.max} minutos\n\n`;
+    
+    if (tipoPedido === 'para_llevar') {
+      mensaje += `📍 *Recoge tu pedido en:*\n${DIRECCION_RESTAURANTE.TEXTO}\n${DIRECCION_RESTAURANTE.MAPS}\n\n`;
+    }
+    
+    mensaje += `Te enviaremos actualizaciones del estado de tu pedido.\n\n¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
+    
+    return mensaje;
+  },
 
   PEDIDO_CANCELADO: 'Tu pedido ha sido cancelado. Si deseas hacer un nuevo pedido, escribe *pedir*.'
 };
@@ -159,6 +174,7 @@ export default {
   TIPOS_PEDIDO,
   METODOS_PAGO,
   DATOS_BANCARIOS,
+  DIRECCION_RESTAURANTE,
   BOT_STATES,
   COMANDOS_BOT,
   EMOJIS,

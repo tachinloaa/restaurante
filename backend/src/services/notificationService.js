@@ -1,7 +1,7 @@
 import TwilioService from './twilioService.js';
 import { supabase } from '../config/database.js';
 import { formatearPrecio, formatearHora, formatearTelefono } from '../utils/formatters.js';
-import { EMOJIS, TIPOS_PEDIDO } from '../config/constants.js';
+import { EMOJIS, TIPOS_PEDIDO, DIRECCION_RESTAURANTE } from '../config/constants.js';
 import config from '../config/environment.js';
 import logger from '../utils/logger.js';
 
@@ -114,12 +114,13 @@ class NotificationService {
           break;
 
         case 'entregado':
-          mensaje = `${EMOJIS.CHECK} ¡Tu pedido *#${pedido.numero_pedido}* ha sido entregado!\n\n`;
+          mensaje = `${EMOJIS.CHECK} ¡Tu pedido *#${pedido.numero_pedido}* está listo!\n\n`;
           
           if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
-            mensaje += `${EMOJIS.MOTO} Tu pedido llegó a tu domicilio.\n\n`;
+            mensaje += `${EMOJIS.MOTO} Tu pedido fue entregado en tu domicilio.\n\n`;
           } else if (pedido.tipo_pedido === TIPOS_PEDIDO.PARA_LLEVAR) {
-            mensaje += `📦 Gracias por recoger tu pedido.\n\n`;
+            mensaje += `📦 *Puedes pasar a recogerlo*\n\n`;
+            mensaje += `📍 *Dirección:*\n${DIRECCION_RESTAURANTE.TEXTO}\n${DIRECCION_RESTAURANTE.MAPS}\n\n`;
           }
           
           mensaje += `Gracias por tu preferencia ${EMOJIS.SALUDO}\n`;
