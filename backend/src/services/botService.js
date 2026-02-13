@@ -174,6 +174,17 @@ class BotService {
       return await this.iniciarConversacion(telefono);
     }
 
+    // Estados donde NO se deben procesar comandos globales (el usuario está dando datos)
+    const estadosSolicitandoDatos = [
+      BOT_STATES.SOLICITAR_NOMBRE,
+      BOT_STATES.SOLICITAR_DIRECCION,
+      BOT_STATES.SOLICITAR_REFERENCIAS,
+      BOT_STATES.SOLICITAR_NUM_PERSONAS,
+      BOT_STATES.SOLICITAR_NUM_MESA,
+      BOT_STATES.SELECCIONAR_CANTIDAD,
+      BOT_STATES.ESPERANDO_COMPROBANTE
+    ];
+
     switch (session.estado) {
       case BOT_STATES.INICIO:
       case BOT_STATES.MENU_PRINCIPAL:
