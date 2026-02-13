@@ -35,10 +35,10 @@ class ReminderService {
       if (!resultado.success || !resultado.data.length) {
         return;
       }
-      
+
       for (const pedido of resultado.data) {
         const tiempoTranscurrido = this.calcularMinutosTranscurridos(pedido.created_at, ahora);
-        
+
         // Verificar si necesita recordatorio
         if (this.necesitaRecordatorio(pedido, tiempoTranscurrido)) {
           // Verificar en BD si ya se envió recordatorio
@@ -67,7 +67,7 @@ class ReminderService {
       // Verificar en base de datos (notificaciones de recordatorio)
       // Buscar notificaciones que contengan "RECORDATORIO" y el numero de pedido en los últimos 30 minutos
       const hace30Min = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-      
+
       const { data, error } = await supabase
         .from('notificaciones')
         .select('id')
@@ -106,7 +106,7 @@ class ReminderService {
    */
   necesitaRecordatorio(pedido, minutos) {
     const key = `${pedido.id}-${pedido.estado}`;
-    
+
     // Si ya enviamos recordatorio para este pedido en este estado, no enviar otro
     if (this.recordatoriosEnviados.has(key)) {
       return false;
@@ -133,38 +133,38 @@ class ReminderService {
   async enviarRecordatorio(pedido, minutos) {
     try {
       const key = `${pedido.id}-${pedido.estado}`;
-      
+
       // Obtener tipo de pedido en español
       const tipoPedidoTexto = {
         'domicilio': 'DOMICILIO',
         'restaurante': 'RESTAURANTE',
         'para_llevar': 'PARA LLEVAR'
       }[pedido.tipo_pedido] || 'PEDIDO';
-      
+
       let mensaje = `⚠️ *RECORDATORIO - PEDIDO SIN ATENDER*\n\n`;
-      
+
       if (pedido.estado === 'pendiente') {
         mensaje += `❗ El pedido #${pedido.numero_pedido} (${tipoPedidoTexto}) lleva *${minutos} minutos* SIN ATENDER\n\n`;
       } else if (pedido.estado === 'preparando') {
         mensaje += `⏰ El pedido #${pedido.numero_pedido} (${tipoPedidoTexto}) lleva *${minutos} minutos* EN PREPARACIÓN\n\n`;
         mensaje += `⏱️ *Tiempo recomendado: 30-45 minutos*\n\n`;
       }
-      
+
       mensaje += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
       mensaje += `${EMOJIS.RELOJ} Creado: ${formatearHora(pedido.created_at)}\n`;
       mensaje += `${EMOJIS.PERSONA} Cliente: ${pedido.clientes?.nombre || 'Sin nombre'}\n`;
-      mensaje += `${EMOJIS.TELEFONO} ${formatearTelefono(pedido.clientes?.telefono || '')}\n`;
-      
+      mensaje += `${EMOJIS.TELEFONO} wa.me/${(pedido.clientes?.telefono || '').replace('whatsapp:', '').replace('+', '')}\n`;
+
       if (pedido.direccion_entrega) {
         mensaje += `${EMOJIS.UBICACION} ${pedido.direccion_entrega}\n`;
       }
-      
+
       if (pedido.numero_mesa) {
         mensaje += `🪑 Mesa: ${pedido.numero_mesa}\n`;
       }
-      
+
       mensaje += `${EMOJIS.DINERO} Total: ${formatearPrecio(pedido.total)}\n\n`;
-      mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${config.frontendUrl}/pedidos\n\n`;
+      mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${config.frontendUrl}\n\n`;
       mensaje += `⚡ *POR FAVOR ATENDER DE INMEDIATO*`;
 
       // Enviar mensaje
@@ -211,12 +211,12 @@ class ReminderService {
   iniciarVerificacionPeriodica() {
     // NO verificar inmediatamente para evitar spam al reiniciar servidor
     // Esperar el primer intervalo (2 minutos)
-    
+
     // Ejecutar cada 2 minutos
     setInterval(() => {
       this.verificarPedidosPendientes();
     }, 2 * 60 * 1000); // 2 minutos
-    
+
     logger.info('Sistema de recordatorios iniciado - verificando cada 2 minutos (primera verificación en 2 min)');
   }
 }

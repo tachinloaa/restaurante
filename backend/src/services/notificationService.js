@@ -14,23 +14,23 @@ class NotificationService {
    */
   async notificarNuevoPedido(pedido, cliente) {
     try {
-      const tipoPedido = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO 
-        ? 'DOMICILIO' 
+      const tipoPedido = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO
+        ? 'DOMICILIO'
         : pedido.tipo_pedido === TIPOS_PEDIDO.RESTAURANTE
-        ? 'RESTAURANTE'
-        : 'PARA LLEVAR';
+          ? 'RESTAURANTE'
+          : 'PARA LLEVAR';
 
       let mensaje = `${EMOJIS.CAMPANA} *NUEVO PEDIDO - ${tipoPedido}*\n\n`;
       mensaje += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
       mensaje += `${EMOJIS.RELOJ} Hora: ${formatearHora(pedido.created_at)}\n`;
       mensaje += `⏱️ *Estado: PENDIENTE - ATENDER DE INMEDIATO*\n`;
       mensaje += `${EMOJIS.PERSONA} Cliente: ${cliente.nombre || 'Sin nombre'}\n`;
-      mensaje += `${EMOJIS.TELEFONO} Teléfono: ${formatearTelefono(cliente.telefono)}\n`;
+      mensaje += `${EMOJIS.TELEFONO} Teléfono: wa.me/${cliente.telefono.replace('whatsapp:', '').replace('+', '')}\n`;
 
       // Datos según tipo de pedido
       if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
         mensaje += `${EMOJIS.UBICACION} Dirección: ${pedido.direccion_entrega}\n`;
-        
+
         if (cliente.referencias) {
           mensaje += `${EMOJIS.CASA} Referencias: ${cliente.referencias}\n`;
         }
@@ -38,7 +38,7 @@ class NotificationService {
         if (pedido.numero_mesa) {
           mensaje += `🪑 Mesa: ${pedido.numero_mesa}\n`;
         }
-        
+
         if (pedido.numero_personas) {
           mensaje += `${EMOJIS.GRUPO} Personas: ${pedido.numero_personas}\n`;
         }
@@ -61,7 +61,7 @@ class NotificationService {
       if (pedido.metodo_pago) {
         const metodoPagoTexto = pedido.metodo_pago === 'transferencia' ? '🏦 Transferencia' : '💵 Efectivo';
         mensaje += `💳 Pago: *${metodoPagoTexto}*\n`;
-        
+
         if (pedido.metodo_pago === 'transferencia' && !pedido.pago_verificado) {
           mensaje += `⚠️ *PAGO PENDIENTE DE VERIFICACIÓN*\n`;
           if (pedido.comprobante_pago) {
@@ -73,7 +73,7 @@ class NotificationService {
       mensaje += `\n\n`;
 
       // URL al dashboard - página de pedidos
-      const dashboardUrl = `${config.frontendUrl}/pedidos`;
+      const dashboardUrl = `${config.frontendUrl}`;
       mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${dashboardUrl}`;
 
       // Enviar mensaje al admin
@@ -108,7 +108,7 @@ class NotificationService {
 
         case 'listo':
           mensaje = `${EMOJIS.CHECK} ¡Tu pedido *#${pedido.numero_pedido}* está listo!\n\n`;
-          
+
           if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
             mensaje += `${EMOJIS.MOTO} Saldrá para entrega en breve.`;
           } else if (pedido.tipo_pedido === TIPOS_PEDIDO.PARA_LLEVAR) {
@@ -131,11 +131,11 @@ class NotificationService {
 
         case 'cancelado':
           mensaje = `${EMOJIS.CRUZ} Tu pedido *#${pedido.numero_pedido}* ha sido cancelado.\n\n`;
-          
+
           if (pedido.notas) {
             mensaje += `Razón: ${pedido.notas}\n\n`;
           }
-          
+
           mensaje += `Si tienes dudas, contáctanos.`;
           break;
 
@@ -171,8 +171,8 @@ class NotificationService {
     try {
       let mensaje = `${EMOJIS.PERSONA} *NUEVO CLIENTE REGISTRADO*\n\n`;
       mensaje += `Nombre: ${cliente.nombre || 'Sin nombre'}\n`;
-      mensaje += `${EMOJIS.TELEFONO} Teléfono: ${formatearTelefono(cliente.telefono)}\n`;
-      
+      mensaje += `${EMOJIS.TELEFONO} Teléfono: wa.me/${cliente.telefono.replace('whatsapp:', '').replace('+', '')}\n`;
+
       if (cliente.direccion) {
         mensaje += `${EMOJIS.UBICACION} Dirección: ${cliente.direccion}\n`;
       }
@@ -201,7 +201,7 @@ class NotificationService {
       let mensaje = `${EMOJIS.CRUZ} *PEDIDO CANCELADO*\n\n`;
       mensaje += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
       mensaje += `${EMOJIS.DINERO} Total: ${formatearPrecio(pedido.total)}\n`;
-      
+
       if (razon) {
         mensaje += `\nRazón: ${razon}`;
       }
@@ -251,11 +251,11 @@ class NotificationService {
       let mensaje = `${EMOJIS.CHECK} *¡PEDIDO CONFIRMADO!*\n\n`;
       mensaje += `${EMOJIS.TICKET} Tu número de pedido es: *#${pedido.numero_pedido}*\n\n`;
       mensaje += `Tu pedido está siendo preparado ${EMOJIS.COCINERO}\n`;
-      
+
       if (tiempoEstimado) {
         mensaje += `${EMOJIS.RELOJ} Tiempo estimado: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos\n\n`;
       }
-      
+
       mensaje += `Te enviaremos actualizaciones del estado de tu pedido.\n\n`;
       mensaje += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n`;
       mensaje += `*El Rinconcito* ${EMOJIS.TACO}`;
@@ -314,14 +314,14 @@ class NotificationService {
    */
   async notificarNuevoPedidoPanel(pedido, cliente) {
     try {
-      const tipoPedido = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO 
-        ? 'DOMICILIO' 
+      const tipoPedido = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO
+        ? 'DOMICILIO'
         : pedido.tipo_pedido === TIPOS_PEDIDO.RESTAURANTE
-        ? 'RESTAURANTE'
-        : 'PARA LLEVAR';
+          ? 'RESTAURANTE'
+          : 'PARA LLEVAR';
 
       const mensaje = `Nuevo pedido #${pedido.numero_pedido} - ${tipoPedido} - ${formatearPrecio(pedido.total)}`;
-      
+
       await this.crearNotificacion('nuevo_pedido', mensaje, {
         order_id: pedido.id,
         numero_pedido: pedido.numero_pedido,
@@ -360,7 +360,7 @@ class NotificationService {
       }
 
       const mensaje = `${icono} Pedido #${pedido.numero_pedido} cambió a: ${estadosTexto[estadoNuevo]}`;
-      
+
       await this.crearNotificacion(tipo, mensaje, {
         order_id: pedido.id,
         numero_pedido: pedido.numero_pedido,
@@ -378,7 +378,7 @@ class NotificationService {
   async notificarNuevoCliente(cliente) {
     try {
       const mensaje = `👤 Nuevo cliente registrado: ${cliente.nombre || cliente.telefono}`;
-      
+
       await this.crearNotificacion('cliente_nuevo', mensaje, {
         customer_id: cliente.id,
         nombre: cliente.nombre,
