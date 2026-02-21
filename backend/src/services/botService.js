@@ -1079,7 +1079,6 @@ class BotService {
     mensaje += `• Banco: *${config.datosBancarios.banco}*\n`;
     mensaje += `• Titular: *${config.datosBancarios.titular}*\n`;
     mensaje += `• Cuenta: *${config.datosBancarios.cuenta}*\n`;
-    mensaje += `• CLABE: *${config.datosBancarios.clabe}*\n`;
     mensaje += `• Referencia: *${config.datosBancarios.referencia}*\n\n`;
     mensaje += `⚠️ *IMPORTANTE:*\n`;
     mensaje += `• Realiza la transferencia bancaria por el monto exacto\n`;
