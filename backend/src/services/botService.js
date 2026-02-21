@@ -1524,7 +1524,17 @@ class BotService {
     mensajeAdmin += `${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/pedidos`;
 
     try {
-      // Si hay imagen del comprobante, enviarla
+      // Primero enviar notificación con plantilla aprobada (funciona sin restricción de 24h)
+      const total = session.datos.total ? `$${session.datos.total}` : 'N/A';
+      const tipoPedido = session.datos.tipo_pedido || 'domicilio';
+      const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
+        numeroPedido, cliente, telefono, total, tipoPedido
+      );
+      if (resultadoPlantilla.success) {
+        logger.info(`✅ Notificación con plantilla enviada al admin para pedido #${numeroPedido}`);
+      }
+
+      // Luego enviar el detalle completo (con o sin imagen)
       if (session.datos.comprobante_url) {
         logger.info(`📸 Enviando comprobante al admin con URL: ${session.datos.comprobante_url}`);
 

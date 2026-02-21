@@ -181,6 +181,45 @@ class TwilioService {
   }
 
   /**
+   * Enviar notificación al admin usando plantilla aprobada de WhatsApp (business-initiated)
+   * Esto permite enviar mensajes al admin sin restricción de 24 horas
+   */
+  static async enviarNotificacionAdminConPlantilla(numeroPedido, nombreCliente, telefono, total, tipoPedido) {
+    try {
+      if (process.env.TWILIO_TEST_MODE === 'true') {
+        logger.info(`[TEST MODE] Plantilla nuevo pedido #${numeroPedido} para admin`);
+        return { success: true, messageSid: 'TEST_MODE', test: true };
+      }
+
+      const numeroAdmin = config.admin.phoneNumber;
+      const numeroFormateado = numeroAdmin.startsWith('whatsapp:')
+        ? numeroAdmin
+        : `whatsapp:${numeroAdmin}`;
+
+      const tipoTexto = tipoPedido === 'para_llevar' ? 'Para llevar' : 'Domicilio';
+
+      const message = await twilioClient.messages.create({
+        contentSid: config.twilio.templateNuevoPedido,
+        contentVariables: JSON.stringify({
+          '1': String(numeroPedido),
+          '2': nombreCliente,
+          '3': telefono,
+          '4': total,
+          '5': tipoTexto
+        }),
+        from: config.twilio.whatsappClientes,
+        to: numeroFormateado
+      });
+
+      logger.info(`✅ Notificación con plantilla enviada al admin: ${message.sid}`);
+      return { success: true, messageSid: message.sid };
+    } catch (error) {
+      logger.error('Error enviando plantilla al admin, intentando mensaje normal:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Enviar mensaje con imagen
    */
   static async enviarMensajeConImagen(numeroDestino, mensaje, mediaUrl) {
