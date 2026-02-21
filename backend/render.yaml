@@ -1,0 +1,58 @@
+services:
+  # Redis para sesiones (recomendado para producción)
+  - type: redis
+    name: el-rinconcito-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
+  # Backend API
+  - type: web
+    name: el-rinconcito-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      # Supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      # Twilio
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: TWILIO_WHATSAPP_NUMBER
+        sync: false
+      - key: TWILIO_WHATSAPP_CLIENTES
+        sync: false
+      - key: TWILIO_WHATSAPP_ADMIN
+        sync: false
+      # Admin (OBLIGATORIO)
+      - key: ADMIN_PHONE_NUMBER
+        sync: false
+      # Redis
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: el-rinconcito-redis
+          property: connectionString
+      - key: REDIS_ENABLED
+        value: true
+      # Otros
+      - key: FRONTEND_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: LOG_LEVEL
+        value: info

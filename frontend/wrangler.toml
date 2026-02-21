@@ -1,0 +1,7 @@
+name = "el-rinconcito"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "dist"
+
+# Variables de entorno para producción
+[env.production]
+vars = { NODE_ENV = "production" }
