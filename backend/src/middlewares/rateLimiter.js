@@ -53,9 +53,10 @@ const createLimiter = (options) => {
   };
 
   // Si Redis está listo, usarlo como store
+  // node-redis v4 requiere sendCommand en lugar de client
   if (redisClient?.isReady) {
     baseConfig.store = new RedisStore({
-      client: redisClient,
+      sendCommand: (...args) => redisClient.sendCommand(args),
       prefix: options.prefix || 'rl:'
     });
   }
