@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import { NotificationProvider } from './context/NotificationContext';
 import MainLayout from './components/Layout/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -45,7 +46,9 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={
             <ProtectedRoute>
-              <MainLayout />
+              <NotificationProvider>
+                <MainLayout />
+              </NotificationProvider>
             </ProtectedRoute>
           }>
             <Route index element={<Navigate to="/dashboard" replace />} />

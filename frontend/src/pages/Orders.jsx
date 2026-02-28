@@ -181,12 +181,9 @@ function Orders() {
             onChange={(e) => setEstadoFiltro(e.target.value)}
             aria-label="Filtrar por estado"
           >
-            <option value="activos">🔥 Activos (Pendientes/Preparando)</option>
+            <option value="activos">🔥 Activos (Pendientes)</option>
             <option value="">Todos los estados</option>
             <option value="pendiente">Pendiente</option>
-            <option value="preparando">Preparando</option>
-            <option value="listo">Listo</option>
-            <option value="enviado">Enviado</option>
             <option value="entregado">Entregado</option>
             <option value="cancelado">Cancelado</option>
           </select>
