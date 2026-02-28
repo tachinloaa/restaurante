@@ -52,6 +52,7 @@ class AuthController {
       // Generar token JWT
       const token = generateToken({
         id: 'admin-1',
+        username: config.auth.adminUsername,
         email: config.auth.adminUsername,
         role: ROLES.ADMIN
       }, config.jwt.expiresIn);
