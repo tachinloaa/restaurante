@@ -47,7 +47,7 @@ export const ICONOS_TIPO = {
 };
 
 // API Base URL
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+export const API_URL = import.meta.env.VITE_API_URL || 'https://el-rinconcito-backend.onrender.com/api';
 
 // Configuración de paginación
 export const ITEMS_PER_PAGE = 20;
