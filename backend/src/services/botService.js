@@ -1377,9 +1377,13 @@ class BotService {
     }
 
     // Confirmación o cancelación
-    if (COMANDOS_BOT.SI.includes(mensaje) || mensaje.includes('si confirmo') || mensaje.includes('confirmo')) {
-      // 🔒 CONFIRMACIÓN EXPLÍCITA: Verificar que sea "SI CONFIRMO"
-      if (mensaje.includes('si confirmo') || mensaje.includes('confirmo')) {
+    // Detectar variantes de "confirmo" incluyendo errores de tipeo comunes
+    const variantesConfirmo = ['confirmo', 'comfirmo', 'confimo', 'comfimo', 'confirma', 'konfirmo'];
+    const escribioConfirmo = variantesConfirmo.some(v => mensaje.includes(v));
+
+    if (COMANDOS_BOT.SI.includes(mensaje) || escribioConfirmo) {
+      // 🔒 CONFIRMACIÓN EXPLÍCITA: Verificar que haya escrito alguna variante de "confirmo"
+      if (escribioConfirmo) {
         return await this.confirmarPedido(telefono);
       }
       
