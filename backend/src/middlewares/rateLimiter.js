@@ -4,7 +4,7 @@ import { createClient } from 'redis';
 import config from '../config/environment.js';
 import logger from '../utils/logger.js';
 
-// Cliente Redis para rate limiting (solo si está habilitado)
+// Cliente Redis para rate limiting - esperar conexión antes de crear limiters
 let redisClient = null;
 
 if (config.redis.enabled && config.redis.url) {
@@ -17,7 +17,7 @@ if (config.redis.enabled && config.redis.url) {
             logger.error('❌ No se pudo reconectar a Redis después de 10 intentos');
             return new Error('Redis reconnection failed');
           }
-          return retries * 100; // ms entre intentos
+          return retries * 100;
         }
       }
     });
@@ -26,16 +26,11 @@ if (config.redis.enabled && config.redis.url) {
       logger.error('❌ Error de Redis (rate limiting):', err);
     });
 
-    redisClient.on('connect', () => {
-      logger.info('✅ Redis conectado para rate limiting');
-    });
-
-    redisClient.connect().catch(err => {
-      logger.error('❌ No se pudo conectar a Redis:', err);
-      redisClient = null;
-    });
+    // Esperar a que Redis conecte antes de continuar (top-level await en ES module)
+    await redisClient.connect();
+    logger.info('✅ Redis conectado para rate limiting');
   } catch (error) {
-    logger.error('❌ Error inicializando Redis:', error);
+    logger.error('❌ No se pudo conectar a Redis para rate limiting:', error.message);
     redisClient = null;
   }
 }
@@ -57,19 +52,12 @@ const createLimiter = (options) => {
     }
   };
 
-  // Si Redis está disponible, usarlo como store
-  if (redisClient) {
-    try {
-      baseConfig.store = new RedisStore({
-        client: redisClient,
-        prefix: options.prefix || 'rl:'
-      });
-      logger.info(`✅ Rate limiter usando Redis: ${options.prefix || 'rl:'}`);
-    } catch (error) {
-      logger.warn('⚠️ No se pudo usar Redis para rate limiting, usando memoria');
-    }
-  } else {
-    logger.warn('⚠️ Rate limiting en MEMORIA (no recomendado en producción con múltiples instancias)');
+  // Si Redis está listo, usarlo como store
+  if (redisClient?.isReady) {
+    baseConfig.store = new RedisStore({
+      client: redisClient,
+      prefix: options.prefix || 'rl:'
+    });
   }
 
   return rateLimit({ ...baseConfig, ...options });
