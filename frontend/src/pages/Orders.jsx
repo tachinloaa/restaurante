@@ -260,45 +260,9 @@ function Orders() {
                       {formatearPrecio(order.total)}
                     </p>
                     
-                    {/* Botones de cambio de estado */}
+                    {/* Botón único: Entregado (notifica al cliente que va en camino) */}
                     <div className="flex gap-2">
-                      {order.estado === 'pendiente' && (
-                        <button
-                          onClick={() => handleCambiarEstado(order.id, 'preparando')}
-                          className="btn btn-primary text-xs sm:text-sm"
-                          aria-label="Marcar como preparando"
-                        >
-                          ✅ Preparar
-                        </button>
-                      )}
-                      {order.estado === 'preparando' && (
-                        <button
-                          onClick={() => handleCambiarEstado(order.id, 'listo')}
-                          className="btn btn-secondary text-xs sm:text-sm"
-                          aria-label="Marcar como listo"
-                        >
-                          🍽️ Listo
-                        </button>
-                      )}
-                      {order.estado === 'listo' && order.tipo_pedido === 'domicilio' && (
-                        <button
-                          onClick={() => handleCambiarEstado(order.id, 'enviado')}
-                          className="btn btn-secondary text-xs sm:text-sm"
-                          aria-label="Marcar como enviado"
-                        >
-                          🚗 Enviado
-                        </button>
-                      )}
-                      {order.estado === 'enviado' && (
-                        <button
-                          onClick={() => handleCambiarEstado(order.id, 'entregado')}
-                          className="btn btn-success text-xs sm:text-sm"
-                          aria-label="Marcar como entregado"
-                        >
-                          ✅ Entregado
-                        </button>
-                      )}
-                      {order.estado === 'listo' && order.tipo_pedido === 'para_llevar' && (
+                      {!['entregado', 'cancelado'].includes(order.estado) && (
                         <button
                           onClick={() => handleCambiarEstado(order.id, 'entregado')}
                           className="btn btn-success text-xs sm:text-sm"
