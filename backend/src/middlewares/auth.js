@@ -20,14 +20,17 @@ export const authenticate = async (req, res, next) => {
     // Verificar y decodificar token
     const decoded = verifyToken(token);
 
+    // Compatibilidad: tokens viejos usan 'email', nuevos usan 'username'
+    const username = decoded.username || decoded.email || 'admin';
+
     // Agregar información del usuario al request
     req.user = {
       id: decoded.id,
-      username: decoded.username,
+      username,
       role: decoded.role
     };
 
-    logger.info(`✅ Usuario autenticado: ${decoded.username} (${decoded.role})`);
+    logger.info(`✅ Usuario autenticado: ${username} (${decoded.role})`);
     next();
   } catch (error) {
     logger.warn(`❌ Autenticación fallida: ${error.message}`);
@@ -48,12 +51,13 @@ export const authenticateOptional = async (req, res, next) => {
 
     if (token) {
       const decoded = verifyToken(token);
+      const username = decoded.username || decoded.email || 'admin';
       req.user = {
         id: decoded.id,
-        username: decoded.username,
+        username,
         role: decoded.role
       };
-      logger.info(`✅ Usuario autenticado: ${decoded.username} (${decoded.role})`);
+      logger.info(`✅ Usuario autenticado: ${username} (${decoded.role})`);
     }
 
     next();
