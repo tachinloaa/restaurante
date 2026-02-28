@@ -3,6 +3,7 @@ import MenuService from './menuService.js';
 import OrderService from './orderService.js';
 import NotificationService from './notificationService.js';
 import TwilioService from './twilioService.js';
+import Customer from '../models/Customer.js';
 import { supabase } from '../config/database.js';
 import config from '../config/environment.js';
 import {
@@ -2443,8 +2444,19 @@ class BotService {
       return false;
     }
 
-    const adminPhone = config.admin.phoneNumber.replace(/\D/g, '');
-    const userPhone = telefono.replace(/\D/g, '');
+    // Normalizar: remover todo excepto dígitos, luego quitar el '1' de móvil mexicano
+    // WhatsApp envía números MX como 5215XXXXXXXX pero se guardan como 52XXXXXXXXXX
+    const normalizarMX = (num) => {
+      let digits = num.replace(/\D/g, '');
+      // Si empieza con 521 seguido de 10 dígitos (total 13), quitar el 1
+      if (digits.startsWith('521') && digits.length === 13) {
+        digits = '52' + digits.slice(3);
+      }
+      return digits;
+    };
+
+    const adminPhone = normalizarMX(config.admin.phoneNumber);
+    const userPhone = normalizarMX(telefono);
 
     logger.debug(`🔍 Verificación admin: User=${userPhone} | Admin=${adminPhone} | Match=${userPhone === adminPhone}`);
 
