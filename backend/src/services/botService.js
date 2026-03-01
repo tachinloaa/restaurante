@@ -2371,9 +2371,9 @@ class BotService {
         
         // Verificar si debe bloquearse automáticamente (3 cancelaciones)
         const cancelaciones = await Customer.getCancelaciones(telefono);
-        if (cancelaciones.cancelaciones_count >= 3) {
+        if (cancelaciones.cancelaciones >= 3) {
           await Customer.bloquear(telefono, 7); // Bloquear por 7 días
-          logger.warn(`🚫 Cliente ${telefono} bloqueado automáticamente por ${cancelaciones.cancelaciones_count} cancelaciones`);
+          logger.warn(`🚫 Cliente ${telefono} bloqueado automáticamente por ${cancelaciones.cancelaciones} cancelaciones`);
           
           // Notificar al admin
           const adminPhone = config.admin.phoneNumber;
@@ -2381,7 +2381,7 @@ class BotService {
             await TwilioService.enviarMensajeAdmin(
               `🚫 *CLIENTE BLOQUEADO AUTOMÁTICAMENTE*\n\n` +
               `📱 Cliente: ${telefono}\n` +
-              `❌ Cancelaciones: ${cancelaciones.cancelaciones_count}\n` +
+              `❌ Cancelaciones: ${cancelaciones.cancelaciones}\n` +
               `⏰ Bloqueado por: 7 días\n\n` +
               `El cliente ha cancelado múltiples pedidos.`
             );
@@ -3046,9 +3046,9 @@ class BotService {
       
       // Verificar si debe bloquearse automáticamente (3 cancelaciones)
       const cancelaciones = await Customer.getCancelaciones(pedido.clientes.telefono);
-      if (cancelaciones.cancelaciones_count >= 3) {
+      if (cancelaciones.cancelaciones >= 3) {
         await Customer.bloquear(pedido.clientes.telefono, 7); // Bloquear por 7 días
-        logger.warn(`🚫 Cliente ${pedido.clientes.telefono} bloqueado automáticamente por ${cancelaciones.cancelaciones_count} cancelaciones (rechazo admin)`);
+        logger.warn(`🚫 Cliente ${pedido.clientes.telefono} bloqueado automáticamente por ${cancelaciones.cancelaciones} cancelaciones (rechazo admin)`);
       }
     } catch (trackingError) {
       // No afectar el flujo si falla el tracking
