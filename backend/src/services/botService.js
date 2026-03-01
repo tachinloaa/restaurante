@@ -316,7 +316,7 @@ class BotService {
     // 🔒 VALIDACIÓN 1: Verificar si el cliente está bloqueado
     try {
       const bloqueado = await Customer.estaBloqueado(telefono);
-      if (bloqueado) {
+      if (bloqueado.bloqueado) {
         const cancelaciones = await Customer.getCancelaciones(telefono);
         const fechaDesbloqueo = cancelaciones.bloqueado_hasta 
           ? new Date(cancelaciones.bloqueado_hasta).toLocaleString('es-MX', {
