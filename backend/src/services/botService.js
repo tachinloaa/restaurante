@@ -1579,6 +1579,22 @@ class BotService {
   async cancelarProceso(telefono) {
     await SessionService.resetSession(telefono);
 
+    // 🔒 ANTI-SPAM: Contar cancelaciones en paso de confirmación también
+    try {
+      await Customer.incrementarCancelaciones(telefono);
+      const cancelaciones = await Customer.getCancelaciones(telefono);
+      if (cancelaciones.cancelaciones >= 3) {
+        await Customer.bloquear(telefono, 7);
+        logger.warn(`🚫 Cliente ${telefono} bloqueado por ${cancelaciones.cancelaciones} cancelaciones en confirmación`);
+        return {
+          success: true,
+          mensaje: `🚫 *Has sido bloqueado temporalmente*\n\nHas cancelado ${cancelaciones.cancelaciones} pedidos seguidos.\n\nPodrás hacer pedidos nuevamente en 7 días.\n\nSi crees que es un error, comunícate al: *563-639-9034*`
+        };
+      }
+    } catch (e) {
+      logger.error('Error en tracking de cancelación en confirmación:', e);
+    }
+
     return {
       success: true,
       mensaje: MENSAJES_BOT.PEDIDO_CANCELADO
