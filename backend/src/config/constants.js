@@ -32,7 +32,7 @@ export const METODOS_PAGO = {
 // Dirección del restaurante
 export const DIRECCION_RESTAURANTE = {
   TEXTO: 'El Rinconcito - Cupido, Jalisco',
-  MAPS: 'https://maps.app.goo.gl/8uDmDHQmDanc2Pde9'
+  MAPS: 'https://maps.app.goo.gl/omUXw4XpzQioVwV77'
 };
 
 // Estados del bot conversacional

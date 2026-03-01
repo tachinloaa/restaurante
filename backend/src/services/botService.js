@@ -1324,14 +1324,19 @@ class BotService {
       }
     }
 
+    // Para llevar: mostrar dirección del restaurante
+    if (tipoPedido === TIPOS_PEDIDO.PARA_LLEVAR || tipoPedido === 'para_llevar') {
+      mensaje += `\n\n📍 *Recoge tu pedido en:*\n${DIRECCION_RESTAURANTE.TEXTO}\n${DIRECCION_RESTAURANTE.MAPS}`;
+    }
+
     mensaje += `\n\n¿Todo está correcto?\n\n`;
     mensaje += `🔒 *Para confirmar, escribe:* *SI CONFIRMO*\n`;
     mensaje += `❌ *Para cancelar, escribe:* *NO*\n\n`;
     mensaje += `📝 *O si necesitas corregir algo:*\n`;
     mensaje += `• *EDITAR NOMBRE*\n`;
-    mensaje += `• *EDITAR ENTREGA* (cambiar entre domicilio/recoger)\n`;
     
     if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
+      mensaje += `• *EDITAR ENTREGA* (cambiar entre domicilio/recoger)\n`;
       mensaje += `• *EDITAR DIRECCION*\n`;
       mensaje += `• *EDITAR REFERENCIAS*\n`;
     }
