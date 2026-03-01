@@ -100,6 +100,27 @@ class BotService {
       // Obtener o crear sesión del usuario
       let session = await SessionService.getSession(telefono);
 
+      // 🕐 VALIDACIÓN DE HORARIO: Servicio de 7am a 10pm hora México
+      const horaMexico = new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City', hour: 'numeric', hour12: false });
+      const hora = parseInt(horaMexico);
+      const fueraDéHorario = hora < 7 || hora >= 22;
+
+      // Permitir consultas de estado/pedidos fuera de horario, pero no nuevos pedidos
+      const esConsulta = this.esComandoMisPedidos(mensajeLimpio) || this.esComandoEstado(mensajeLimpio) || this.esComandoAyuda(mensajeLimpio);
+
+      if (fueraDéHorario && !esConsulta) {
+        // Si está en medio de un pedido, lo cancelamos
+        if (session) await SessionService.resetSession(telefono);
+        return {
+          success: true,
+          mensaje: `😴 *EL RINCONCITO ESTÁ CERRADO*\n\n` +
+            `Nuestro horario de atención es:\n` +
+            `🕖 *7:00 AM – 10:00 PM*\n\n` +
+            `¡Vuelve en horario de servicio y con gusto te atendemos! 🌮\n\n` +
+            `📞 Para urgencias: *563-639-9034*`
+        };
+      }
+
       // Si no hay sesión o es comando de inicio, iniciar conversación
       if (!session || this.esComandoInicio(mensajeLimpio)) {
         return await this.iniciarConversacion(telefono);
