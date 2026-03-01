@@ -15,6 +15,7 @@ class MenuService {
   constructor() {
     this.menuCache = null;
     this.lastUpdate = null;
+    this.lastDia = null;
     this.CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
   }
 
@@ -23,9 +24,11 @@ class MenuService {
    */
   async getMenuCompleto() {
     try {
-      // Usar caché si está disponible y no ha expirado
+      // Usar caché si está disponible, no ha expirado y es el mismo día
+      const diaActual = new Date().getDay();
       if (this.menuCache && this.lastUpdate && 
-          (Date.now() - this.lastUpdate) < this.CACHE_DURATION) {
+          (Date.now() - this.lastUpdate) < this.CACHE_DURATION &&
+          this.lastDia === diaActual) {
         return this.menuCache;
       }
 
@@ -49,6 +52,7 @@ class MenuService {
       // Actualizar caché
       this.menuCache = menuFormateado;
       this.lastUpdate = Date.now();
+      this.lastDia = new Date().getDay();
 
       logger.info('Menú actualizado y cacheado');
       return menuFormateado;

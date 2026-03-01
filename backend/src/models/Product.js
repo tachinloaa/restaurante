@@ -171,6 +171,7 @@ class Product {
           nombre,
           descripcion,
           precio,
+          solo_fines_semana,
           categorias(id, nombre, orden),
           subcategorias(id, nombre, orden)
         `)
@@ -179,7 +180,15 @@ class Product {
 
       if (error) throw error;
 
-      return { success: true, data };
+      // Filtrar productos de solo fin de semana si hoy no es sábado (6) o domingo (0)
+      const diaSemana = new Date().getDay();
+      const esFindeSemana = diaSemana === 0 || diaSemana === 6;
+
+      const productosFiltrados = esFindeSemana
+        ? data
+        : data.filter(p => !p.solo_fines_semana);
+
+      return { success: true, data: productosFiltrados };
     } catch (error) {
       logger.error('Error al obtener productos activos:', error);
       return { success: false, error: error.message };
