@@ -331,7 +331,7 @@ class BotService {
         return {
           success: true,
           mensaje: `🚫 *CLIENTE BLOQUEADO TEMPORALMENTE*\n\n` +
-            `Has cancelado ${cancelaciones.cancelaciones_count} pedidos recientemente.\n\n` +
+            `Has cancelado ${cancelaciones.cancelaciones} pedidos recientemente.\n\n` +
             `⏰ Podrás hacer pedidos nuevamente el:\n*${fechaDesbloqueo}*\n\n` +
             `Para más información, contacta con el restaurante.`
         };
