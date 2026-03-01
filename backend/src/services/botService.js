@@ -1175,7 +1175,7 @@ class BotService {
 
       // Enviar notificación al admin con el comprobante y resumen
       logger.info(`📨 Enviando notificación al admin para pedido #${pedido.numero_pedido}`);
-      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto);
+      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto, pedido.total);
 
       // Mensaje al cliente
       let mensajeCliente = `✅ *COMPROBANTE RECIBIDO*\n\n`;
@@ -1226,7 +1226,7 @@ class BotService {
       await OrderService.cambiarEstado(pedido.id, ESTADOS_PEDIDO.PENDIENTE_PAGO);
 
       // Enviar notificación al admin
-      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto);
+      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto, pedido.total);
 
       // Mensaje al cliente
       let mensajeCliente = `✅ *REFERENCIA RECIBIDA*\n\n`;
@@ -1448,7 +1448,7 @@ class BotService {
       mensaje += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
 
       // Enviar notificación al admin con el comprobante y resumen
-      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto);
+      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto, pedido.total);
 
       // Limpiar sesión DESPUÉS de enviar notificación
       await SessionService.deleteSession(telefono);
@@ -1482,7 +1482,7 @@ class BotService {
   /**
    * Notificar al admin sobre pedido pendiente de aprobación
    */
-  async notificarAdminPedidoPendiente(telefono, numeroPedido, resumenTexto = null) {
+  async notificarAdminPedidoPendiente(telefono, numeroPedido, resumenTexto = null, totalPedido = null) {
     const session = await SessionService.getSession(telefono);
 
     if (!session) {
@@ -1530,7 +1530,7 @@ class BotService {
 
     try {
       // Primero enviar notificación con plantilla aprobada (funciona sin restricción de 24h)
-      const total = session.datos.total ? `$${session.datos.total}` : 'N/A';
+      const total = totalPedido ? `$${totalPedido}` : (session.datos.total ? `$${session.datos.total}` : 'N/A');
       const tipoPedido = session.datos.tipo_pedido || 'domicilio';
       const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
         numeroPedido, cliente, telefono, total, tipoPedido
