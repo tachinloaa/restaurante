@@ -1569,8 +1569,9 @@ class BotService {
       if (session.datos.comprobante_url) {
         logger.info(`📸 Enviando comprobante al admin con URL: ${session.datos.comprobante_url}`);
 
+        const adminPhoneNorm = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
         const resultado = await TwilioService.enviarMensajeConImagen(
-          config.admin.phoneNumber,
+          adminPhoneNorm,
           mensajeAdmin,
           session.datos.comprobante_url
         );
@@ -2490,23 +2491,21 @@ class BotService {
       return false;
     }
 
-    // Normalizar: remover todo excepto dígitos, luego quitar el '1' de móvil mexicano
-    // WhatsApp envía números MX como 5215XXXXXXXX pero se guardan como 52XXXXXXXXXX
-    const normalizarMX = (num) => {
-      let digits = num.replace(/\D/g, '');
-      // Si empieza con 521 seguido de 10 dígitos (total 13), quitar el 1
-      if (digits.startsWith('521') && digits.length === 13) {
-        digits = '52' + digits.slice(3);
-      }
-      return digits;
+    // Comparar solo los últimos 10 dígitos del número local.
+    // Esto hace la verificación robusta ante cualquier variación de prefijo:
+    //   +525636399034, +5215636399034, 525636399034, 5636399034, whatsapp:+52...
+    const extraerLocal = (num) => {
+      const digits = String(num).replace(/\D/g, '');
+      return digits.length >= 10 ? digits.slice(-10) : digits;
     };
 
-    const adminPhone = normalizarMX(config.admin.phoneNumber);
-    const userPhone = normalizarMX(telefono);
+    const adminLocal = extraerLocal(config.admin.phoneNumber);
+    const userLocal = extraerLocal(telefono);
 
-    logger.debug(`🔍 Verificación admin: User=${userPhone} | Admin=${adminPhone} | Match=${userPhone === adminPhone}`);
+    logger.info(`🔍 Verificación admin: User=${userLocal} | Admin=${adminLocal} | Match=${userLocal === adminLocal}`);
 
-    return userPhone === adminPhone;
+    // Solo validar si sacamos exactamente 10 dígitos de ambos
+    return adminLocal.length === 10 && userLocal === adminLocal;
   }
 
   /**

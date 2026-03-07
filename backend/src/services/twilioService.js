@@ -127,6 +127,23 @@ class TwilioService {
   }
 
   /**
+   * Normalizar número del admin al formato E.164 requerido por Twilio
+   * Acepta: +525636399034, 525636399034, 5636399034, whatsapp:+525636399034, etc.
+   */
+  static normalizarNumeroAdmin(numero) {
+    if (!numero) return null;
+    // Quitar prefijo whatsapp: si existe
+    let s = String(numero).replace(/^whatsapp:/i, '').trim();
+    // Dejar solo dígitos y el '+' inicial
+    s = s.replace(/[^\d+]/g, '');
+    // E.164 requiere '+' al inicio
+    if (!s.startsWith('+')) s = '+' + s;
+    // Verificación mínima: debe tener al menos 10 dígitos después del '+'
+    if (s.replace(/\D/g, '').length < 10) return null;
+    return s;
+  }
+
+  /**
    * Enviar mensaje de WhatsApp al administrador
    * Si el mensaje es muy largo, lo divide automáticamente
    */
@@ -138,11 +155,14 @@ class TwilioService {
         return { success: true, messageSid: 'TEST_MODE', test: true };
       }
 
-      // Obtener número del admin y formatear
-      const numeroAdmin = config.admin.phoneNumber;
-      const numeroFormateado = numeroAdmin.startsWith('whatsapp:')
-        ? numeroAdmin
-        : `whatsapp:${numeroAdmin}`;
+      // Obtener número del admin con validación y normalización robusta
+      const numeroAdmin = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
+      if (!numeroAdmin) {
+        logger.error('❌ ADMIN_PHONE_NUMBER no está configurado o tiene formato inválido — no se envió mensaje al admin');
+        return { success: false, error: 'Admin phone not configured' };
+      }
+      const numeroFormateado = `whatsapp:${numeroAdmin}`;
+      logger.info(`📤 Enviando mensaje al admin: ${numeroAdmin}`);
 
       // Dividir mensaje si es necesario
       const partes = this.dividirMensaje(mensaje);
@@ -191,10 +211,13 @@ class TwilioService {
         return { success: true, messageSid: 'TEST_MODE', test: true };
       }
 
-      const numeroAdmin = config.admin.phoneNumber;
-      const numeroFormateado = numeroAdmin.startsWith('whatsapp:')
-        ? numeroAdmin
-        : `whatsapp:${numeroAdmin}`;
+      const numeroAdmin = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
+      if (!numeroAdmin) {
+        logger.error('❌ ADMIN_PHONE_NUMBER no configurado — no se envió plantilla al admin');
+        return { success: false, error: 'Admin phone not configured' };
+      }
+      const numeroFormateado = `whatsapp:${numeroAdmin}`;
+      logger.info(`📤 Enviando plantilla al admin: ${numeroAdmin}`);
 
       const tipoTexto = tipoPedido === 'para_llevar' ? 'Para llevar' : 'Domicilio';
 
