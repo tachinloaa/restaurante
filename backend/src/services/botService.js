@@ -403,7 +403,7 @@ class BotService {
 
     return {
       success: true,
-      mensaje: `¿Cómo deseas recibir tu pedido?\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n\nResponde con el número de tu opción.`
+      mensaje: `¿Cómo deseas recibir tu pedido?\n\n*1.* ${EMOJIS.CARRITO} Recoger en Restaurante\n*2.* ${EMOJIS.MOTO} A domicilio\n\nResponde con el número de tu opción.`
     };
   }
 
@@ -424,7 +424,7 @@ class BotService {
       const textoMostrar = (mensajeOriginal || mensaje).substring(0, 20);
       return {
         success: true,
-        mensaje: `❌ Opción inválida "${textoMostrar}"\n\nPor favor elige:\n\n*1* ${EMOJIS.CARRITO} Para llevar\n*2* ${EMOJIS.MOTO} A domicilio\n\nResponde con el número (1 o 2)`
+        mensaje: `❌ Opción inválida "${textoMostrar}"\n\nPor favor elige:\n\n*1* ${EMOJIS.CARRITO} Recoger en Restaurante\n*2* ${EMOJIS.MOTO} A domicilio\n\nResponde con el número (1 o 2)`
       };
     }
 
@@ -436,7 +436,7 @@ class BotService {
     if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
       mensajeTipo = `✅ *Pedido a domicilio seleccionado*\n\n📍 *Entregas en zonas cercanas a Cupido*\n\n`;
     } else if (tipoPedido === TIPOS_PEDIDO.PARA_LLEVAR) {
-      mensajeTipo = `Perfecto! ${EMOJIS.CARRITO} Haremos tu pedido *PARA LLEVAR*.\n\n`;
+      mensajeTipo = `Perfecto! ${EMOJIS.CARRITO} Tu pedido será para *RECOGER EN RESTAURANTE*.\n\n`;
     }
 
     // Verificar si ya hay un producto seleccionado previamente
@@ -818,7 +818,7 @@ class BotService {
       await SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
       return {
         success: true,
-        mensaje: `Antes de continuar, necesito saber cómo recibirás tu pedido:\n\n*1.* ${EMOJIS.CARRITO} Para llevar\n*2.* ${EMOJIS.MOTO} A domicilio\n\nResponde con el número de tu opción.`
+        mensaje: `Antes de continuar, necesito saber cómo recibirás tu pedido:\n\n*1.* ${EMOJIS.CARRITO} Recoger en Restaurante\n*2.* ${EMOJIS.MOTO} A domicilio\n\nResponde con el número de tu opción.`
       };
     }
 
@@ -1537,7 +1537,7 @@ class BotService {
         mensajeAdmin += `🏠 Referencias: ${session.datos.referencias}\n`;
       }
     } else {
-      mensajeAdmin += `📦 Tipo: *PARA LLEVAR*\n`;
+      mensajeAdmin += `📦 Tipo: *RECOGER EN RESTAURANTE*\n`;
     }
 
     mensajeAdmin += `\n${resumenTexto}\n\n`;
@@ -2293,7 +2293,7 @@ class BotService {
 
         mensaje += `${estadoEmoji[pedido.estado] || '📦'} *#${pedido.numero_pedido}*\n`;
         mensaje += `├ ${estadoTexto[pedido.estado] || pedido.estado}\n`;
-        mensaje += `├ ${tipoEmoji} ${pedido.tipo_pedido === 'domicilio' ? 'Domicilio' : 'Para llevar'}\n`;
+        mensaje += `├ ${tipoEmoji} ${pedido.tipo_pedido === 'domicilio' ? 'Domicilio' : 'Recoger en Restaurante'}\n`;
         mensaje += `├ 💰 ${formatearPrecio(pedido.total)}\n`;
         mensaje += `└ 🕐 Hace ${tiempoTexto}\n\n`;
       }
@@ -2568,7 +2568,7 @@ class BotService {
         };
 
         const estado = `${estadoEmojis[pedido.estado] || '⚪'} ${estadoTextos[pedido.estado] || pedido.estado.toUpperCase()}`;
-        const tipo = pedido.tipo_pedido === 'domicilio' ? '🏠 Domicilio' : '🏪 Para llevar';
+        const tipo = pedido.tipo_pedido === 'domicilio' ? '🏠 Domicilio' : '🏪 Recoger en Restaurante';
         const tiempo = new Date(pedido.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
         mensaje += `*#${pedido.numero_pedido}* - ${estado}\n`;

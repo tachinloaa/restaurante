@@ -16,7 +16,7 @@ class NotificationService {
     try {
       const tipoPedido = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO
         ? 'DOMICILIO'
-        : 'PARA LLEVAR';
+        : 'RECOGER EN RESTAURANTE';
 
       let mensaje = `${EMOJIS.CAMPANA} *NUEVO PEDIDO - ${tipoPedido}*\n\n`;
       mensaje += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
@@ -68,7 +68,7 @@ class NotificationService {
 
       // 1) Enviar plantilla aprobada primero (funciona fuera de ventana de 24h)
       try {
-        const tipoPedidoTemplate = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO ? 'Domicilio' : 'Para llevar';
+        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
         const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
           pedido.numero_pedido,
           cliente.nombre || 'Sin nombre',
@@ -328,7 +328,7 @@ class NotificationService {
     try {
       const tipoPedido = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO
         ? 'DOMICILIO'
-        : 'PARA LLEVAR';
+        : 'RECOGER EN RESTAURANTE';
 
       const mensaje = `Nuevo pedido #${pedido.numero_pedido} - ${tipoPedido} - ${formatearPrecio(pedido.total)}`;
 

@@ -75,7 +75,7 @@ export const COMANDOS_BOT = {
   MENU: ['menu', 'carta', 'ver menu', 'productos', 'comida'],
   PEDIR: ['pedir', 'ordenar', 'pedido', 'orden', 'quiero pedir', 'comprar', 'quiero', 'deseo'],
   DOMICILIO: ['domicilio', 'a domicilio', 'delivery', 'entrega', 'entregar', 'llevar a casa'],
-  PARA_LLEVAR: ['para llevar', 'llevar', 'recoger', 'paso por el', 'recoger pedido'],
+  PARA_LLEVAR: ['para llevar', 'llevar', 'recoger', 'paso por el', 'recoger pedido', 'restaurante', 'recoger en restaurante'],
   ESTADO: ['estado', 'mi pedido', 'ver pedido', 'seguimiento', 'donde esta', 'rastreo'],
   CANCELAR: ['cancelar', 'cancelar pedido', 'quiero cancelar', 'salir', 'ya no'],
   AYUDA: ['ayuda', 'help', 'opciones', '?', 'comandos', 'que puedo hacer'],

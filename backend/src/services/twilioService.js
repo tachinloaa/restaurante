@@ -225,7 +225,7 @@ class TwilioService {
       const numeroFormateado = `whatsapp:${numeroAdmin}`;
       logger.info(`📤 Enviando plantilla al admin: ${numeroAdmin}`);
 
-      const tipoTexto = tipoPedido === 'para_llevar' ? 'Para llevar' : 'Domicilio';
+      const tipoTexto = tipoPedido === 'para_llevar' ? 'Recoger en Restaurante' : 'Domicilio';
 
       const message = await twilioClient.messages.create({
         contentSid: config.twilio.templateNuevoPedido,

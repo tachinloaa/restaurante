@@ -133,7 +133,7 @@ class ReminderService {
       // Obtener tipo de pedido en español
       const tipoPedidoTexto = {
         'domicilio': 'DOMICILIO',
-        'para_llevar': 'PARA LLEVAR'
+        'para_llevar': 'RECOGER EN RESTAURANTE'
       }[pedido.tipo_pedido] || 'PEDIDO';
 
       let mensaje = `⚠️ *RECORDATORIO - PEDIDO SIN ATENDER*\n\n`;
@@ -160,7 +160,7 @@ class ReminderService {
 
       // 1) Enviar plantilla primero (abre ventana de 24h si estaba cerrada)
       try {
-        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'Domicilio' : 'Para llevar';
+        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
         const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
           pedido.numero_pedido,
           pedido.clientes?.nombre || 'Sin nombre',
