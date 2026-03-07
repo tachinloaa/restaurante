@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import twilioClient from '../config/twilio.js';
 import config from '../config/environment.js';
 import { ADMIN_PHONE_FIJO } from '../config/constants.js';
@@ -249,6 +250,22 @@ class TwilioService {
   }
 
   /**
+   * Generar token HMAC para URL de media proxy
+   */
+  static generarMediaToken(mediaUrl) {
+    const secret = config.twilio.authToken;
+    return crypto.createHmac('sha256', secret).update(mediaUrl).digest('hex');
+  }
+
+  /**
+   * Verificar token HMAC de media proxy
+   */
+  static verificarMediaToken(mediaUrl, token) {
+    const expected = TwilioService.generarMediaToken(mediaUrl);
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(token));
+  }
+
+  /**
    * Enviar mensaje con imagen
    */
   static async enviarMensajeConImagen(numeroDestino, mensaje, mediaUrl) {
@@ -262,19 +279,13 @@ class TwilioService {
       logger.info(`📤 Enviando mensaje con imagen a ${numeroDestino}`);
       logger.info(`🖼️ URL de media original: ${mediaUrl}`);
 
-      // Si la URL es de Twilio, necesitamos autenticarla
+      // Si la URL es de Twilio, usar proxy del backend para que sea accesible públicamente
       let urlFinal = mediaUrl;
       if (mediaUrl.includes('api.twilio.com')) {
-        // Crear URL con autenticación básica embebida
-        const accountSid = config.twilio.accountSid;
-        const authToken = config.twilio.authToken;
-
-        // Extraer la parte de la URL después de "api.twilio.com"
-        const urlParts = mediaUrl.split('api.twilio.com');
-        if (urlParts.length > 1) {
-          urlFinal = `https://${accountSid}:${authToken}@api.twilio.com${urlParts[1]}`;
-          logger.info(`🔐 URL autenticada para Twilio`);
-        }
+        const token = TwilioService.generarMediaToken(mediaUrl);
+        const encodedUrl = encodeURIComponent(mediaUrl);
+        urlFinal = `${config.backendUrl}/api/media/proxy?url=${encodedUrl}&token=${token}`;
+        logger.info(`🔀 URL proxy generada para Twilio media`);
       }
 
       const message = await twilioClient.messages.create({

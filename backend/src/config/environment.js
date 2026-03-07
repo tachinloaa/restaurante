@@ -78,6 +78,9 @@ const config = {
   // CORS
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 
+  // URL pública del backend (para proxy de media)
+  backendUrl: process.env.BACKEND_URL || 'https://el-rinconcito-backend.onrender.com',
+
   // Sesiones
   sessionSecret: process.env.SESSION_SECRET,
 
@@ -85,7 +88,7 @@ const config = {
   logLevel: process.env.LOG_LEVEL || 'info',
 
   // Zona horaria
-  timezone: 'America/Mexico_City'
+    timezone: 'America/Mexico_City'
 };
 
 // Validar variables requeridas en desarrollo

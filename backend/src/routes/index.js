@@ -9,6 +9,7 @@ import notificationRoutes from './notificationRoutes.js';
 import analyticsRoutes from './analyticsRoutes.js';
 import authRoutes from './authRoutes.js';
 import webhookController from '../controllers/webhookController.js';
+import mediaProxyController from '../controllers/mediaProxyController.js';
 import { publicApiLimiter } from '../middlewares/rateLimiter.js';
 
 const router = express.Router();
@@ -32,5 +33,8 @@ router.use('/analytics', analyticsRoutes);
 // Utility Routes
 router.post('/whatsapp/send', webhookController.sendMessage.bind(webhookController));
 router.get('/health', webhookController.health.bind(webhookController));
+
+// Media proxy (para reenviar imágenes de Twilio al admin)
+router.get('/media/proxy', mediaProxyController);
 
 export default router;
