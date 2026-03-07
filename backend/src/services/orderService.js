@@ -163,23 +163,20 @@ class OrderService {
 
         logger.warn(`📦 Pedido guardado en cola de emergencia: ${pedidoEmergencia.id}`);
 
-        // 🚨 NOTIFICAR AL ADMIN URGENTE
-        const adminPhone = config.admin.phoneNumber;
-        if (adminPhone) {
-          try {
-            const mensajeAdmin = `🚨 *PEDIDO EN COLA DE EMERGENCIA*\n\n` +
-              `❌ Supabase falló al guardar pedido\n` +
-              `👤 Cliente: ${datosCliente.nombre}\n` +
-              `📞 Tel: ${telefonoLimpio}\n` +
-              `💰 Total: ${formatearPrecio(total)}\n` +
-              `📦 ID Emergencia: ${pedidoEmergencia.id}\n\n` +
-              `⚠️ El pedido está guardado en cola.\n` +
-              `Revisa emergency_orders.json`;
-            
-            await TwilioService.enviarMensajeAdmin(mensajeAdmin);
-          } catch (notifError) {
-            logger.error('Error notificando al admin:', notifError);
-          }
+        // 🚨 NOTIFICAR AL ADMIN URGENTE (siempre, sin condición)
+        try {
+          const mensajeAdmin = `🚨 *PEDIDO EN COLA DE EMERGENCIA*\n\n` +
+            `❌ Supabase falló al guardar pedido\n` +
+            `👤 Cliente: ${datosCliente.nombre}\n` +
+            `📞 Tel: ${telefonoLimpio}\n` +
+            `💰 Total: ${formatearPrecio(total)}\n` +
+            `📦 ID Emergencia: ${pedidoEmergencia.id}\n\n` +
+            `⚠️ El pedido está guardado en cola.\n` +
+            `Revisa emergency_orders.json`;
+          
+          await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+        } catch (notifError) {
+          logger.error('Error notificando al admin:', notifError);
         }
 
         // Limpiar sesión de todas formas
@@ -456,18 +453,15 @@ class OrderService {
         logger.info(`✅ Pedido de emergencia guardado exitosamente: #${pedido.data.numero_pedido}`);
 
         // Notificar al admin
-        const adminPhone = config.admin.phoneNumber;
-        if (adminPhone) {
-          try {
-            await TwilioService.enviarMensajeAdmin(
-              `✅ *PEDIDO DE COLA RECUPERADO*\n\n` +
-              `📋 Pedido: #${pedido.data.numero_pedido}\n` +
-              `🆔 ID Emergencia: ${emergencyId}\n` +
-              `✔️ Guardado exitosamente en Supabase`
-            );
-          } catch (notifError) {
-            logger.error('Error notificando recuperación al admin:', notifError);
-          }
+        try {
+          await TwilioService.enviarMensajeAdmin(
+            `✅ *PEDIDO DE COLA RECUPERADO*\n\n` +
+            `📋 Pedido: #${pedido.data.numero_pedido}\n` +
+            `🆔 ID Emergencia: ${emergencyId}\n` +
+            `✔️ Guardado exitosamente en Supabase`
+          );
+        } catch (notifError) {
+          logger.error('Error notificando recuperación al admin:', notifError);
         }
 
         return {
@@ -523,18 +517,15 @@ class OrderService {
       logger.info(`🗑️ Pedido de emergencia eliminado: ${emergencyId} - Motivo: ${motivo}`);
 
       // Notificar al admin
-      const adminPhone = config.admin.phoneNumber;
-      if (adminPhone) {
-        try {
-          await TwilioService.enviarMensajeAdmin(
-            `🗑️ *PEDIDO DE COLA ELIMINADO*\n\n` +
-            `🆔 ID: ${emergencyId}\n` +
-            `📱 Cliente: ${pedido.telefono}\n` +
-            `📝 Motivo: ${motivo || 'No especificado'}`
-          );
-        } catch (notifError) {
-          logger.error('Error notificando eliminación al admin:', notifError);
-        }
+      try {
+        await TwilioService.enviarMensajeAdmin(
+          `🗑️ *PEDIDO DE COLA ELIMINADO*\n\n` +
+          `🆔 ID: ${emergencyId}\n` +
+          `📱 Cliente: ${pedido.telefono}\n` +
+          `📝 Motivo: ${motivo || 'No especificado'}`
+        );
+      } catch (notifError) {
+        logger.error('Error notificando eliminación al admin:', notifError);
       }
 
       return {

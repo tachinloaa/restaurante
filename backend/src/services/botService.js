@@ -2420,16 +2420,13 @@ class BotService {
           logger.warn(`🚫 Cliente ${telefono} bloqueado automáticamente por ${cancelaciones.cancelaciones} cancelaciones`);
           
           // Notificar al admin
-          const adminPhone = config.admin.phoneNumber;
-          if (adminPhone) {
-            await TwilioService.enviarMensajeAdmin(
-              `🚫 *CLIENTE BLOQUEADO AUTOMÁTICAMENTE*\n\n` +
-              `📱 Cliente: ${telefono}\n` +
-              `❌ Cancelaciones: ${cancelaciones.cancelaciones}\n` +
-              `⏰ Bloqueado por: 7 días\n\n` +
-              `El cliente ha cancelado múltiples pedidos.`
-            );
-          }
+          await TwilioService.enviarMensajeAdmin(
+            `🚫 *CLIENTE BLOQUEADO AUTOMÁTICAMENTE*\n\n` +
+            `📱 Cliente: ${telefono}\n` +
+            `❌ Cancelaciones: ${cancelaciones.cancelaciones}\n` +
+            `⏰ Bloqueado por: 7 días\n\n` +
+            `El cliente ha cancelado múltiples pedidos.`
+          );
         }
       } catch (trackingError) {
         // No afectar el flujo si falla el tracking

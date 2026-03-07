@@ -253,9 +253,11 @@ class TwilioService {
    */
   static async enviarMensajeConImagen(numeroDestino, mensaje, mediaUrl) {
     try {
-      const numeroFormateado = numeroDestino.startsWith('whatsapp:')
-        ? numeroDestino
-        : `whatsapp:${numeroDestino}`;
+      // Normalizar número destino (garantizar formato E.164)
+      const numNorm = TwilioService.normalizarNumeroAdmin(numeroDestino);
+      const numeroFormateado = numNorm.startsWith('whatsapp:')
+        ? numNorm
+        : `whatsapp:${numNorm}`;
 
       logger.info(`📤 Enviando mensaje con imagen a ${numeroDestino}`);
       logger.info(`🖼️ URL de media original: ${mediaUrl}`);

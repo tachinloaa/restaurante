@@ -1,5 +1,6 @@
 import TwilioService from '../services/twilioService.js';
 import config from '../config/environment.js';
+import { ADMIN_PHONE_FIJO } from '../config/constants.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -8,7 +9,7 @@ import logger from '../utils/logger.js';
  */
 class AdminNotificationService {
   constructor() {
-    this.adminPhone = config.admin.phoneNumber;
+    this.adminPhone = config.admin.phoneNumber || ADMIN_PHONE_FIJO;
     this.notificationQueue = [];
     this.isProcessing = false;
     this.lastNotification = {};
@@ -26,12 +27,6 @@ class AdminNotificationService {
    */
   async notificarErrorCritico(tipo, mensaje, detalles = {}) {
     try {
-      // Validar que exista número de admin
-      if (!this.adminPhone) {
-        logger.error('❌ No se puede notificar al admin: ADMIN_PHONE_NUMBER no configurado');
-        return { success: false, error: 'Admin phone not configured' };
-      }
-
       // Anti-spam: verificar si ya se envió este tipo de error recientemente
       const key = `${tipo}_${mensaje}`;
       const ahora = Date.now();
@@ -96,10 +91,6 @@ class AdminNotificationService {
    */
   async notificarEvento(asunto, mensaje) {
     try {
-      if (!this.adminPhone) {
-        return { success: false, error: 'Admin phone not configured' };
-      }
-
       const timestamp = new Date().toLocaleString('es-MX', {
         timeZone: 'America/Mexico_City',
         hour12: true
