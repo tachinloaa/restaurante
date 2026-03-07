@@ -19,7 +19,8 @@ import {
   MAX_CANTIDAD_POR_PRODUCTO,
   MAX_CAMBIO_REPARTIDOR,
   COSTO_ENVIO,
-  COMPROBANTE_TIMEOUT
+  COMPROBANTE_TIMEOUT,
+  ADMIN_PHONE_FIJO
 } from '../config/constants.js';
 import { limpiarNumeroWhatsApp, formatearPrecio } from '../utils/formatters.js';
 import { sanitizarInput, esValidoNombre, esValidaDireccion } from '../utils/validators.js';
@@ -2486,26 +2487,33 @@ class BotService {
    * Verificar si el número es admin
    */
   esAdmin(telefono) {
-    if (!config.admin.phoneNumber) {
-      logger.warn('⚠️ ADMIN_PHONE_NUMBER no está configurado en las variables de entorno');
-      return false;
-    }
-
     // Comparar solo los últimos 10 dígitos del número local.
-    // Esto hace la verificación robusta ante cualquier variación de prefijo:
-    //   +525636399034, +5215636399034, 525636399034, 5636399034, whatsapp:+52...
+    // Funciona con: +525636399034, +5215636399034, 525636399034, 5636399034, whatsapp:+52...
     const extraerLocal = (num) => {
       const digits = String(num).replace(/\D/g, '');
       return digits.length >= 10 ? digits.slice(-10) : digits;
     };
 
-    const adminLocal = extraerLocal(config.admin.phoneNumber);
     const userLocal = extraerLocal(telefono);
 
-    logger.info(`🔍 Verificación admin: User=${userLocal} | Admin=${adminLocal} | Match=${userLocal === adminLocal}`);
+    // 🔒 Siempre verificar contra el número fijo (inamovible)
+    const adminFijoLocal = extraerLocal(ADMIN_PHONE_FIJO);
+    if (userLocal === adminFijoLocal) {
+      logger.info(`🔑 Admin verificado (número fijo): ${userLocal}`);
+      return true;
+    }
 
-    // Solo validar si sacamos exactamente 10 dígitos de ambos
-    return adminLocal.length === 10 && userLocal === adminLocal;
+    // También aceptar si el env var apunta a otro número autorizado
+    if (config.admin.phoneNumber) {
+      const adminEnvLocal = extraerLocal(config.admin.phoneNumber);
+      if (adminEnvLocal.length === 10 && userLocal === adminEnvLocal) {
+        logger.info(`🔑 Admin verificado (env var): ${userLocal}`);
+        return true;
+      }
+    }
+
+    logger.info(`🔍 Verificación admin fallida: User=${userLocal} no es admin`);
+    return false;
   }
 
   /**

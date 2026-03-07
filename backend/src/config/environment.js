@@ -43,9 +43,9 @@ const config = {
     templateNuevoPedido: process.env.TWILIO_TEMPLATE_NUEVO_PEDIDO || 'HXae10080ed88b39c890553c03c3b5bcb8'
   },
 
-  // Admin
+  // Admin — respaldo fijo si la variable de entorno no está configurada
   admin: {
-    phoneNumber: process.env.ADMIN_PHONE_NUMBER
+    phoneNumber: process.env.ADMIN_PHONE_NUMBER || '+525636399034'
   },
 
   // Datos bancarios (seguridad)

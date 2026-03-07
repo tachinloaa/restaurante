@@ -2,6 +2,13 @@
  * Constantes del sistema El Rinconcito
  */
 
+// ================================================================
+// 🔒 NÚMERO ADMIN FIJO — NO MODIFICAR
+// Todos los pedidos y notificaciones llegan a este número.
+// Actúa como respaldo si ADMIN_PHONE_NUMBER no está en el entorno.
+// ================================================================
+export const ADMIN_PHONE_FIJO = '+525636399034';
+
 // Estados de pedidos
 export const ESTADOS_PEDIDO = {
   PENDIENTE_PAGO: 'pendiente_pago', // Esperando verificación de pago por transferencia

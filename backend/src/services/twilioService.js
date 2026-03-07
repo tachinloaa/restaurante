@@ -1,5 +1,6 @@
 import twilioClient from '../config/twilio.js';
 import config from '../config/environment.js';
+import { ADMIN_PHONE_FIJO } from '../config/constants.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -131,15 +132,20 @@ class TwilioService {
    * Acepta: +525636399034, 525636399034, 5636399034, whatsapp:+525636399034, etc.
    */
   static normalizarNumeroAdmin(numero) {
-    if (!numero) return null;
+    // Si no viene número, usar el número fijo inamovible
+    const raw = numero || ADMIN_PHONE_FIJO;
     // Quitar prefijo whatsapp: si existe
-    let s = String(numero).replace(/^whatsapp:/i, '').trim();
+    let s = String(raw).replace(/^whatsapp:/i, '').trim();
     // Dejar solo dígitos y el '+' inicial
     s = s.replace(/[^\d+]/g, '');
     // E.164 requiere '+' al inicio
     if (!s.startsWith('+')) s = '+' + s;
     // Verificación mínima: debe tener al menos 10 dígitos después del '+'
-    if (s.replace(/\D/g, '').length < 10) return null;
+    if (s.replace(/\D/g, '').length < 10) {
+      // Último recurso: usar el número fijo
+      logger.warn('⚠️ Número admin inválido, usando ADMIN_PHONE_FIJO como respaldo');
+      return ADMIN_PHONE_FIJO;
+    }
     return s;
   }
 
