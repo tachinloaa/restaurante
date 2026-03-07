@@ -158,7 +158,24 @@ class ReminderService {
       mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${config.frontendUrl}\n\n`;
       mensaje += `⚡ *POR FAVOR ATENDER DE INMEDIATO*`;
 
-      // Enviar mensaje
+      // 1) Enviar plantilla primero (abre ventana de 24h si estaba cerrada)
+      try {
+        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'Domicilio' : 'Para llevar';
+        const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
+          pedido.numero_pedido,
+          pedido.clientes?.nombre || 'Sin nombre',
+          pedido.clientes?.telefono || 'N/A',
+          `$${pedido.total}`,
+          tipoPedidoTemplate
+        );
+        if (resultadoPlantilla.success) {
+          logger.info(`✅ Plantilla recordatorio enviada para pedido #${pedido.numero_pedido}`);
+        }
+      } catch (templateError) {
+        logger.warn(`⚠️ Error plantilla recordatorio: ${templateError.message}`);
+      }
+
+      // 2) Enviar detalle completo (freeform)
       const resultado = await TwilioService.enviarMensajeAdmin(mensaje);
 
       if (resultado.success) {

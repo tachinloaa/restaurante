@@ -66,7 +66,26 @@ class NotificationService {
       const dashboardUrl = `${config.frontendUrl}`;
       mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${dashboardUrl}`;
 
-      // Enviar mensaje al admin
+      // 1) Enviar plantilla aprobada primero (funciona fuera de ventana de 24h)
+      try {
+        const tipoPedidoTemplate = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO ? 'Domicilio' : 'Para llevar';
+        const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
+          pedido.numero_pedido,
+          cliente.nombre || 'Sin nombre',
+          cliente.telefono || 'N/A',
+          `$${pedido.total}`,
+          tipoPedidoTemplate
+        );
+        if (resultadoPlantilla.success) {
+          logger.info(`✅ Plantilla enviada al admin para pedido #${pedido.numero_pedido}`);
+        } else {
+          logger.warn(`⚠️ Plantilla falló para pedido #${pedido.numero_pedido}: ${resultadoPlantilla.error}`);
+        }
+      } catch (templateError) {
+        logger.warn(`⚠️ Error al enviar plantilla al admin: ${templateError.message}`);
+      }
+
+      // 2) Enviar detalle completo (freeform — funciona si la plantilla abrió la ventana)
       const resultado = await TwilioService.enviarMensajeAdmin(mensaje);
 
       if (resultado.success) {
