@@ -15,56 +15,78 @@ class NotificationService {
   async notificarNuevoPedido(pedido, cliente) {
     try {
       const tipoPedido = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO
-        ? 'DOMICILIO'
-        : 'RECOGER EN RESTAURANTE';
+        ? 'DOMICILIO 🏠'
+        : 'RECOGER EN RESTAURANTE 🏪';
 
-      let mensaje = `${EMOJIS.CAMPANA} *NUEVO PEDIDO - ${tipoPedido}*\n\n`;
+      const esEfectivo = pedido.metodo_pago === 'efectivo';
+      const esTransferencia = pedido.metodo_pago === 'transferencia';
+      const esDomicilio = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO;
+
+      // Encabezado según método de pago
+      const encabezado = esEfectivo
+        ? `💵 *PEDIDO EFECTIVO - ${tipoPedido}*`
+        : `🏦 *PEDIDO TRANSFERENCIA - ${tipoPedido}*`;
+
+      let mensaje = `${EMOJIS.CAMPANA} ${encabezado}\n\n`;
       mensaje += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
       mensaje += `${EMOJIS.RELOJ} Hora: ${formatearHora(pedido.created_at)}\n`;
-      mensaje += `⏱️ *Estado: PENDIENTE - ATENDER DE INMEDIATO*\n`;
-      mensaje += `${EMOJIS.PERSONA} Cliente: ${cliente.nombre || 'Sin nombre'}\n`;
-      mensaje += `${EMOJIS.TELEFONO} Teléfono: wa.me/${cliente.telefono.replace('whatsapp:', '').replace('+', '')}\n`;
+      mensaje += `${EMOJIS.PERSONA} Cliente: *${cliente.nombre || 'Sin nombre'}*\n`;
+      mensaje += `${EMOJIS.TELEFONO} Tel: wa.me/${cliente.telefono.replace('whatsapp:', '').replace('+', '')}\n`;
 
       // Datos según tipo de pedido
-      if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
-        mensaje += `${EMOJIS.UBICACION} Dirección: ${pedido.direccion_entrega}\n`;
-
-        if (cliente.referencias) {
-          mensaje += `${EMOJIS.CASA} Referencias: ${cliente.referencias}\n`;
+      if (esDomicilio) {
+        mensaje += `${EMOJIS.UBICACION} Dirección: ${pedido.direccion_entrega || 'No especificada'}\n`;
+        if (cliente.referencias || pedido.referencias) {
+          mensaje += `🏠 Ref: ${cliente.referencias || pedido.referencias}\n`;
         }
       }
 
       mensaje += `\n${EMOJIS.CARRITO} *PRODUCTOS:*\n`;
 
-      // Obtener detalles de productos
       if (pedido.pedido_detalles && pedido.pedido_detalles.length > 0) {
         pedido.pedido_detalles.forEach(detalle => {
           const productoNombre = detalle.productos?.nombre || 'Producto';
           const subtotal = detalle.cantidad * detalle.precio_unitario;
-          mensaje += `${detalle.cantidad}x ${productoNombre} - ${formatearPrecio(subtotal)}\n`;
+          mensaje += `• ${detalle.cantidad}x ${productoNombre} — ${formatearPrecio(subtotal)}\n`;
         });
       }
 
       mensaje += `\n${EMOJIS.DINERO} *TOTAL: ${formatearPrecio(pedido.total)}*\n`;
 
-      // Información de método de pago
-      if (pedido.metodo_pago) {
-        const metodoPagoTexto = pedido.metodo_pago === 'transferencia' ? '🏦 Transferencia' : '💵 Efectivo';
-        mensaje += `💳 Pago: *${metodoPagoTexto}*\n`;
-
-        if (pedido.metodo_pago === 'transferencia' && !pedido.pago_verificado) {
-          mensaje += `⚠️ *PAGO PENDIENTE DE VERIFICACIÓN*\n`;
-          if (pedido.comprobante_pago) {
-            mensaje += `📄 Comprobante recibido\n`;
-          }
+      // Sección de pago según método
+      mensaje += `\n`;
+      if (esEfectivo) {
+        mensaje += `💵 *PAGO EN EFECTIVO*\n`;
+        if (esDomicilio) {
+          mensaje += `🛵 El repartidor cobrará *${formatearPrecio(pedido.total)}* al entregar\n`;
+          mensaje += `💡 Lleva el cambio por si el cliente no tiene exacto\n`;
+        } else {
+          mensaje += `🏪 El cliente pagará al recoger su pedido\n`;
+        }
+      } else if (esTransferencia) {
+        mensaje += `🏦 *PAGO POR TRANSFERENCIA*\n`;
+        mensaje += `⚠️ Pendiente de verificación manual\n`;
+        if (pedido.comprobante_pago || pedido.comprobante_url) {
+          mensaje += `📸 Comprobante recibido — ver arriba\n`;
         }
       }
 
-      mensaje += `\n\n`;
-
-      // URL al dashboard - página de pedidos
-      const dashboardUrl = `${config.frontendUrl}`;
-      mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${dashboardUrl}`;
+      // Comandos de acción según estado y tipo de pedido
+      mensaje += `\n${'─'.repeat(30)}\n`;
+      if (esEfectivo) {
+        mensaje += `⚡ *ACCIONES:*\n`;
+        mensaje += `• *preparando #${pedido.numero_pedido}* — Poner en cocina 👨‍🍳\n`;
+        if (esDomicilio) {
+          mensaje += `• *enviado #${pedido.numero_pedido}* — Repartidor en camino 🛵\n`;
+          mensaje += `• *ficha #${pedido.numero_pedido}* — Ver ficha de entrega 📋\n`;
+        }
+        mensaje += `• *entregado #${pedido.numero_pedido}* — Marcar entregado ✅\n`;
+        mensaje += `• *cancelar #${pedido.numero_pedido}* — Cancelar pedido\n`;
+      } else {
+        mensaje += `⚡ *VERIFICAR PAGO:*\n`;
+        mensaje += `• *aprobar #${pedido.numero_pedido}* — Pago correcto ✅\n`;
+        mensaje += `• *rechazar #${pedido.numero_pedido}* — Pago inválido ❌\n`;
+      }
 
       // 1) Enviar plantilla aprobada primero (funciona fuera de ventana de 24h)
       try {

@@ -9,6 +9,13 @@
 // ================================================================
 export const ADMIN_PHONE_FIJO = '+525636399034';
 
+// ================================================================
+// 🛵 NÚMERO REPARTIDOR — Opcional
+// Configura REPARTIDOR_PHONE_NUMBER en Render para envío automático
+// de la ficha de reparto cuando se aprueba un pedido de domicilio.
+// ================================================================
+export const REPARTIDOR_PHONE_FIJO = null; // Cambiar si siempre es el mismo número
+
 // Estados de pedidos
 export const ESTADOS_PEDIDO = {
   PENDIENTE_PAGO: 'pendiente_pago', // Esperando verificación de pago por transferencia

@@ -91,9 +91,33 @@ class BotService {
           return await this.rechazarPedidoPendiente(bodySanitizado);
         }
 
-        // Comando rápido SOLO para entregado
+        // Comandos rápidos de estado
         if (mensajeLimpio.startsWith('entregado')) {
           return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.ENTREGADO);
+        }
+        if (mensajeLimpio.startsWith('enviado')) {
+          return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.ENVIADO);
+        }
+        if (mensajeLimpio.startsWith('preparando')) {
+          return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.PREPARANDO);
+        }
+        if (mensajeLimpio.startsWith('listo')) {
+          return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.LISTO);
+        }
+
+        // Cancelar cualquier pedido activo por admin
+        if (mensajeLimpio.startsWith('cancelar')) {
+          return await this.cancelarPedidoAdmin(bodySanitizado);
+        }
+
+        // Ficha de reparto (generar y reenviar al repartidor)
+        if (mensajeLimpio.startsWith('ficha')) {
+          return await this.enviarFichaReparto(bodySanitizado);
+        }
+
+        // Resumen del día
+        if (mensajeLimpio === 'resumen' || mensajeLimpio === 'hoy' || mensajeLimpio === 'estadisticas') {
+          return await this.mostrarResumenDia();
         }
 
         // Si el admin envió algo no reconocido, mostrar ayuda
@@ -2462,32 +2486,46 @@ class BotService {
    * Mostrar ayuda para administradores
    */
   async mostrarAyudaAdmin() {
+    const repartidorConfigurado = !!config.repartidor?.phoneNumber;
+
     let mensaje = `🔑 *PANEL DE ADMINISTRADOR*\n`;
     mensaje += `*El Rinconcito - Sistema de Pedidos*\n\n`;
-    
-    mensaje += `💡 *Comandos disponibles:*\n\n`;
-    
-    mensaje += `📋 *GESTIÓN DE PEDIDOS*\n`;
-    mensaje += `• *pedidos* - Ver pedidos pendientes\n`;
-    mensaje += `• *aprobar #123* - Aprobar pedido\n`;
-    mensaje += `• *rechazar #123* - Rechazar pedido\n`;
-    mensaje += `• *ver pedido #123* - Ver detalle completo\n\n`;
-    
-    mensaje += `✅ *MARCAR COMO ENTREGADO*\n`;
-    mensaje += `• *entregado #123* - Marcar pedido como entregado\n\n`;
-    
-    mensaje += `ℹ️ *OTROS*\n`;
-    mensaje += `• *ayuda* - Mostrar esta ayuda\n\n`;
-    
-    mensaje += `👉 *Tip:* También puedes gestionar pedidos desde:\n`;
-    mensaje += `${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/pedidos\n\n`;
-    
-    mensaje += `⌨️ Escribe un comando para empezar.`;
 
-    return {
-      success: true,
-      mensaje
-    };
+    mensaje += `📋 *VER PEDIDOS*\n`;
+    mensaje += `• *pedidos* — Ver todos los activos\n`;
+    mensaje += `• *ver #123* — Detalle completo del pedido\n`;
+    mensaje += `• *resumen* — Estadísticas del día 📊\n\n`;
+
+    mensaje += `✅ *APROBAR / RECHAZAR* (transferencias)\n`;
+    mensaje += `• *aprobar #123* — Verificar pago y poner en preparación\n`;
+    mensaje += `• *rechazar #123* — Rechazar pago y notificar cliente\n\n`;
+
+    mensaje += `👨‍🍳 *AVANZAR ESTADO DEL PEDIDO*\n`;
+    mensaje += `• *preparando #123* — En la cocina\n`;
+    mensaje += `• *listo #123* — Terminado, esperando envío\n`;
+    mensaje += `• *enviado #123* — Repartidor en camino 🛵\n`;
+    mensaje += `• *entregado #123* — Pedido entregado ✅\n\n`;
+
+    mensaje += `🛵 *REPARTIDOR*\n`;
+    mensaje += `• *ficha #123* — Ver ficha de entrega`;
+    mensaje += repartidorConfigurado
+      ? ` (se envía auto al repartidor ✅)\n\n`
+      : ` y reenviar manualmente\n\n`;
+
+    mensaje += `🚫 *CANCELAR*\n`;
+    mensaje += `• *cancelar #123* — Cancelar pedido activo\n`;
+    mensaje += `• *cancelar #123 sin stock* — Con motivo\n\n`;
+
+    mensaje += `ℹ️ *OTROS*\n`;
+    mensaje += `• *ayuda* — Esta pantalla\n\n`;
+
+    if (!repartidorConfigurado) {
+      mensaje += `💡 *Tip:* Configura *REPARTIDOR_PHONE_NUMBER* en Render para enviar la ficha automáticamente al repartidor al aprobar cada pedido.\n\n`;
+    }
+
+    mensaje += `🌐 Dashboard: ${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/pedidos`;
+
+    return { success: true, mensaje };
   }
 
   /**
@@ -2536,13 +2574,14 @@ class BotService {
           total,
           estado,
           tipo_pedido,
+          metodo_pago,
           created_at,
           clientes (
             nombre,
             telefono
           )
         `)
-        .in('estado', ['pendiente', 'preparando', 'listo', 'enviado'])
+        .in('estado', ['pendiente_pago', 'pendiente', 'preparando', 'listo', 'enviado'])
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -2556,43 +2595,44 @@ class BotService {
       if (!pedidos || pedidos.length === 0) {
         return {
           success: true,
-          mensaje: '✅ *No hay pedidos activos*\n\nTodos los pedidos están completados o cancelados.'
+          mensaje: '✅ *No hay pedidos activos*\n\nTodos los pedidos están completados o cancelados.\n\n📊 Escribe *resumen* para ver las estadísticas del día.'
         };
       }
 
-      let mensaje = `📋 *PEDIDOS ACTIVOS* (${pedidos.length})\n${'='.repeat(35)}\n\n`;
+      let mensaje = `📋 *PEDIDOS ACTIVOS* (${pedidos.length})\n${'─'.repeat(35)}\n\n`;
 
       pedidos.forEach(pedido => {
-        const estadoEmojis = {
-          'pendiente': '🔴',
-          'preparando': '👨‍🍳',
-          'listo': '✅',
-          'enviado': '🏍️'
+        const estadoInfo = {
+          'pendiente_pago': { emoji: '⏳', texto: 'PAGO PENDIENTE' },
+          'pendiente':      { emoji: '🔴', texto: 'NUEVO' },
+          'preparando':     { emoji: '👨‍🍳', texto: 'PREPARANDO' },
+          'listo':          { emoji: '📦', texto: 'LISTO' },
+          'enviado':        { emoji: '🛵', texto: 'EN CAMINO' },
         };
 
-        const estadoTextos = {
-          'pendiente': 'NUEVO',
-          'preparando': 'PREPARANDO',
-          'listo': 'LISTO',
-          'enviado': 'EN CAMINO'
-        };
+        const { emoji, texto } = estadoInfo[pedido.estado] || { emoji: '⚪', texto: pedido.estado.toUpperCase() };
+        const tipo = pedido.tipo_pedido === 'domicilio' ? '🏠' : '🏪';
+        const pago = pedido.metodo_pago === 'transferencia' ? '🏦' : '💵';
+        const tiempo = new Date(pedido.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Mexico_City' });
 
-        const estado = `${estadoEmojis[pedido.estado] || '⚪'} ${estadoTextos[pedido.estado] || pedido.estado.toUpperCase()}`;
-        const tipo = pedido.tipo_pedido === 'domicilio' ? '🏠 Domicilio' : '🏪 Recoger en Restaurante';
-        const tiempo = new Date(pedido.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-
-        mensaje += `*#${pedido.numero_pedido}* - ${estado}\n`;
-        mensaje += `👤 ${pedido.clientes?.nombre || 'Sin nombre'}\n`;
-        mensaje += `${tipo} | ${formatearPrecio(pedido.total)}\n`;
+        mensaje += `*#${pedido.numero_pedido}* ${emoji} ${texto}\n`;
+        mensaje += `👤 ${pedido.clientes?.nombre || 'Sin nombre'} ${tipo} ${pago} ${formatearPrecio(pedido.total)}\n`;
         mensaje += `🕐 ${tiempo}\n\n`;
       });
 
-      if (pedidos.length > 0) {
-        mensaje += `\n⚡ *COMANDO RÁPIDO:*\n`;
-        mensaje += `• *entregado #${pedidos[0].numero_pedido}* - Marcar como entregado\n\n`;
-        mensaje += `📝 Otros comandos:\n`;
-        mensaje += `• *ver #${pedidos[0].numero_pedido}* - Ver detalles`;
+      const primerPedido = pedidos[0];
+      mensaje += `${'─'.repeat(35)}\n`;
+      mensaje += `⚡ *COMANDOS RÁPIDOS:*\n`;
+      if (primerPedido.estado === 'pendiente_pago') {
+        mensaje += `• *aprobar #${primerPedido.numero_pedido}* - Verificar pago\n`;
+        mensaje += `• *rechazar #${primerPedido.numero_pedido}* - Rechazar pago\n`;
+      } else {
+        mensaje += `• *preparando #${primerPedido.numero_pedido}* - En cocina 👨‍🍳\n`;
+        mensaje += `• *enviado #${primerPedido.numero_pedido}* - En camino 🛵\n`;
+        mensaje += `• *entregado #${primerPedido.numero_pedido}* - Entregado ✅\n`;
       }
+      mensaje += `• *ver #${primerPedido.numero_pedido}* - Ver detalle\n`;
+      mensaje += `• *ficha #${primerPedido.numero_pedido}* - Ficha repartidor 📋`;
 
       return {
         success: true,
@@ -2927,6 +2967,17 @@ class BotService {
 
       // Enviar ficha al admin
       await TwilioService.enviarMensajeAdmin(fichaReparto);
+
+      // Enviar ficha automáticamente al repartidor si está configurado
+      const repartidorResult = await TwilioService.enviarMensajeRepartidor(fichaReparto);
+      if (repartidorResult.notConfigured) {
+        // No configurado: recordar al admin que puede configurarlo
+        await TwilioService.enviarMensajeAdmin(
+          `ℹ️ *Tip:* Para enviar la ficha automáticamente al repartidor, configura *REPARTIDOR_PHONE_NUMBER* en las variables de entorno de Render.\n\nCon el comando *ficha #${pedido.numero_pedido}* puedes reenviarla cuando quieras.`
+        );
+      } else if (repartidorResult.success) {
+        logger.info(`✅ Ficha enviada automáticamente al repartidor para pedido #${pedido.numero_pedido}`);
+      }
     }
 
     return {
@@ -2935,10 +2986,13 @@ class BotService {
         `📝 Pedido: #${pedido.numero_pedido}\n` +
         `👤 Cliente: ${pedido.clientes.nombre}\n` +
         `📞 Teléfono: ${pedido.clientes.telefono}\n` +
-        `💰 Total: ${formatearPrecio(pedido.total)}\n\n` +
-        `👨‍🍳 Estado actual: *PREPARANDO*\n\n` +
-        `⚡ *COMANDO RÁPIDO:*\n` +
-        `• *entregado #${pedido.numero_pedido}* - Pedido listo para entregar\n\n` +
+        `💰 Total: ${formatearPrecio(pedido.total)}\n` +
+        `${pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO ? `📍 Dirección: ${pedido.direccion_entrega || 'N/A'}\n` : '📦 Tipo: Recoger en restaurante\n'}` +
+        `\n👨‍🍳 Estado actual: *PREPARANDO*\n\n` +
+        `⚡ *COMANDOS RÁPIDOS:*\n` +
+        `• *enviado #${pedido.numero_pedido}* - Salió para entrega 🛵\n` +
+        `• *entregado #${pedido.numero_pedido}* - Pedido entregado ✅\n` +
+        `• *ficha #${pedido.numero_pedido}* - Reenviar ficha al repartidor\n\n` +
         `✅ El cliente ya fue notificado de la aprobación del pago.`
     };
   }
@@ -3116,6 +3170,228 @@ class BotService {
       success: true,
       mensaje: `❌ *PEDIDO RECHAZADO*\n\n📝 Pedido #${pedido.numero_pedido}\n👤 Cliente: ${pedido.clientes.nombre}\n📞 Teléfono: ${pedido.clientes.telefono}\n\nEl cliente ha sido notificado.`
     };
+  }
+
+  /**
+   * Cancelar un pedido activo (admin puede cancelar cualquier pedido)
+   * Formato: "cancelar #123" o "cancelar #123 motivo aqui"
+   */
+  async cancelarPedidoAdmin(mensaje) {
+    const partes = mensaje.trim().split(/\s+/);
+    if (partes.length < 2) {
+      return {
+        success: false,
+        mensaje: '❌ Formato incorrecto.\n\nUsa: *cancelar #2602106719*\nO con motivo: *cancelar #2602106719 sin stock*'
+      };
+    }
+
+    const numeroPedido = partes[1].replace('#', '');
+    // Si hay más palabras después del número, es el motivo
+    const motivo = partes.slice(2).join(' ') || 'Cancelado por administrador';
+
+    const ESTADOS_ACTIVOS = ['pendiente_pago', 'pendiente', 'preparando', 'listo', 'enviado'];
+
+    const { data: pedido, error } = await supabase
+      .from('pedidos')
+      .select('*, clientes(*)')
+      .eq('numero_pedido', numeroPedido)
+      .in('estado', ESTADOS_ACTIVOS)
+      .single();
+
+    if (error || !pedido) {
+      return {
+        success: false,
+        mensaje: `❌ No se encontró pedido activo *#${numeroPedido}*\n\nVerifica el número o que no esté ya entregado/cancelado.`
+      };
+    }
+
+    const { error: errorUpdate } = await supabase
+      .from('pedidos')
+      .update({
+        estado: ESTADOS_PEDIDO.CANCELADO,
+        motivo_cancelacion: motivo,
+        fecha_cancelacion: new Date().toISOString()
+      })
+      .eq('id', pedido.id);
+
+    if (errorUpdate) {
+      return { success: false, mensaje: `❌ Error al cancelar: ${errorUpdate.message}` };
+    }
+
+    // Notificar al cliente
+    let mensajeCliente = `❌ *TU PEDIDO HA SIDO CANCELADO*\n\n`;
+    mensajeCliente += `📝 Pedido #${pedido.numero_pedido}\n\n`;
+    mensajeCliente += `📋 Motivo: ${motivo}\n\n`;
+    mensajeCliente += `Si tienes dudas, contáctanos:\n📞 563-639-9034\n\n`;
+    mensajeCliente += `Escribe *hola* para hacer un nuevo pedido.`;
+    await TwilioService.enviarMensajeCliente(pedido.clientes.telefono, mensajeCliente);
+
+    logger.info(`🚫 Admin canceló pedido #${numeroPedido}: ${motivo}`);
+
+    return {
+      success: true,
+      mensaje: `🚫 *PEDIDO CANCELADO*\n\n` +
+        `📝 Pedido #${pedido.numero_pedido}\n` +
+        `👤 Cliente: ${pedido.clientes.nombre}\n` +
+        `📋 Motivo: ${motivo}\n\n` +
+        `✅ El cliente fue notificado por WhatsApp.`
+    };
+  }
+
+  /**
+   * Generar y enviar la ficha de reparto de un pedido al admin y al repartidor
+   * Formato: "ficha #123"
+   */
+  async enviarFichaReparto(mensaje) {
+    const partes = mensaje.trim().split(/\s+/);
+    if (partes.length < 2) {
+      return {
+        success: false,
+        mensaje: '❌ Formato incorrecto.\n\nUsa: *ficha #2602106719*'
+      };
+    }
+
+    const numeroPedido = partes[1].replace('#', '');
+
+    const { data: pedido, error } = await supabase
+      .from('pedidos')
+      .select('*, clientes(*)')
+      .eq('numero_pedido', numeroPedido)
+      .single();
+
+    if (error || !pedido) {
+      return {
+        success: false,
+        mensaje: `❌ No se encontró el pedido #${numeroPedido}`
+      };
+    }
+
+    if (pedido.tipo_pedido !== TIPOS_PEDIDO.DOMICILIO) {
+      return {
+        success: true,
+        mensaje: `📦 El pedido #${numeroPedido} es *para recoger en restaurante*.\nNo se genera ficha de reparto para este tipo.`
+      };
+    }
+
+    const NL = '\n';
+    let fichaReparto = `🛵 *FICHA DE ENTREGA - REPARTIDOR*${NL}`;
+    fichaReparto += `${'─'.repeat(30)}${NL}`;
+    fichaReparto += `🆔 Pedido: *#${pedido.numero_pedido}*${NL}${NL}`;
+    fichaReparto += `👤 *Cliente:* ${pedido.clientes.nombre}${NL}`;
+    fichaReparto += `📞 *Tel:* wa.me/${pedido.clientes.telefono.replace('whatsapp:', '').replace('+', '')}${NL}`;
+    fichaReparto += `📍 *Dirección:*${NL}${pedido.direccion_entrega || 'No especificada'}${NL}`;
+    if (pedido.referencias) fichaReparto += `ℹ️ *Ref:* ${pedido.referencias}${NL}`;
+    fichaReparto += `${NL}`;
+
+    const montoCobrar = pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA ? COSTO_ENVIO : pedido.total;
+    fichaReparto += `💰 *COBRAR: ${formatearPrecio(montoCobrar)}*${NL}`;
+    fichaReparto += `💳 *Método:* ${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'EFECTIVO'}${NL}`;
+    if (pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA) {
+      fichaReparto += `📝 Comida pagada por transferencia — solo cobrar envío${NL}`;
+    }
+    fichaReparto += `${NL}`;
+
+    // Obtener productos
+    const { data: productosData } = await supabase
+      .from('pedidos_productos')
+      .select('cantidad, productos(nombre)')
+      .eq('pedido_id', pedido.id);
+
+    fichaReparto += `📋 *Productos:*${NL}`;
+    if (productosData && productosData.length > 0) {
+      productosData.forEach(p => {
+        fichaReparto += `• ${p.cantidad}x ${p.productos.nombre}${NL}`;
+      });
+    } else {
+      fichaReparto += `(Ver detalle en app)${NL}`;
+    }
+
+    fichaReparto += `${NL}✅ Estado del pedido: *${pedido.estado?.toUpperCase() || 'N/A'}*`;
+
+    // Enviar al repartidor si está configurado
+    const repartidorResult = await TwilioService.enviarMensajeRepartidor(fichaReparto);
+
+    if (repartidorResult.notConfigured) {
+      return {
+        success: true,
+        mensaje: fichaReparto +
+          `\n\n${'─'.repeat(30)}\n📲 *Ficha generada. Reenvía este mensaje al repartidor.*\n\n💡 Para envío automático, configura *REPARTIDOR_PHONE_NUMBER* en Render.`
+      };
+    } else if (repartidorResult.success) {
+      return {
+        success: true,
+        mensaje: fichaReparto + `\n\n${'─'.repeat(30)}\n✅ *Ficha enviada automáticamente al repartidor.*`
+      };
+    } else {
+      return {
+        success: true,
+        mensaje: fichaReparto + `\n\n${'─'.repeat(30)}\n⚠️ No se pudo enviar al repartidor: ${repartidorResult.error}`
+      };
+    }
+  }
+
+  /**
+   * Mostrar resumen del día (ventas y estadísticas)
+   */
+  async mostrarResumenDia() {
+    try {
+      // Inicio del día actual en México
+      const ahora = new Date();
+      const inicioDia = new Date(ahora.toLocaleDateString('en-US', { timeZone: 'America/Mexico_City' }));
+
+      const { data: pedidos, error } = await supabase
+        .from('pedidos')
+        .select('id, numero_pedido, total, estado, tipo_pedido, metodo_pago, created_at')
+        .gte('created_at', inicioDia.toISOString());
+
+      if (error) {
+        logger.error('Error al obtener resumen del día:', error);
+        return { success: true, mensaje: '❌ Error al obtener el resumen del día.' };
+      }
+
+      const todos = pedidos || [];
+      const entregados = todos.filter(p => p.estado === 'entregado');
+      const cancelados = todos.filter(p => p.estado === 'cancelado');
+      const activos = todos.filter(p => ['pendiente_pago', 'pendiente', 'preparando', 'listo', 'enviado'].includes(p.estado));
+      const totalVentas = entregados.reduce((sum, p) => sum + (parseFloat(p.total) || 0), 0);
+      const efectivo = entregados.filter(p => p.metodo_pago === 'efectivo');
+      const transferencia = entregados.filter(p => p.metodo_pago === 'transferencia');
+      const domicilio = entregados.filter(p => p.tipo_pedido === 'domicilio');
+      const paraLlevar = entregados.filter(p => p.tipo_pedido === 'para_llevar');
+
+      const fecha = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Mexico_City' });
+
+      let mensaje = `📊 *RESUMEN DEL DÍA*\n`;
+      mensaje += `📅 ${fecha}\n`;
+      mensaje += `${'─'.repeat(35)}\n\n`;
+      mensaje += `📦 *Pedidos hoy:* ${todos.length}\n`;
+      mensaje += `  ✅ Entregados: *${entregados.length}*\n`;
+      mensaje += `  🔄 En proceso: *${activos.length}*\n`;
+      mensaje += `  ❌ Cancelados: *${cancelados.length}*\n\n`;
+      mensaje += `💰 *Total vendido:* ${formatearPrecio(totalVentas)}\n`;
+      mensaje += `  💵 Efectivo: ${efectivo.length} pedido(s) — ${formatearPrecio(efectivo.reduce((s, p) => s + (parseFloat(p.total) || 0), 0))}\n`;
+      mensaje += `  🏦 Transferencia: ${transferencia.length} pedido(s) — ${formatearPrecio(transferencia.reduce((s, p) => s + (parseFloat(p.total) || 0), 0))}\n\n`;
+      mensaje += `🛵 *Por tipo:*\n`;
+      mensaje += `  🏠 Domicilio: ${domicilio.length}\n`;
+      mensaje += `  🏪 Para llevar: ${paraLlevar.length}\n\n`;
+
+      if (activos.length > 0) {
+        mensaje += `⏳ *Pedidos activos ahora:*\n`;
+        activos.forEach(p => {
+          const estadoLabel = { pendiente_pago: '💳 Pago pendiente', pendiente: '🔴 Nuevo', preparando: '👨‍🍳 Preparando', listo: '📦 Listo', enviado: '🛵 En camino' }[p.estado] || p.estado;
+          mensaje += `  #${p.numero_pedido} — ${estadoLabel}\n`;
+        });
+        mensaje += `\n`;
+      }
+
+      mensaje += `${'─'.repeat(35)}\n`;
+      mensaje += `📋 Escribe *pedidos* para ver el detalle.`;
+
+      return { success: true, mensaje };
+    } catch (error) {
+      logger.error('Error al mostrar resumen del día:', error);
+      return { success: true, mensaje: '❌ Error al generar el resumen. Intenta nuevamente.' };
+    }
   }
 
   /**

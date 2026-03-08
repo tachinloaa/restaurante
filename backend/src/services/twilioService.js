@@ -207,6 +207,63 @@ class TwilioService {
   }
 
   /**
+   * Enviar mensaje de WhatsApp al repartidor
+   * Requiere que REPARTIDOR_PHONE_NUMBER esté configurado en las variables de entorno
+   */
+  static async enviarMensajeRepartidor(mensaje) {
+    try {
+      if (process.env.TWILIO_TEST_MODE === 'true') {
+        logger.info(`[TEST MODE] Mensaje a repartidor: ${mensaje.substring(0, 100)}...`);
+        return { success: true, messageSid: 'TEST_MODE', test: true };
+      }
+
+      const repartidorPhone = config.repartidor?.phoneNumber;
+      if (!repartidorPhone) {
+        logger.info('ℹ️ REPARTIDOR_PHONE_NUMBER no configurado — omitiendo notificación al repartidor');
+        return { success: false, error: 'Repartidor phone not configured', notConfigured: true };
+      }
+
+      const numeroFormateado = TwilioService.normalizarNumeroAdmin(repartidorPhone);
+      if (!numeroFormateado) {
+        logger.error('❌ REPARTIDOR_PHONE_NUMBER tiene formato inválido');
+        return { success: false, error: 'Repartidor phone format invalid' };
+      }
+
+      // Dividir si el mensaje es muy largo
+      const MAX_CHARS = 1600;
+      const partes = [];
+      if (mensaje.length <= MAX_CHARS) {
+        partes.push(mensaje);
+      } else {
+        let i = 0;
+        while (i < mensaje.length) {
+          partes.push(mensaje.substring(i, i + MAX_CHARS));
+          i += MAX_CHARS;
+        }
+      }
+
+      const messageSids = [];
+      for (let i = 0; i < partes.length; i++) {
+        const msg = await twilioClient.messages.create({
+          body: partes[i],
+          from: `whatsapp:${config.twilio.whatsappClientes}`,
+          to: `whatsapp:${numeroFormateado}`
+        });
+        messageSids.push(msg.sid);
+        if (i < partes.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+      }
+
+      logger.info(`✅ Mensaje enviado al repartidor ${numeroFormateado}: SID ${messageSids[0]}`);
+      return { success: true, messageSid: messageSids[0], messageSids };
+    } catch (error) {
+      logger.error('Error al enviar mensaje al repartidor:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Enviar notificación al admin usando plantilla aprobada de WhatsApp (business-initiated)
    * Esto permite enviar mensajes al admin sin restricción de 24 horas
    */

@@ -49,6 +49,11 @@ const config = {
     phoneNumber: process.env.ADMIN_PHONE_NUMBER || '+525636399034'
   },
 
+  // Repartidor — opcional, configura REPARTIDOR_PHONE_NUMBER en Render si tienes uno
+  repartidor: {
+    phoneNumber: process.env.REPARTIDOR_PHONE_NUMBER || null
+  },
+
   // Datos bancarios (seguridad)
   datosBancarios: {
     banco: process.env.BANCO_NOMBRE || 'BBVA',
