@@ -1605,15 +1605,20 @@ class BotService {
         logger.error(`❌ Error template de texto: ${resultadoTexto.error}`);
       }
 
-      // ADEMÁS intentar el media template con imagen (solo funcionará cuando Meta lo apruebe)
-      if (comprobanteUrl) {
-        const resultadoMedia = await TwilioService.enviarTemplateComprobanteAdmin(
-          numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl
+      // Enviar la imagen directamente al admin como freeform (funciona porque el template anterior abrió la ventana de 24h)
+      const mediaUrlParaEnviar = session.datos.comprobante_twilio_url || session.datos.comprobante_url || null;
+      if (mediaUrlParaEnviar) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const adminPhoneNorm = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
+        const resultado = await TwilioService.enviarMensajeConImagen(
+          adminPhoneNorm,
+          `📸 Comprobante de pago - Pedido #${numeroPedido}`,
+          mediaUrlParaEnviar
         );
-        if (resultadoMedia.success) {
-          logger.info(`📸 Template media con comprobante también enviado: ${resultadoMedia.messageSid}`);
+        if (resultado.success) {
+          logger.info(`✅ Imagen de comprobante #${numeroPedido} enviada al admin`);
         } else {
-          logger.warn(`⚠️ Template media pendiente de aprobación — solo llegó el de texto`);
+          logger.error(`❌ Error al enviar imagen del comprobante: ${resultado.error}`);
         }
       }
 
