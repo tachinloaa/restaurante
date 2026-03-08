@@ -1593,8 +1593,8 @@ class BotService {
           logger.info(`✅ Template con comprobante enviado al admin para pedido #${numeroPedido}: ${resultadoMedia.messageSid}`);
         } else {
           logger.error(`❌ Error template con comprobante: ${resultadoMedia.error} — usando template de texto como fallback`);
-          // Fallback: template de texto sin imagen
-          await TwilioService.enviarNotificacionAdminConPlantilla(numeroPedido, cliente, telefono, total, tipoPedido, null);
+          // Fallback: template de texto con URL del comprobante en variable 5
+          await TwilioService.enviarNotificacionAdminConPlantilla(numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl);
         }
       } else {
         // Sin comprobante → template de texto normal
