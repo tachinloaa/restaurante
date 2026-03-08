@@ -1579,63 +1579,33 @@ class BotService {
     }
 
     try {
-      // Enviar notificación con plantilla aprobada (ÚNICA forma confiable de llegar al admin)
-      // Los mensajes freeform NO llegan si el admin no ha escrito al bot en 24h
       const total = totalPedido ? `$${totalPedido}` : (session.datos.total ? `$${session.datos.total}` : 'N/A');
       const tipoPedido = session.datos.tipo_pedido || 'domicilio';
       const comprobanteUrl = session.datos.comprobante_url || null;
-      const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
-        numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl
-      );
-      if (resultadoPlantilla.success) {
-        logger.info(`✅ Notificación con plantilla enviada al admin para pedido #${numeroPedido}`);
-      }
 
-      // Intentar enviar detalle + imagen como freeform (solo llega si hay ventana de 24h abierta)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      const resultadoTexto = await TwilioService.enviarMensajeAdmin(mensajeAdmin);
-      logger.info(`📨 Detalle de pedido #${numeroPedido} enviado al admin (texto) - SID: ${resultadoTexto?.messageSid || 'N/A'}`);
-      
-      // Verificar estado del texto freeform después de 10s para diagnóstico
-      if (resultadoTexto?.messageSid) {
-        setTimeout(async () => {
-          try {
-            const status = await TwilioService.obtenerEstadoMensaje(resultadoTexto.messageSid);
-            logger.info(`📊 Estado texto freeform (${resultadoTexto.messageSid}): ${JSON.stringify(status.data)}`);
-          } catch (e) {
-            logger.error(`Error verificando estado del texto freeform: ${e.message}`);
-          }
-        }, 10000);
-      }
-
-      if (session.datos.comprobante_twilio_url || session.datos.comprobante_url) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const adminPhoneNorm = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
-        const captionCorto = `📸 Comprobante de pago - Pedido #${numeroPedido}`;
-        // Usar URL de Twilio para enviar la imagen (Twilio accede sus propios servidores internamente)
-        const mediaUrlParaEnviar = session.datos.comprobante_twilio_url || session.datos.comprobante_url;
-        logger.info(`📸 Enviando comprobante al admin con URL de Twilio: ${mediaUrlParaEnviar}`);
-        const resultado = await TwilioService.enviarMensajeConImagen(
-          adminPhoneNorm,
-          captionCorto,
-          mediaUrlParaEnviar
+      if (comprobanteUrl) {
+        // Hay comprobante → usar template con imagen (Media template, business-initiated, sin restricción 24h)
+        logger.info(`📸 Enviando template con imagen de comprobante al admin para pedido #${numeroPedido}`);
+        const resultadoMedia = await TwilioService.enviarTemplateComprobanteAdmin(
+          numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl
         );
-        if (resultado.success) {
-          logger.info(`✅ Imagen de comprobante #${numeroPedido} enviada al admin`);
-          // Verificar estado del mensaje después de 10s para diagnóstico
-          setTimeout(async () => {
-            try {
-              const status = await TwilioService.obtenerEstadoMensaje(resultado.messageSid);
-              logger.info(`📊 Estado de imagen comprobante (${resultado.messageSid}): ${JSON.stringify(status.data)}`);
-            } catch (e) {
-              logger.error(`Error verificando estado del mensaje: ${e.message}`);
-            }
-          }, 10000);
+        if (resultadoMedia.success) {
+          logger.info(`✅ Template con comprobante enviado al admin para pedido #${numeroPedido}: ${resultadoMedia.messageSid}`);
         } else {
-          logger.error(`❌ Error al enviar imagen del comprobante: ${resultado.error}`);
+          logger.error(`❌ Error template con comprobante: ${resultadoMedia.error} — usando template de texto como fallback`);
+          // Fallback: template de texto sin imagen
+          await TwilioService.enviarNotificacionAdminConPlantilla(numeroPedido, cliente, telefono, total, tipoPedido, null);
+        }
+      } else {
+        // Sin comprobante → template de texto normal
+        const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
+          numeroPedido, cliente, telefono, total, tipoPedido, null
+        );
+        if (resultadoPlantilla.success) {
+          logger.info(`✅ Notificación con plantilla (texto) enviada al admin para pedido #${numeroPedido}`);
         }
       }
+
     } catch (error) {
       logger.error(`❌ Error al notificar admin sobre pedido #${numeroPedido}:`, error);
       // Intentar enviar al menos el mensaje sin imagen (el link ya está en el texto)

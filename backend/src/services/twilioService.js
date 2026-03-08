@@ -253,6 +253,47 @@ class TwilioService {
   }
 
   /**
+   * Enviar template de comprobante con imagen al admin (Media template - business initiated)
+   * Variables: {{1}}=comprobanteUrl, {{2}}=numeroPedido, {{3}}=cliente, {{4}}=telefono, {{5}}=total, {{6}}=tipo
+   */
+  static async enviarTemplateComprobanteAdmin(numeroPedido, nombreCliente, telefono, total, tipoPedido, comprobanteUrl) {
+    try {
+      if (process.env.TWILIO_TEST_MODE === 'true') {
+        logger.info(`[TEST MODE] Template comprobante pedido #${numeroPedido}`);
+        return { success: true, messageSid: 'TEST_MODE', test: true };
+      }
+
+      const numeroAdmin = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
+      if (!numeroAdmin) {
+        return { success: false, error: 'Admin phone not configured' };
+      }
+
+      const tipoTexto = tipoPedido === 'para_llevar' ? 'Recoger en Restaurante' : 'Domicilio';
+
+      logger.info(`📸 Enviando template con comprobante al admin: ${numeroAdmin}`);
+      const message = await twilioClient.messages.create({
+        contentSid: config.twilio.templateComprobantePago,
+        contentVariables: JSON.stringify({
+          '1': comprobanteUrl,
+          '2': String(numeroPedido),
+          '3': nombreCliente,
+          '4': telefono,
+          '5': total,
+          '6': tipoTexto
+        }),
+        from: config.twilio.whatsappClientes,
+        to: `whatsapp:${numeroAdmin}`
+      });
+
+      logger.info(`✅ Template con comprobante enviado al admin: ${message.sid}`);
+      return { success: true, messageSid: message.sid };
+    } catch (error) {
+      logger.error('❌ Error enviando template con comprobante:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Enviar mensaje con imagen
    */
   static async enviarMensajeConImagen(numeroDestino, mensaje, mediaUrl) {

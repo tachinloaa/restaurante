@@ -40,7 +40,8 @@ const config = {
     accountSid: process.env.TWILIO_ACCOUNT_SID,
     authToken: process.env.TWILIO_AUTH_TOKEN,
     whatsappClientes: process.env.TWILIO_WHATSAPP_NUMBER_CLIENTES || process.env.TWILIO_WHATSAPP_NUMBER,
-    templateNuevoPedido: process.env.TWILIO_TEMPLATE_NUEVO_PEDIDO || 'HXae10080ed88b39c890553c03c3b5bcb8'
+    templateNuevoPedido: process.env.TWILIO_TEMPLATE_NUEVO_PEDIDO || 'HXae10080ed88b39c890553c03c3b5bcb8',
+    templateComprobantePago: process.env.TWILIO_TEMPLATE_COMPROBANTE_PAGO || 'HXc8e6c0bdf3728f4ef59ee2e10b46a586'
   },
 
   // Admin — respaldo fijo si la variable de entorno no está configurada
