@@ -1593,32 +1593,29 @@ class BotService {
     try {
       const total = totalPedido ? `$${totalPedido}` : (session.datos.total ? `$${session.datos.total}` : 'N/A');
       const tipoPedido = session.datos.tipo_pedido || 'domicilio';
-      const comprobanteUrl = session.datos.comprobante_url || null;
+      const comprobanteUrl = session.datos.comprobante_twilio_url || session.datos.comprobante_url || null;
 
-      // SIEMPRE enviar el template de texto aprobado primero (garantizado que llega)
-      const resultadoTexto = await TwilioService.enviarNotificacionAdminConPlantilla(
-        numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl
-      );
-      if (resultadoTexto.success) {
-        logger.info(`✅ Template de texto enviado al admin para pedido #${numeroPedido}`);
-      } else {
-        logger.error(`❌ Error template de texto: ${resultadoTexto.error}`);
-      }
-
-      // Enviar la imagen directamente al admin como freeform (funciona porque el template anterior abrió la ventana de 24h)
-      const mediaUrlParaEnviar = session.datos.comprobante_twilio_url || session.datos.comprobante_url || null;
-      if (mediaUrlParaEnviar) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        const adminPhoneNorm = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
-        const resultado = await TwilioService.enviarMensajeConImagen(
-          adminPhoneNorm,
-          `📸 Comprobante de pago - Pedido #${numeroPedido}`,
-          mediaUrlParaEnviar
+      if (comprobanteUrl) {
+        // Media template: envía imagen + detalles del pedido en un solo mensaje
+        const resultado = await TwilioService.enviarTemplateComprobanteAdmin(
+          numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl
         );
         if (resultado.success) {
-          logger.info(`✅ Imagen de comprobante #${numeroPedido} enviada al admin`);
+          logger.info(`✅ Media template con comprobante enviado al admin para pedido #${numeroPedido}`);
         } else {
-          logger.error(`❌ Error al enviar imagen del comprobante: ${resultado.error}`);
+          logger.error(`❌ Error media template: ${resultado.error}`);
+          // Fallback al template de texto
+          await TwilioService.enviarNotificacionAdminConPlantilla(numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl);
+        }
+      } else {
+        // Sin imagen: template de texto
+        const resultadoTexto = await TwilioService.enviarNotificacionAdminConPlantilla(
+          numeroPedido, cliente, telefono, total, tipoPedido, null
+        );
+        if (resultadoTexto.success) {
+          logger.info(`✅ Template de texto enviado al admin para pedido #${numeroPedido}`);
+        } else {
+          logger.error(`❌ Error template de texto: ${resultadoTexto.error}`);
         }
       }
 
