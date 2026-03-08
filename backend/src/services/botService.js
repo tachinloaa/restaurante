@@ -1160,6 +1160,14 @@ class BotService {
 
     // Verificar si recibió una imagen
     if (numMedia > 0 && mediaUrl) {
+      // 🛡️ GUARD: Prevenir pedido duplicado por webhook retry / race condition
+      if (session.datos.pedido_ya_creado) {
+        logger.warn(`⚠️ Pedido ya creado para ${telefono}, ignorando webhook duplicado`);
+        return { success: true, mensaje: null };
+      }
+      // Marcar INMEDIATAMENTE antes de cualquier op lenta para evitar duplicados concurrentes
+      await SessionService.guardarDatos(telefono, { pedido_ya_creado: true });
+
       // Subir imagen a Supabase Storage para obtener URL pública (para links clickeables)
       let urlPublica = null;
       try {
@@ -1593,7 +1601,8 @@ class BotService {
     try {
       const total = totalPedido ? `$${totalPedido}` : (session.datos.total ? `$${session.datos.total}` : 'N/A');
       const tipoPedido = session.datos.tipo_pedido || 'domicilio';
-      const comprobanteUrl = session.datos.comprobante_twilio_url || session.datos.comprobante_url || null;
+      // Priorizar URL pública de Supabase (accesible sin auth) para el media template
+      const comprobanteUrl = session.datos.comprobante_url || session.datos.comprobante_twilio_url || null;
 
       if (comprobanteUrl) {
         // Media template: envía imagen + detalles del pedido en un solo mensaje
