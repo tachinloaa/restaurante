@@ -378,30 +378,23 @@ class BotService {
       logger.error('Error al verificar bloqueo del cliente:', error);
     }
 
-    // 🔒 VALIDACIÓN 2: Verificar si ya tiene un pedido activo (no puede hacer otro hasta que se entregue o cancele)
+    // 🔒 VALIDACIÓN 2: Bloquear si ya tiene un comprobante enviado esperando verificación
     const { data: pedidosActivos, error } = await supabase
       .from('pedidos')
       .select('id, numero_pedido, total, estado')
       .eq('telefono_cliente', telefono)
-      .in('estado', ['pendiente_pago', 'pendiente', 'preparando'])
+      .in('estado', ['pendiente_pago'])
       .order('created_at', { ascending: false });
 
     if (!error && pedidosActivos && pedidosActivos.length >= 1) {
       const pedido = pedidosActivos[0];
-      const estadoTexto = {
-        pendiente_pago: '⏳ Esperando verificación de pago',
-        pendiente: '⏳ Pendiente de preparación',
-        preparando: '👨‍🍳 En preparación'
-      }[pedido.estado] || pedido.estado;
 
       return {
         success: true,
-        mensaje: `⚠️ *YA TIENES UN PEDIDO ACTIVO*\n\n` +
-          `📋 Pedido *#${pedido.numero_pedido}*\n` +
-          `💰 Total: ${formatearPrecio(pedido.total)}\n` +
-          `📊 Estado: ${estadoTexto}\n\n` +
-          `No puedes hacer un nuevo pedido hasta que el anterior sea entregado o cancelado.\n\n` +
-          `Escribe *mis pedidos* para ver el estado de tu pedido.`
+        mensaje: `⏳ *PAGO EN VERIFICACIÓN*\n\n` +
+          `Ya enviaste un comprobante para el pedido *#${pedido.numero_pedido}* (${formatearPrecio(pedido.total)}).\n\n` +
+          `Espera a que el restaurante verifique tu pago antes de hacer un nuevo pedido.\n\n` +
+          `Escribe *mis pedidos* para ver el estado.`
       };
     }
 
