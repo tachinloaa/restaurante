@@ -2490,7 +2490,6 @@ class BotService {
 
     mensaje += `👨‍🍳 *AVANZAR ESTADO DEL PEDIDO*\n`;
     mensaje += `• *preparando #123* — En la cocina\n`;
-    mensaje += `• *listo #123* — Terminado, listo para entregar\n`;
     mensaje += `• *entregado #123* — Domicilio: en camino 🛵 | Recoger: listo para recoger 📦\n\n`;
 
     mensaje += `🛵 *REPARTIDOR*\n`;
@@ -2979,7 +2978,7 @@ class BotService {
       if (partes.length < 2) {
         return {
           success: false,
-          mensaje: '❌ Formato incorrecto.\n\nUsa: *preparando #2602106719*\nO: *listo #2602106719*\nO: *entregado #2602106719*'
+          mensaje: '❌ Formato incorrecto.\n\nUsa: *preparando #2602106719*\nO: *entregado #2602106719*'
         };
       }
 
