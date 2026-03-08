@@ -111,7 +111,7 @@ class OrderService {
         notas: datosCliente.notas || null,
         metodo_pago: datosCliente.metodo_pago || 'efectivo',
         pago_verificado: datosCliente.metodo_pago === 'transferencia' ? false : true,
-        comprobante_pago: datosCliente.comprobante_info || null,
+        comprobante_pago: datosCliente.comprobante_url || datosCliente.comprobante_info || null,
         productos: productosConDetalles.productos
       };
 

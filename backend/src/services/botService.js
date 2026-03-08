@@ -1169,7 +1169,7 @@ class BotService {
         comprobante_info: 'Imagen recibida'
       });
 
-      logger.info(`✅ Comprobante guardado en sesión con URL: ${mediaUrl}`);
+      logger.info(`✅ Comprobante guardado en sesión con URL: ${urlPublica}`);
 
       // GENERAR RESUMEN ANTES DE QUE SE BORRE EL CARRITO
       session = await SessionService.getSession(telefono);
@@ -1572,6 +1572,11 @@ class BotService {
     mensajeAdmin += `👉 También puedes gestionarlo desde el dashboard:\n`;
     mensajeAdmin += `${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/pedidos`;
 
+    // Incluir link del comprobante en el texto del mensaje (siempre visible aunque la imagen no llegue)
+    if (session.datos.comprobante_url) {
+      mensajeAdmin += `\n📸 *Ver comprobante:*\n${session.datos.comprobante_url}`;
+    }
+
     try {
       // Primero enviar notificación con plantilla aprobada (funciona sin restricción de 24h)
       const total = totalPedido ? `$${totalPedido}` : (session.datos.total ? `$${session.datos.total}` : 'N/A');
@@ -1582,6 +1587,9 @@ class BotService {
       if (resultadoPlantilla.success) {
         logger.info(`✅ Notificación con plantilla enviada al admin para pedido #${numeroPedido}`);
       }
+
+      // Esperar 3 segundos para que WhatsApp abra la ventana de conversación del template
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Luego enviar el detalle completo (con o sin imagen)
       if (session.datos.comprobante_url) {
@@ -1598,8 +1606,7 @@ class BotService {
           logger.info(`✅ Notificación de pedido #${numeroPedido} enviada al admin CON IMAGEN`);
         } else {
           logger.error(`❌ Error al enviar imagen del comprobante: ${resultado.error}`);
-          // Enviar mensaje sin imagen como respaldo
-          mensajeAdmin += `\n\n⚠️ El comprobante no pudo enviarse automáticamente`;
+          // Enviar mensaje sin imagen como respaldo (el link ya está en el texto)
           await TwilioService.enviarMensajeAdmin(mensajeAdmin);
         }
       } else {
@@ -1609,7 +1616,7 @@ class BotService {
       }
     } catch (error) {
       logger.error(`❌ Error al notificar admin sobre pedido #${numeroPedido}:`, error);
-      // Intentar enviar al menos el mensaje sin imagen
+      // Intentar enviar al menos el mensaje sin imagen (el link ya está en el texto)
       try {
         await TwilioService.enviarMensajeAdmin(mensajeAdmin);
       } catch (e) {
