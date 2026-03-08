@@ -1,5 +1,7 @@
 import config from '../config/environment.js';
 
+const TZ = 'America/Mexico_City';
+
 /**
  * Utilidades para formatear datos
  */
@@ -24,7 +26,7 @@ export const formatearFecha = (fecha) => {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: config.timezone
+    timeZone: TZ
   }).format(new Date(fecha));
 };
 
@@ -36,7 +38,7 @@ export const formatearFechaCorta = (fecha) => {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-    timeZone: config.timezone
+    timeZone: TZ
   }).format(new Date(fecha));
 };
 
@@ -47,7 +49,7 @@ export const formatearHora = (fecha) => {
   return new Intl.DateTimeFormat('es-MX', {
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: config.timezone
+    timeZone: TZ
   }).format(new Date(fecha));
 };
 
@@ -80,7 +82,7 @@ export const formatearTelefono = (telefono) => {
  */
 export const generarNumeroPedido = () => {
   const ahora = new Date();
-  const fechaMexico = new Date(ahora.toLocaleString('en-US', { timeZone: config.timezone }));
+  const fechaMexico = new Date(ahora.toLocaleString('en-US', { timeZone: TZ }));
   const año = fechaMexico.getFullYear().toString().slice(-2);
   const mes = String(fechaMexico.getMonth() + 1).padStart(2, '0');
   const dia = String(fechaMexico.getDate()).padStart(2, '0');
