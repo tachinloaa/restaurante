@@ -98,9 +98,6 @@ class BotService {
         if (mensajeLimpio.startsWith('preparando')) {
           return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.PREPARANDO);
         }
-        if (mensajeLimpio.startsWith('listo')) {
-          return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.LISTO);
-        }
 
         // Cancelar cualquier pedido activo por admin
         if (mensajeLimpio.startsWith('cancelar')) {
@@ -2289,8 +2286,6 @@ class BotService {
           'pendiente_pago': '⏳',
           'pendiente': '⏳',
           'preparando': '👨‍🍳',
-          'listo': '✅',
-          'enviado': '🛵',
           'entregado': '✅',
           'cancelado': '❌'
         };
@@ -2299,8 +2294,6 @@ class BotService {
           'pendiente_pago': 'Verificando pago',
           'pendiente': 'Pendiente',
           'preparando': 'Preparando',
-          'listo': 'Listo',
-          'enviado': 'En camino',
           'entregado': 'Entregado',
           'cancelado': 'Cancelado'
         };
@@ -2558,7 +2551,7 @@ class BotService {
             telefono
           )
         `)
-        .in('estado', ['pendiente_pago', 'pendiente', 'preparando', 'listo', 'enviado'])
+        .in('estado', ['pendiente_pago', 'pendiente', 'preparando'])
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -2583,8 +2576,6 @@ class BotService {
           'pendiente_pago': { emoji: '⏳', texto: 'PAGO PENDIENTE' },
           'pendiente':      { emoji: '🔴', texto: 'NUEVO' },
           'preparando':     { emoji: '👨‍🍳', texto: 'PREPARANDO' },
-          'listo':          { emoji: '📦', texto: 'LISTO' },
-          'enviado':        { emoji: '🛵', texto: 'EN CAMINO' },
         };
 
         const { emoji, texto } = estadoInfo[pedido.estado] || { emoji: '⚪', texto: pedido.estado.toUpperCase() };
@@ -2669,8 +2660,6 @@ class BotService {
         'pendiente_pago': '⏳',
         'pendiente': '🔴',
         'preparando': '👨‍🍳',
-        'listo': '📦',
-        'enviado': '🛵',
         'entregado': '✅',
         'cancelado': '❌'
       };
@@ -3044,16 +3033,14 @@ class BotService {
       // Mensajes según el estado
       const estadoEmojis = {
         'preparando': '👨‍🍳',
-        'listo': '✅',
-        'enviado': '🏍️',
-        'entregado': '🎉'
+        'entregado': '🎉',
+        'cancelado': '❌'
       };
 
       const estadoTextos = {
         'preparando': 'PREPARANDO',
-        'listo': 'LISTO',
-        'enviado': 'EN CAMINO',
-        'entregado': 'ENTREGADO'
+        'entregado': 'ENTREGADO',
+        'cancelado': 'CANCELADO'
       };
 
       logger.info(`✅ Pedido #${numeroPedido} actualizado a estado: ${nuevoEstado} por admin`);

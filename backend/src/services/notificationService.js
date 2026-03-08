@@ -77,10 +77,9 @@ class NotificationService {
         mensaje += `⚡ *ACCIONES:*\n`;
         mensaje += `• *preparando #${pedido.numero_pedido}* — Poner en cocina 👨‍🍳\n`;
         if (esDomicilio) {
-          mensaje += `• *enviado #${pedido.numero_pedido}* — Repartidor en camino 🛵\n`;
           mensaje += `• *ficha #${pedido.numero_pedido}* — Ver ficha de entrega 📋\n`;
         }
-        mensaje += `• *entregado #${pedido.numero_pedido}* — Marcar entregado ✅\n`;
+        mensaje += `• *entregado #${pedido.numero_pedido}* — ${esDomicilio ? 'Marcar en camino 🛵' : 'Listo para recoger 📦'}\n`;
         mensaje += `• *cancelar #${pedido.numero_pedido}* — Cancelar pedido\n`;
       } else {
         mensaje += `⚡ *VERIFICAR PAGO:*\n`;
@@ -132,7 +131,7 @@ class NotificationService {
     try {
       let mensaje = '';
 
-      // ⚡ SOLO notificar en estado ENTREGADO
+      // ⚡ Solo notifica al cliente en estados: ENTREGADO y CANCELADO
       switch (pedido.estado) {
         case 'entregado':
           if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
