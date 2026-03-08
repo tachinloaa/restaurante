@@ -1578,30 +1578,26 @@ class BotService {
     }
 
     try {
-      // Primero enviar notificación con plantilla aprobada (funciona sin restricción de 24h)
+      // Enviar notificación con plantilla aprobada (ÚNICA forma confiable de llegar al admin)
+      // Los mensajes freeform NO llegan si el admin no ha escrito al bot en 24h
       const total = totalPedido ? `$${totalPedido}` : (session.datos.total ? `$${session.datos.total}` : 'N/A');
       const tipoPedido = session.datos.tipo_pedido || 'domicilio';
+      const comprobanteUrl = session.datos.comprobante_url || null;
       const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
-        numeroPedido, cliente, telefono, total, tipoPedido
+        numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl
       );
       if (resultadoPlantilla.success) {
         logger.info(`✅ Notificación con plantilla enviada al admin para pedido #${numeroPedido}`);
       }
 
-      // Esperar 3 segundos para que WhatsApp abra la ventana de conversación del template
+      // Intentar enviar detalle + imagen como freeform (solo llega si hay ventana de 24h abierta)
       await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // IMPORTANTE: WhatsApp tiene límite de 1024 chars para caption de imagen.
-      // Enviar el texto detallado PRIMERO como mensaje normal, y la imagen APARTE.
       await TwilioService.enviarMensajeAdmin(mensajeAdmin);
       logger.info(`📨 Detalle de pedido #${numeroPedido} enviado al admin (texto)`);
 
-      // Enviar la imagen del comprobante por separado con caption corto
       if (session.datos.comprobante_url) {
-        logger.info(`📸 Enviando comprobante al admin con URL: ${session.datos.comprobante_url}`);
-
         await new Promise(resolve => setTimeout(resolve, 1000));
-
         const adminPhoneNorm = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
         const captionCorto = `📸 Comprobante de pago - Pedido #${numeroPedido}`;
         const resultado = await TwilioService.enviarMensajeConImagen(
@@ -1609,7 +1605,6 @@ class BotService {
           captionCorto,
           session.datos.comprobante_url
         );
-
         if (resultado.success) {
           logger.info(`✅ Imagen de comprobante #${numeroPedido} enviada al admin`);
         } else {
