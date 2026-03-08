@@ -1572,7 +1572,7 @@ class BotService {
     mensajeAdmin += `👉 También puedes gestionarlo desde el dashboard:\n`;
     mensajeAdmin += `${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/pedidos`;
 
-    // Incluir link del comprobante en el texto del mensaje (siempre visible aunque la imagen no llegue)
+    // Incluir link del comprobante en el texto del mensaje
     if (session.datos.comprobante_url) {
       mensajeAdmin += `\n📸 *Ver comprobante:*\n${session.datos.comprobante_url}`;
     }
@@ -1591,28 +1591,30 @@ class BotService {
       // Esperar 3 segundos para que WhatsApp abra la ventana de conversación del template
       await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // Luego enviar el detalle completo (con o sin imagen)
+      // IMPORTANTE: WhatsApp tiene límite de 1024 chars para caption de imagen.
+      // Enviar el texto detallado PRIMERO como mensaje normal, y la imagen APARTE.
+      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+      logger.info(`📨 Detalle de pedido #${numeroPedido} enviado al admin (texto)`);
+
+      // Enviar la imagen del comprobante por separado con caption corto
       if (session.datos.comprobante_url) {
         logger.info(`📸 Enviando comprobante al admin con URL: ${session.datos.comprobante_url}`);
 
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         const adminPhoneNorm = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
+        const captionCorto = `📸 Comprobante de pago - Pedido #${numeroPedido}`;
         const resultado = await TwilioService.enviarMensajeConImagen(
           adminPhoneNorm,
-          mensajeAdmin,
+          captionCorto,
           session.datos.comprobante_url
         );
 
         if (resultado.success) {
-          logger.info(`✅ Notificación de pedido #${numeroPedido} enviada al admin CON IMAGEN`);
+          logger.info(`✅ Imagen de comprobante #${numeroPedido} enviada al admin`);
         } else {
           logger.error(`❌ Error al enviar imagen del comprobante: ${resultado.error}`);
-          // Enviar mensaje sin imagen como respaldo (el link ya está en el texto)
-          await TwilioService.enviarMensajeAdmin(mensajeAdmin);
         }
-      } else {
-        logger.warn(`⚠️ No hay comprobante_url en la sesión de ${telefono}`);
-        await TwilioService.enviarMensajeAdmin(mensajeAdmin);
-        logger.info(`📨 Notificación de pedido #${numeroPedido} enviada al admin SIN IMAGEN`);
       }
     } catch (error) {
       logger.error(`❌ Error al notificar admin sobre pedido #${numeroPedido}:`, error);
