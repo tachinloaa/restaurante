@@ -366,30 +366,33 @@ class BotService {
       logger.error('Error al verificar bloqueo del cliente:', error);
     }
 
-    // 🔒 VALIDACIÓN 2: Verificar pedidos pendientes (máximo 2)
-    const { data: pedidosPendientes, error } = await supabase
+    // 🔒 VALIDACIÓN 2: Verificar si ya tiene un pedido activo (no puede hacer otro hasta que se entregue o cancele)
+    const { data: pedidosActivos, error } = await supabase
       .from('pedidos')
       .select('id, numero_pedido, total, estado')
       .eq('telefono_cliente', telefono)
-      .in('estado', ['pendiente', 'en_proceso', 'pendiente_pago'])
+      .in('estado', ['pendiente', 'en_proceso', 'pendiente_pago', 'confirmado', 'en_preparacion', 'en_camino'])
       .order('created_at', { ascending: false });
 
-    if (!error && pedidosPendientes && pedidosPendientes.length >= 2) {
-      let mensaje = `⚠️ *LÍMITE DE PEDIDOS ALCANZADO*\n\n`;
-      mensaje += `Tienes *${pedidosPendientes.length} pedidos pendientes*.\n\n`;
-      mensaje += `Por favor completa o cancela los anteriores antes de crear uno nuevo:\n\n`;
-      
-      pedidosPendientes.slice(0, 2).forEach((pedido, index) => {
-        mensaje += `${index + 1}. Pedido *#${pedido.numero_pedido}*\n`;
-        mensaje += `   💰 Total: ${formatearPrecio(pedido.total)}\n`;
-        mensaje += `   📊 Estado: ${pedido.estado}\n\n`;
-      });
-      
-      mensaje += `📞 Para más información sobre tus pedidos, escribe *mis pedidos*`;
-      
+    if (!error && pedidosActivos && pedidosActivos.length >= 1) {
+      const pedido = pedidosActivos[0];
+      const estadoTexto = {
+        pendiente_pago: '⏳ Esperando verificación de pago',
+        pendiente: '⏳ Pendiente',
+        en_proceso: '🔄 En proceso',
+        confirmado: '✅ Confirmado',
+        en_preparacion: '👨‍🍳 En preparación',
+        en_camino: '🛵 En camino'
+      }[pedido.estado] || pedido.estado;
+
       return {
         success: true,
-        mensaje
+        mensaje: `⚠️ *YA TIENES UN PEDIDO ACTIVO*\n\n` +
+          `📋 Pedido *#${pedido.numero_pedido}*\n` +
+          `💰 Total: ${formatearPrecio(pedido.total)}\n` +
+          `📊 Estado: ${estadoTexto}\n\n` +
+          `No puedes hacer un nuevo pedido hasta que el anterior sea entregado o cancelado.\n\n` +
+          `Escribe *mis pedidos* para ver el estado de tu pedido.`
       };
     }
 
