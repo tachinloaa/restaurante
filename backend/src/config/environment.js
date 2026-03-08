@@ -45,7 +45,7 @@ const config = {
 
   // Admin — respaldo fijo si la variable de entorno no está configurada
   admin: {
-    phoneNumber: process.env.ADMIN_PHONE_NUMBER || '+525636399034'
+    phoneNumber: process.env.ADMIN_PHONE_NUMBER || '+522217105235'
   },
 
   // Datos bancarios (seguridad)
