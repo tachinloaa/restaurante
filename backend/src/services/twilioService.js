@@ -331,12 +331,12 @@ class TwilioService {
       const message = await twilioClient.messages.create({
         contentSid: config.twilio.templateComprobantePago,
         contentVariables: JSON.stringify({
-          '1': comprobanteUrl,
-          '2': String(numeroPedido),
-          '3': nombreCliente,
-          '4': telefono,
-          '5': total,
-          '6': tipoTexto
+          '1': String(numeroPedido),
+          '2': nombreCliente,
+          '3': telefono,
+          '4': total,
+          '5': tipoTexto,
+          '6': comprobanteUrl || 'Sin comprobante'
         }),
         from: config.twilio.whatsappClientes,
         to: `whatsapp:${numeroAdmin}`
