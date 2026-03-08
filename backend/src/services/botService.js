@@ -2486,8 +2486,6 @@ class BotService {
    * Mostrar ayuda para administradores
    */
   async mostrarAyudaAdmin() {
-    const repartidorConfigurado = !!config.repartidor?.phoneNumber;
-
     let mensaje = `🔑 *PANEL DE ADMINISTRADOR*\n`;
     mensaje += `*El Rinconcito - Sistema de Pedidos*\n\n`;
 
@@ -2507,10 +2505,7 @@ class BotService {
     mensaje += `• *entregado #123* — Pedido entregado ✅\n\n`;
 
     mensaje += `🛵 *REPARTIDOR*\n`;
-    mensaje += `• *ficha #123* — Ver ficha de entrega`;
-    mensaje += repartidorConfigurado
-      ? ` (se envía auto al repartidor ✅)\n\n`
-      : ` y reenviar manualmente\n\n`;
+    mensaje += `• *ficha #123* — Ver ficha de entrega para reenviar al repartidor\n\n`;
 
     mensaje += `🚫 *CANCELAR*\n`;
     mensaje += `• *cancelar #123* — Cancelar pedido activo\n`;
@@ -2518,10 +2513,6 @@ class BotService {
 
     mensaje += `ℹ️ *OTROS*\n`;
     mensaje += `• *ayuda* — Esta pantalla\n\n`;
-
-    if (!repartidorConfigurado) {
-      mensaje += `💡 *Tip:* Configura *REPARTIDOR_PHONE_NUMBER* en Render para enviar la ficha automáticamente al repartidor al aprobar cada pedido.\n\n`;
-    }
 
     mensaje += `🌐 Dashboard: ${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/pedidos`;
 
@@ -2965,16 +2956,9 @@ class BotService {
 
       fichaReparto += `${NL}👉 *Reenvía este mensaje al repartidor*`;
 
-      // Enviar ficha al admin
+      // Enviar ficha al admin para que la reenvíe al repartidor
       await TwilioService.enviarMensajeAdmin(fichaReparto);
-
-      // Enviar ficha automáticamente al repartidor si está configurado
-      const repartidorResult = await TwilioService.enviarMensajeRepartidor(fichaReparto);
-      if (repartidorResult.success) {
-        logger.info(`✅ Ficha enviada automáticamente al repartidor para pedido #${pedido.numero_pedido}`);
-      } else if (!repartidorResult.notConfigured) {
-        logger.warn(`⚠️ Error al enviar ficha al repartidor: ${repartidorResult.error}`);
-      }
+      logger.info(`✅ Ficha de reparto enviada al admin para pedido #${pedido.numero_pedido}`);
     }
 
     return {
@@ -3062,28 +3046,6 @@ class BotService {
           pedido.clientes
         );
         notificacionEnviada = true;
-      }
-
-      // Al marcar como ENVIADO, también enviar ficha al repartidor si está configurado
-      if (nuevoEstado === ESTADOS_PEDIDO.ENVIADO && pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
-        const fichaPedido = pedidoActualizado || pedido;
-        const NL = '\n';
-        let fichaEnviado = `🛵 *ENTREGA EN CAMINO* 📦${NL}`;
-        fichaEnviado += `🆔 Pedido: *#${fichaPedido.numero_pedido}*${NL}${NL}`;
-        fichaEnviado += `👤 *Cliente:* ${fichaPedido.clientes?.nombre}${NL}`;
-        fichaEnviado += `📞 *Tel:* wa.me/${fichaPedido.clientes?.telefono?.replace('whatsapp:', '').replace('+', '')}${NL}`;
-        fichaEnviado += `📍 *Dirección:* ${fichaPedido.direccion_entrega || 'No especificada'}${NL}`;
-        if (fichaPedido.referencias) fichaEnviado += `ℹ️ *Ref:* ${fichaPedido.referencias}${NL}`;
-        const montoCobrar = fichaPedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA ? COSTO_ENVIO : fichaPedido.total;
-        fichaEnviado += `${NL}💰 *COBRAR: ${formatearPrecio(montoCobrar)}*${NL}`;
-        fichaEnviado += `💳 *Método:* ${fichaPedido.metodo_pago ? fichaPedido.metodo_pago.toUpperCase() : 'EFECTIVO'}${NL}`;
-        if (fichaPedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA) {
-          fichaEnviado += `📝 Solo cobrar envío — comida pagada por transferencia${NL}`;
-        }
-        const repartidorResult = await TwilioService.enviarMensajeRepartidor(fichaEnviado);
-        if (repartidorResult.success) {
-          logger.info(`✅ Ficha enviada al repartidor al marcar enviado #${fichaPedido.numero_pedido}`);
-        }
       }
 
       // Mensajes según el estado
@@ -3327,27 +3289,12 @@ class BotService {
     }
 
     fichaReparto += `${NL}✅ Estado del pedido: *${pedido.estado?.toUpperCase() || 'N/A'}*`;
+    fichaReparto += `\n\n${'─'.repeat(30)}\n📲 *Reenvía este mensaje al repartidor.*`;
 
-    // Enviar al repartidor si está configurado
-    const repartidorResult = await TwilioService.enviarMensajeRepartidor(fichaReparto);
-
-    if (repartidorResult.notConfigured) {
-      return {
-        success: true,
-        mensaje: fichaReparto +
-          `\n\n${'─'.repeat(30)}\n📲 *Ficha generada. Reenvía este mensaje al repartidor.*\n\n💡 Para envío automático, configura *REPARTIDOR_PHONE_NUMBER* en Render.`
-      };
-    } else if (repartidorResult.success) {
-      return {
-        success: true,
-        mensaje: fichaReparto + `\n\n${'─'.repeat(30)}\n✅ *Ficha enviada automáticamente al repartidor.*`
-      };
-    } else {
-      return {
-        success: true,
-        mensaje: fichaReparto + `\n\n${'─'.repeat(30)}\n⚠️ No se pudo enviar al repartidor: ${repartidorResult.error}`
-      };
-    }
+    return {
+      success: true,
+      mensaje: fichaReparto
+    };
   }
 
   /**
