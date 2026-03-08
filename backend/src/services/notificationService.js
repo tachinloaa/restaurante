@@ -136,9 +136,9 @@ class NotificationService {
       switch (pedido.estado) {
         case 'entregado':
           if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
-            mensaje = `🎉 *¡Tu pedido #${pedido.numero_pedido} fue entregado!*\n\n`;
-            mensaje += `${EMOJIS.CHECK} Esperamos que lo disfrutes.\n\n`;
-            mensaje += `Gracias por tu preferencia ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
+            mensaje = `${EMOJIS.MOTO} *¡Tu pedido #${pedido.numero_pedido} ya va en camino!*\n\n`;
+            mensaje += `🛵 El repartidor está en camino a tu domicilio.\n\n`;
+            mensaje += `¡Ya casi llega! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
           } else if (pedido.tipo_pedido === TIPOS_PEDIDO.PARA_LLEVAR) {
             mensaje = `${EMOJIS.CHECK} ¡Tu pedido *#${pedido.numero_pedido}* está listo!\n\n`;
             mensaje += `📦 *Puedes pasar a recogerlo*\n\n`;
@@ -165,16 +165,9 @@ class NotificationService {
           return { success: true, skipped: true };
 
         case 'enviado':
-          // Notificar SOLO si es domicilio (tiene sentido avisar que el repartidor salió)
-          if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
-            mensaje = `${EMOJIS.MOTO} *¡Tu pedido #${pedido.numero_pedido} va en camino!*\n\n`;
-            mensaje += `🛵 El repartidor está en camino a tu domicilio.\n\n`;
-            mensaje += `¡Ya casi llega! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
-          } else {
-            logger.info(`⏭️ Estado enviado no notifica al cliente (pedido para llevar)`);
-            return { success: true, skipped: true };
-          }
-          break;
+          // Estado legacy — no notifica, todo se maneja con 'entregado'
+          logger.info(`⏭️ Estado enviado ignorado (usar entregado)`);
+          return { success: true, skipped: true };
 
         default:
           return { success: false, error: 'Estado no reconocido' };

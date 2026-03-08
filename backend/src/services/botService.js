@@ -95,9 +95,6 @@ class BotService {
         if (mensajeLimpio.startsWith('entregado')) {
           return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.ENTREGADO);
         }
-        if (mensajeLimpio.startsWith('enviado')) {
-          return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.ENVIADO);
-        }
         if (mensajeLimpio.startsWith('preparando')) {
           return await this.cambiarEstadoRapido(bodySanitizado, ESTADOS_PEDIDO.PREPARANDO);
         }
@@ -2493,9 +2490,8 @@ class BotService {
 
     mensaje += `👨‍🍳 *AVANZAR ESTADO DEL PEDIDO*\n`;
     mensaje += `• *preparando #123* — En la cocina\n`;
-    mensaje += `• *listo #123* — Terminado, esperando envío\n`;
-    mensaje += `• *enviado #123* — Repartidor en camino 🛵\n`;
-    mensaje += `• *entregado #123* — Pedido entregado ✅\n\n`;
+    mensaje += `• *listo #123* — Terminado, listo para entregar\n`;
+    mensaje += `• *entregado #123* — Domicilio: en camino 🛵 | Recoger: listo para recoger 📦\n\n`;
 
     mensaje += `🛵 *REPARTIDOR*\n`;
     mensaje += `• *ficha #123* — Ver ficha de entrega para reenviar al repartidor\n\n`;
@@ -2612,7 +2608,6 @@ class BotService {
         mensaje += `• *rechazar #${primerPedido.numero_pedido}* - Rechazar pago\n`;
       } else {
         mensaje += `• *preparando #${primerPedido.numero_pedido}* - En cocina 👨‍🍳\n`;
-        mensaje += `• *enviado #${primerPedido.numero_pedido}* - En camino 🛵\n`;
         mensaje += `• *entregado #${primerPedido.numero_pedido}* - Entregado ✅\n`;
       }
       mensaje += `• *ver #${primerPedido.numero_pedido}* - Ver detalle\n`;
@@ -2720,8 +2715,7 @@ class BotService {
 
       respuesta += `⚡ *COMANDOS RÁPIDOS:*\n`;
       respuesta += `• *preparando #${pedido.numero_pedido}* — En cocina 👨‍🍳\n`;
-      respuesta += `• *enviado #${pedido.numero_pedido}* — En camino 🛵\n`;
-      respuesta += `• *entregado #${pedido.numero_pedido}* — Entregado ✅\n`;
+      respuesta += `• *entregado #${pedido.numero_pedido}* — ${pedido.tipo_pedido === 'domicilio' ? 'En camino 🛵' : 'Listo para recoger 📦'} \n`;
       respuesta += `• *cancelar #${pedido.numero_pedido}* — Cancelar\n`;
       if (pedido.tipo_pedido === 'domicilio') {
         respuesta += `• *ficha #${pedido.numero_pedido}* — Ver ficha 📋`;
@@ -2968,8 +2962,7 @@ class BotService {
         `${pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO ? `📍 Dirección: ${pedido.direccion_entrega || 'N/A'}\n` : '📦 Tipo: Recoger en restaurante\n'}` +
         `\n👨‍🍳 Estado actual: *PREPARANDO*\n\n` +
         `⚡ *COMANDOS RÁPIDOS:*\n` +
-        `• *enviado #${pedido.numero_pedido}* - Salió para entrega 🛵\n` +
-        `• *entregado #${pedido.numero_pedido}* - Pedido entregado ✅\n` +
+        `• *entregado #${pedido.numero_pedido}* - ${pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO ? 'En camino 🛵' : 'Listo para recoger 📦'}\n` +
         `• *ficha #${pedido.numero_pedido}* - Reenviar ficha al repartidor\n\n` +
         `✅ El cliente ya fue notificado de la aprobación del pago.`
     };
@@ -2986,7 +2979,7 @@ class BotService {
       if (partes.length < 2) {
         return {
           success: false,
-          mensaje: '❌ Formato incorrecto.\n\nUsa: *preparando #2602106719*\nO: *listo #2602106719*\nO: *enviado #2602106719*\nO: *entregado #2602106719*'
+          mensaje: '❌ Formato incorrecto.\n\nUsa: *preparando #2602106719*\nO: *listo #2602106719*\nO: *entregado #2602106719*'
         };
       }
 
@@ -3039,7 +3032,7 @@ class BotService {
       let notificacionEnviada = false;
       if (['enviado', 'entregado', 'cancelado'].includes(nuevoEstado)) {
         // Forzar nuevoEstado siempre — evita race condition donde pedidoActualizado
-        // llega con el estado anterior (stale) de Supabase y notifica en camino en vez de entregado
+        // llega con el estado anterior (stale) de Supabase
         const pedidoParaNotificar = {
           ...(pedidoActualizado || pedido),
           estado: nuevoEstado
