@@ -225,12 +225,11 @@ class TwilioService {
       const numeroFormateado = `whatsapp:${numeroAdmin}`;
       logger.info(`📤 Enviando plantilla al admin: ${numeroAdmin}`);
 
-      let tipoTexto = tipoPedido === 'para_llevar' ? 'Recoger en Restaurante' : 'Domicilio';
-      
-      // Incluir link del comprobante en la variable del tipo (es la ÚNICA forma confiable)
-      if (comprobanteUrl) {
-        tipoTexto += `\n📸 Ver comprobante: ${comprobanteUrl}`;
-      }
+      const tipoBase = tipoPedido === 'para_llevar' ? 'Recoger en Restaurante' : 'Domicilio';
+      // Variables de WhatsApp NO admiten \n ni emojis — URL en misma línea con separador
+      const tipoTexto = comprobanteUrl
+        ? `${tipoBase} | Comprobante: ${comprobanteUrl}`
+        : tipoBase;
 
       const message = await twilioClient.messages.create({
         contentSid: config.twilio.templateNuevoPedido,
