@@ -3030,7 +3030,7 @@ class BotService {
       // - entregado: confirmar entrega
       // - cancelado: avisar cancelación
       let notificacionEnviada = false;
-      if (['enviado', 'entregado', 'cancelado'].includes(nuevoEstado)) {
+      if (['entregado', 'cancelado'].includes(nuevoEstado)) {
         // Forzar nuevoEstado siempre — evita race condition donde pedidoActualizado
         // llega con el estado anterior (stale) de Supabase
         const pedidoParaNotificar = {
