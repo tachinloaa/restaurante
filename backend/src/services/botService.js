@@ -1148,28 +1148,29 @@ class BotService {
 
     // Verificar si recibió una imagen
     if (numMedia > 0 && mediaUrl) {
-      // Subir imagen a Supabase Storage para obtener URL pública
-      let urlPublica = mediaUrl;
+      // Subir imagen a Supabase Storage para obtener URL pública (para links clickeables)
+      let urlPublica = null;
       try {
         const urlStorage = await StorageService.subirComprobanteDesdeTwilio(mediaUrl, telefono);
         if (urlStorage) {
           urlPublica = urlStorage;
           logger.info(`✅ Comprobante subido a Storage: ${urlPublica}`);
-        } else {
-          logger.warn(`⚠️ No se pudo subir a Storage, usando URL original de Twilio`);
         }
       } catch (storageError) {
         logger.warn(`⚠️ Error subiendo comprobante a Storage: ${storageError.message}`);
       }
 
-      // Guardar URL del comprobante (pública de Supabase o la de Twilio como fallback)
+      // Guardar AMBAS URLs:
+      // - comprobante_url: URL pública de Supabase (para links clickeables en template)
+      // - comprobante_twilio_url: URL original de Twilio (para enviar imagen vía Twilio API)
       await SessionService.guardarDatos(telefono, {
         comprobante_recibido: true,
-        comprobante_url: urlPublica,
+        comprobante_url: urlPublica || mediaUrl,
+        comprobante_twilio_url: mediaUrl,
         comprobante_info: 'Imagen recibida'
       });
 
-      logger.info(`✅ Comprobante guardado en sesión con URL: ${urlPublica}`);
+      logger.info(`✅ Comprobante guardado - Supabase: ${urlPublica || 'N/A'} | Twilio: ${mediaUrl}`);
 
       // GENERAR RESUMEN ANTES DE QUE SE BORRE EL CARRITO
       session = await SessionService.getSession(telefono);
@@ -1593,20 +1594,44 @@ class BotService {
       // Intentar enviar detalle + imagen como freeform (solo llega si hay ventana de 24h abierta)
       await new Promise(resolve => setTimeout(resolve, 3000));
 
-      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
-      logger.info(`📨 Detalle de pedido #${numeroPedido} enviado al admin (texto)`);
+      const resultadoTexto = await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+      logger.info(`📨 Detalle de pedido #${numeroPedido} enviado al admin (texto) - SID: ${resultadoTexto?.messageSid || 'N/A'}`);
+      
+      // Verificar estado del texto freeform después de 10s para diagnóstico
+      if (resultadoTexto?.messageSid) {
+        setTimeout(async () => {
+          try {
+            const status = await TwilioService.obtenerEstadoMensaje(resultadoTexto.messageSid);
+            logger.info(`📊 Estado texto freeform (${resultadoTexto.messageSid}): ${JSON.stringify(status.data)}`);
+          } catch (e) {
+            logger.error(`Error verificando estado del texto freeform: ${e.message}`);
+          }
+        }, 10000);
+      }
 
-      if (session.datos.comprobante_url) {
+      if (session.datos.comprobante_twilio_url || session.datos.comprobante_url) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         const adminPhoneNorm = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
         const captionCorto = `📸 Comprobante de pago - Pedido #${numeroPedido}`;
+        // Usar URL de Twilio para enviar la imagen (Twilio accede sus propios servidores internamente)
+        const mediaUrlParaEnviar = session.datos.comprobante_twilio_url || session.datos.comprobante_url;
+        logger.info(`📸 Enviando comprobante al admin con URL de Twilio: ${mediaUrlParaEnviar}`);
         const resultado = await TwilioService.enviarMensajeConImagen(
           adminPhoneNorm,
           captionCorto,
-          session.datos.comprobante_url
+          mediaUrlParaEnviar
         );
         if (resultado.success) {
           logger.info(`✅ Imagen de comprobante #${numeroPedido} enviada al admin`);
+          // Verificar estado del mensaje después de 10s para diagnóstico
+          setTimeout(async () => {
+            try {
+              const status = await TwilioService.obtenerEstadoMensaje(resultado.messageSid);
+              logger.info(`📊 Estado de imagen comprobante (${resultado.messageSid}): ${JSON.stringify(status.data)}`);
+            } catch (e) {
+              logger.error(`Error verificando estado del mensaje: ${e.message}`);
+            }
+          }, 10000);
         } else {
           logger.error(`❌ Error al enviar imagen del comprobante: ${resultado.error}`);
         }
