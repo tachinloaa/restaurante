@@ -2970,13 +2970,10 @@ class BotService {
 
       // Enviar ficha automáticamente al repartidor si está configurado
       const repartidorResult = await TwilioService.enviarMensajeRepartidor(fichaReparto);
-      if (repartidorResult.notConfigured) {
-        // No configurado: recordar al admin que puede configurarlo
-        await TwilioService.enviarMensajeAdmin(
-          `ℹ️ *Tip:* Para enviar la ficha automáticamente al repartidor, configura *REPARTIDOR_PHONE_NUMBER* en las variables de entorno de Render.\n\nCon el comando *ficha #${pedido.numero_pedido}* puedes reenviarla cuando quieras.`
-        );
-      } else if (repartidorResult.success) {
+      if (repartidorResult.success) {
         logger.info(`✅ Ficha enviada automáticamente al repartidor para pedido #${pedido.numero_pedido}`);
+      } else if (!repartidorResult.notConfigured) {
+        logger.warn(`⚠️ Error al enviar ficha al repartidor: ${repartidorResult.error}`);
       }
     }
 
@@ -3054,16 +3051,39 @@ class BotService {
         // Continuar con el pedido original si falla
       }
 
-      // Notificar al cliente SOLO cuando esté entregado o cancelado (optimización de costos Twilio)
-      // Los estados 'preparando', 'listo' y 'enviado' se actualizan sin enviar WhatsApp
+      // Notificar al cliente en estados relevantes:
+      // - enviado: avisarle que el pedido va en camino (domicilio)
+      // - entregado: confirmar entrega
+      // - cancelado: avisar cancelación
       let notificacionEnviada = false;
-      if (['entregado', 'cancelado'].includes(nuevoEstado)) {
-        // Usar pedido actualizado para que tenga el estado correcto
+      if (['enviado', 'entregado', 'cancelado'].includes(nuevoEstado)) {
         await NotificationService.notificarEstadoPedido(
           pedidoActualizado || { ...pedido, estado: nuevoEstado },
           pedido.clientes
         );
         notificacionEnviada = true;
+      }
+
+      // Al marcar como ENVIADO, también enviar ficha al repartidor si está configurado
+      if (nuevoEstado === ESTADOS_PEDIDO.ENVIADO && pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
+        const fichaPedido = pedidoActualizado || pedido;
+        const NL = '\n';
+        let fichaEnviado = `🛵 *ENTREGA EN CAMINO* 📦${NL}`;
+        fichaEnviado += `🆔 Pedido: *#${fichaPedido.numero_pedido}*${NL}${NL}`;
+        fichaEnviado += `👤 *Cliente:* ${fichaPedido.clientes?.nombre}${NL}`;
+        fichaEnviado += `📞 *Tel:* wa.me/${fichaPedido.clientes?.telefono?.replace('whatsapp:', '').replace('+', '')}${NL}`;
+        fichaEnviado += `📍 *Dirección:* ${fichaPedido.direccion_entrega || 'No especificada'}${NL}`;
+        if (fichaPedido.referencias) fichaEnviado += `ℹ️ *Ref:* ${fichaPedido.referencias}${NL}`;
+        const montoCobrar = fichaPedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA ? COSTO_ENVIO : fichaPedido.total;
+        fichaEnviado += `${NL}💰 *COBRAR: ${formatearPrecio(montoCobrar)}*${NL}`;
+        fichaEnviado += `💳 *Método:* ${fichaPedido.metodo_pago ? fichaPedido.metodo_pago.toUpperCase() : 'EFECTIVO'}${NL}`;
+        if (fichaPedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA) {
+          fichaEnviado += `📝 Solo cobrar envío — comida pagada por transferencia${NL}`;
+        }
+        const repartidorResult = await TwilioService.enviarMensajeRepartidor(fichaEnviado);
+        if (repartidorResult.success) {
+          logger.info(`✅ Ficha enviada al repartidor al marcar enviado #${fichaPedido.numero_pedido}`);
+        }
       }
 
       // Mensajes según el estado
@@ -3222,7 +3242,7 @@ class BotService {
     let mensajeCliente = `❌ *TU PEDIDO HA SIDO CANCELADO*\n\n`;
     mensajeCliente += `📝 Pedido #${pedido.numero_pedido}\n\n`;
     mensajeCliente += `📋 Motivo: ${motivo}\n\n`;
-    mensajeCliente += `Si tienes dudas, contáctanos:\n📞 563-639-9034\n\n`;
+    mensajeCliente += `Si tienes dudas, contáctanos:\n📞 ${config.admin.phoneNumber?.replace('+52', '') || '563-639-9034'}\n\n`;
     mensajeCliente += `Escribe *hola* para hacer un nuevo pedido.`;
     await TwilioService.enviarMensajeCliente(pedido.clientes.telefono, mensajeCliente);
 
@@ -3335,9 +3355,9 @@ class BotService {
    */
   async mostrarResumenDia() {
     try {
-      // Inicio del día actual en México
-      const ahora = new Date();
-      const inicioDia = new Date(ahora.toLocaleDateString('en-US', { timeZone: 'America/Mexico_City' }));
+      // Inicio del día actual en México (UTC-6, México City no observa DST desde Nov 2022)
+      const mexicoDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }); // 'YYYY-MM-DD'
+      const inicioDia = new Date(mexicoDateStr + 'T00:00:00-06:00');
 
       const { data: pedidos, error } = await supabase
         .from('pedidos')

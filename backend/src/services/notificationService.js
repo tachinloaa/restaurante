@@ -135,14 +135,11 @@ class NotificationService {
       // ⚡ SOLO notificar en estado ENTREGADO
       switch (pedido.estado) {
         case 'entregado':
-          // Para DOMICILIO → "Va en camino"
           if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
-            mensaje = `${EMOJIS.MOTO} ¡Tu pedido *#${pedido.numero_pedido}* va en camino!\n\n`;
-            mensaje += `${EMOJIS.MOTO} El repartidor está en camino a tu domicilio.\n\n`;
+            mensaje = `🎉 *¡Tu pedido #${pedido.numero_pedido} fue entregado!*\n\n`;
+            mensaje += `${EMOJIS.CHECK} Esperamos que lo disfrutes.\n\n`;
             mensaje += `Gracias por tu preferencia ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
-          } 
-          // Para PARA_LLEVAR → "Puedes recoger"
-          else if (pedido.tipo_pedido === TIPOS_PEDIDO.PARA_LLEVAR) {
+          } else if (pedido.tipo_pedido === TIPOS_PEDIDO.PARA_LLEVAR) {
             mensaje = `${EMOJIS.CHECK} ¡Tu pedido *#${pedido.numero_pedido}* está listo!\n\n`;
             mensaje += `📦 *Puedes pasar a recogerlo*\n\n`;
             mensaje += `📍 *Dirección:*\n${DIRECCION_RESTAURANTE.TEXTO}\n${DIRECCION_RESTAURANTE.MAPS}\n\n`;
@@ -160,13 +157,24 @@ class NotificationService {
           mensaje += `Si tienes dudas, contáctanos.`;
           break;
 
-        // Estados que NO notifican al cliente (ahorro máximo de Twilio)
+        // Estados que NO notifican al cliente
         case 'pendiente':
         case 'preparando':
         case 'listo':
-        case 'enviado':
-          logger.info(`⏭️ Estado ${pedido.estado} no notifica al cliente (solo ENTREGADO notifica)`);
+          logger.info(`⏭️ Estado ${pedido.estado} no notifica al cliente`);
           return { success: true, skipped: true };
+
+        case 'enviado':
+          // Notificar SOLO si es domicilio (tiene sentido avisar que el repartidor salió)
+          if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
+            mensaje = `${EMOJIS.MOTO} *¡Tu pedido #${pedido.numero_pedido} va en camino!*\n\n`;
+            mensaje += `🛵 El repartidor está en camino a tu domicilio.\n\n`;
+            mensaje += `¡Ya casi llega! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
+          } else {
+            logger.info(`⏭️ Estado enviado no notifica al cliente (pedido para llevar)`);
+            return { success: true, skipped: true };
+          }
+          break;
 
         default:
           return { success: false, error: 'Estado no reconocido' };
