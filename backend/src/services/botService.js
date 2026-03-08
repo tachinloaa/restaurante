@@ -389,18 +389,17 @@ class BotService {
       .from('pedidos')
       .select('id, numero_pedido, total, estado')
       .eq('telefono_cliente', telefono)
-      .in('estado', ['pendiente', 'en_proceso', 'pendiente_pago', 'confirmado', 'en_preparacion', 'en_camino'])
+      .in('estado', ['pendiente_pago', 'pendiente', 'preparando', 'listo', 'enviado'])
       .order('created_at', { ascending: false });
 
     if (!error && pedidosActivos && pedidosActivos.length >= 1) {
       const pedido = pedidosActivos[0];
       const estadoTexto = {
         pendiente_pago: '⏳ Esperando verificación de pago',
-        pendiente: '⏳ Pendiente',
-        en_proceso: '🔄 En proceso',
-        confirmado: '✅ Confirmado',
-        en_preparacion: '👨‍🍳 En preparación',
-        en_camino: '🛵 En camino'
+        pendiente: '⏳ Pendiente de preparación',
+        preparando: '👨‍🍳 En preparación',
+        listo: '📦 Listo para envío',
+        enviado: '🛵 En camino a tu domicilio'
       }[pedido.estado] || pedido.estado;
 
       return {
@@ -3039,9 +3038,15 @@ class BotService {
       // - cancelado: avisar cancelación
       let notificacionEnviada = false;
       if (['enviado', 'entregado', 'cancelado'].includes(nuevoEstado)) {
+        // Forzar nuevoEstado siempre — evita race condition donde pedidoActualizado
+        // llega con el estado anterior (stale) de Supabase y notifica en camino en vez de entregado
+        const pedidoParaNotificar = {
+          ...(pedidoActualizado || pedido),
+          estado: nuevoEstado
+        };
         await NotificationService.notificarEstadoPedido(
-          pedidoActualizado || { ...pedido, estado: nuevoEstado },
-          pedido.clientes
+          pedidoParaNotificar,
+          pedidoActualizado?.clientes || pedido.clientes
         );
         notificacionEnviada = true;
       }
