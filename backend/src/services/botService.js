@@ -386,7 +386,7 @@ class BotService {
       .from('pedidos')
       .select('id, numero_pedido, total, estado')
       .eq('telefono_cliente', telefono)
-      .in('estado', ['pendiente_pago', 'pendiente', 'preparando', 'listo', 'enviado'])
+      .in('estado', ['pendiente_pago', 'pendiente', 'preparando'])
       .order('created_at', { ascending: false });
 
     if (!error && pedidosActivos && pedidosActivos.length >= 1) {
@@ -394,9 +394,7 @@ class BotService {
       const estadoTexto = {
         pendiente_pago: '⏳ Esperando verificación de pago',
         pendiente: '⏳ Pendiente de preparación',
-        preparando: '👨‍🍳 En preparación',
-        listo: '📦 Listo para envío',
-        enviado: '🛵 En camino a tu domicilio'
+        preparando: '👨‍🍳 En preparación'
       }[pedido.estado] || pedido.estado;
 
       return {
@@ -2738,35 +2736,35 @@ class BotService {
    */
   async cambiarEstadoPedido(mensaje) {
     try {
-      // Formato: "estado #123 completado" o "estado 123 en_proceso"
-      const match = mensaje.match(/estado\s+#?(\d+)\s+(pendiente|en_proceso|completado|cancelado)/i);
+      // Formato: "estado #123 preparando" o "estado 123 cancelado"
+      const match = mensaje.match(/estado\s+#?(\d+)\s+(pendiente|preparando|entregado|cancelado)/i);
 
       if (!match) {
         return {
           success: true,
-          mensaje: '⚠️ Usa el formato: *estado #123 completado*\n\n' +
+          mensaje: '⚠️ Usa el formato: *estado #123 preparando*\n\n' +
             'Estados disponibles:\n' +
             '• pendiente\n' +
-            '• en_proceso\n' +
-            '• completado\n' +
+            '• preparando\n' +
+            '• entregado\n' +
             '• cancelado'
         };
       }
 
-      const pedidoId = parseInt(match[1]);
+      const numeroPedido = match[1];
       const nuevoEstado = match[2].toLowerCase();
 
       // Verificar que el pedido existe
       const { data: pedido, error: fetchError } = await supabase
         .from('pedidos')
-        .select('id, estado, clientes(nombre, telefono)')
-        .eq('id', pedidoId)
+        .select('id, estado, numero_pedido, clientes(nombre, telefono)')
+        .eq('numero_pedido', numeroPedido)
         .single();
 
       if (fetchError || !pedido) {
         return {
           success: true,
-          mensaje: `❌ No se encontró el pedido #${pedidoId}`
+          mensaje: `❌ No se encontró el pedido #${numeroPedido}`
         };
       }
 
@@ -2774,28 +2772,28 @@ class BotService {
       const { error: updateError } = await supabase
         .from('pedidos')
         .update({ estado: nuevoEstado })
-        .eq('id', pedidoId);
+        .eq('id', pedido.id);
 
       if (updateError) {
         logger.error('Error al actualizar estado del pedido:', updateError);
         return {
           success: true,
-          mensaje: `❌ Error al actualizar el pedido #${pedidoId}`
+          mensaje: `❌ Error al actualizar el pedido #${numeroPedido}`
         };
       }
 
-      logger.info(`✅ Pedido #${pedidoId} actualizado a estado: ${nuevoEstado}`);
+      logger.info(`✅ Pedido #${numeroPedido} actualizado a estado: ${nuevoEstado}`);
 
       const estadoEmoji = {
         'pendiente': '🔴',
-        'en_proceso': '🟡',
-        'completado': '✅',
+        'preparando': '👨‍🍳',
+        'entregado': '✅',
         'cancelado': '❌'
       };
 
       return {
         success: true,
-        mensaje: `${estadoEmoji[nuevoEstado]} *Pedido #${pedidoId} actualizado*\n\n` +
+        mensaje: `${estadoEmoji[nuevoEstado] || '✅'} *Pedido #${numeroPedido} actualizado*\n\n` +
           `Estado: *${nuevoEstado.toUpperCase()}*\n\n` +
           `Cliente: ${pedido.clientes?.nombre || 'Sin nombre'}`
       };
