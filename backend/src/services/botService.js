@@ -21,7 +21,9 @@ import {
   MAX_CAMBIO_REPARTIDOR,
   COSTO_ENVIO,
   COMPROBANTE_TIMEOUT,
-  ADMIN_PHONE_FIJO
+  ADMIN_PHONE_FIJO,
+  MAX_CANCELACIONES_PARA_BLOQUEO,
+  DIAS_BLOQUEO
 } from '../config/constants.js';
 import { limpiarNumeroWhatsApp, formatearPrecio } from '../utils/formatters.js';
 import { sanitizarInput, esValidoNombre, esValidaDireccion } from '../utils/validators.js';
@@ -1618,25 +1620,11 @@ class BotService {
 
   /**
    * Cancelar proceso actual
+   * NOTA: Abandonar el carrito NO cuenta como cancelación.
+   * Solo se cuentan cancelaciones de pedidos YA CONFIRMADOS.
    */
   async cancelarProceso(telefono) {
     await SessionService.resetSession(telefono);
-
-    // 🔒 ANTI-SPAM: Contar cancelaciones en paso de confirmación también
-    try {
-      await Customer.incrementarCancelaciones(telefono);
-      const cancelaciones = await Customer.getCancelaciones(telefono);
-      if (cancelaciones.cancelaciones >= 3) {
-        await Customer.bloquear(telefono, 7);
-        logger.warn(`🚫 Cliente ${telefono} bloqueado por ${cancelaciones.cancelaciones} cancelaciones en confirmación`);
-        return {
-          success: true,
-          mensaje: `🚫 *Has sido bloqueado temporalmente*\n\nHas cancelado ${cancelaciones.cancelaciones} pedidos seguidos.\n\nPodrás hacer pedidos nuevamente en 7 días.\n\nSi crees que es un error, comunícate al: *563-639-9034*`
-        };
-      }
-    } catch (e) {
-      logger.error('Error en tracking de cancelación en confirmación:', e);
-    }
 
     return {
       success: true,
@@ -2424,27 +2412,33 @@ class BotService {
 
       logger.info(`✅ Pedido #${pedidoId} cancelado por el cliente ${telefono} (${minutosTranscurridos} min)`);
 
-      // 🔒 ANTI-SPAM: Incrementar contador de cancelaciones
+      // 🔒 ANTI-SPAM: Incrementar contador de cancelaciones (solo pedidos confirmados)
+      let mensajeBloqueo = '';
       try {
         await Customer.incrementarCancelaciones(telefono);
         
-        // Verificar si debe bloquearse automáticamente (3 cancelaciones)
         const cancelaciones = await Customer.getCancelaciones(telefono);
-        if (cancelaciones.cancelaciones >= 3) {
-          await Customer.bloquear(telefono, 7); // Bloquear por 7 días
+        const limite = MAX_CANCELACIONES_PARA_BLOQUEO;
+        
+        if (cancelaciones.cancelaciones >= limite) {
+          await Customer.bloquear(telefono, DIAS_BLOQUEO);
           logger.warn(`🚫 Cliente ${telefono} bloqueado automáticamente por ${cancelaciones.cancelaciones} cancelaciones`);
+          
+          mensajeBloqueo = `\n\n🚫 *AVISO:* Has sido bloqueado temporalmente por cancelar ${cancelaciones.cancelaciones} pedidos. Podrás pedir nuevamente en ${DIAS_BLOQUEO} días.`;
           
           // Notificar al admin
           await TwilioService.enviarMensajeAdmin(
             `🚫 *CLIENTE BLOQUEADO AUTOMÁTICAMENTE*\n\n` +
             `📱 Cliente: ${telefono}\n` +
             `❌ Cancelaciones: ${cancelaciones.cancelaciones}\n` +
-            `⏰ Bloqueado por: 7 días\n\n` +
-            `El cliente ha cancelado múltiples pedidos.`
+            `⏰ Bloqueado por: ${DIAS_BLOQUEO} días\n\n` +
+            `El cliente ha cancelado múltiples pedidos confirmados.`
           );
+        } else if (cancelaciones.cancelaciones === limite - 1) {
+          // Advertencia: próxima cancelación = bloqueo
+          mensajeBloqueo = `\n\n⚠️ *Advertencia:* Llevas ${cancelaciones.cancelaciones} cancelaciones. Una más y serás bloqueado temporalmente.`;
         }
       } catch (trackingError) {
-        // No afectar el flujo si falla el tracking
         logger.error('Error en tracking de cancelación:', trackingError);
       }
 
@@ -2452,7 +2446,7 @@ class BotService {
         success: true,
         mensaje: `✅ *Pedido #${pedidoId} cancelado exitosamente*\n\n` +
           `Total: $${pedido.total} MXN\n\n` +
-          `Tu pedido ha sido cancelado. Esperamos verte pronto! 😊`
+          `Tu pedido ha sido cancelado. Esperamos verte pronto! 😊` + mensajeBloqueo
       };
     } catch (error) {
       logger.error('Error al procesar cancelación del cliente:', error);
@@ -3101,20 +3095,9 @@ class BotService {
       };
     }
 
-    // 🔒 ANTI-SPAM: Incrementar contador de cancelaciones
-    try {
-      await Customer.incrementarCancelaciones(pedido.clientes.telefono);
-      
-      // Verificar si debe bloquearse automáticamente (3 cancelaciones)
-      const cancelaciones = await Customer.getCancelaciones(pedido.clientes.telefono);
-      if (cancelaciones.cancelaciones >= 3) {
-        await Customer.bloquear(pedido.clientes.telefono, 7); // Bloquear por 7 días
-        logger.warn(`🚫 Cliente ${pedido.clientes.telefono} bloqueado automáticamente por ${cancelaciones.cancelaciones} cancelaciones (rechazo admin)`);
-      }
-    } catch (trackingError) {
-      // No afectar el flujo si falla el tracking
-      logger.error('Error en tracking de cancelación (rechazo admin):', trackingError);
-    }
+    // ℹ️ Rechazo por admin NO cuenta como cancelación del cliente
+    // El cliente no tiene culpa si el admin rechaza el pago
+    logger.info(`ℹ️ Pedido #${numeroPedido} rechazado por admin - NO se incrementa cancelación del cliente`);
 
     // Notificar al cliente
     let mensajeCliente = `❌ *PEDIDO RECHAZADO*\n\n`;

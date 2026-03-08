@@ -137,6 +137,11 @@ export const MAX_ITEMS_CARRITO = 50;
 // Límite de tipos diferentes de productos
 export const MAX_TIPOS_PRODUCTOS = 15;
 
+// 🔒 ANTI-SPAM: Configuración de bloqueo por cancelaciones
+// Solo se cuentan cancelaciones de pedidos YA CONFIRMADOS (no abandonos de carrito)
+export const MAX_CANCELACIONES_PARA_BLOQUEO = 3;
+export const DIAS_BLOQUEO = 7;
+
 // Cambio máximo que lleva el repartidor
 export const MAX_CAMBIO_REPARTIDOR = 50;
 
@@ -210,5 +215,7 @@ export default {
   TIEMPO_ENTREGA,
   MENSAJES_BOT,
   PAGINATION,
-  HTTP_STATUS
+  HTTP_STATUS,
+  MAX_CANCELACIONES_PARA_BLOQUEO,
+  DIAS_BLOQUEO
 };

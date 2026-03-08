@@ -270,6 +270,7 @@ class Customer {
 
   /**
    * 🔒 ANTI-SPAM: Verificar si cliente está bloqueado
+   * Si el bloqueo ya expiró, resetea el contador automáticamente
    */
   static async estaBloqueado(telefono) {
     try {
@@ -279,7 +280,26 @@ class Customer {
 
       if (error) throw error;
 
-      return { success: true, bloqueado: data || false };
+      const bloqueado = data || false;
+
+      // Si NO está bloqueado, verificar si tenía bloqueo expirado para resetear contador
+      if (!bloqueado) {
+        try {
+          const cliente = await this.getCancelaciones(telefono);
+          if (cliente.bloqueado_hasta && new Date(cliente.bloqueado_hasta) < new Date()) {
+            // Bloqueo expiró → resetear contador y fecha para dar oportunidad limpia
+            await supabase
+              .from('clientes')
+              .update({ cancelaciones_count: 0, bloqueado_hasta: null })
+              .eq('telefono', telefono);
+            logger.info(`🔓 Contador de cancelaciones reseteado para ${telefono} (bloqueo expirado)`);
+          }
+        } catch (resetError) {
+          logger.error(`Error al resetear contador post-bloqueo de ${telefono}:`, resetError);
+        }
+      }
+
+      return { success: true, bloqueado };
     } catch (error) {
       logger.error(`Error al verificar bloqueo de ${telefono}:`, error);
       return { success: false, bloqueado: false };
