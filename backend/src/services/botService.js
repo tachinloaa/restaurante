@@ -193,12 +193,6 @@ class BotService {
       }
 
       if (COMANDOS_BOT.PARA_LLEVAR.some(cmd => mensajeLimpio.includes(cmd))) {
-        // Forzar selección de comer ahí
-        await SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
-        return await this.procesarSeleccionTipo(telefono, '3');
-      }
-
-      if (COMANDOS_BOT.PARA_LLEVAR.some(cmd => mensajeLimpio.includes(cmd))) {
         // Forzar selección de para llevar
         await SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_TIPO);
         return await this.procesarSeleccionTipo(telefono, '1');
@@ -1849,7 +1843,7 @@ class BotService {
     if (mensaje === 'agregar') {
       // Volver al menú para agregar productos
       await SessionService.updateEstado(telefono, BOT_STATES.VER_MENU);
-      return await this.mostrarMenu(telefono);
+      return await this.mostrarCategorias(telefono);
     }
 
     // Verificar si es un número para quitar producto
@@ -2068,7 +2062,7 @@ class BotService {
     mensaje += `• *menu* - Ver menú completo\n`;
     mensaje += `• *pedir* - Hacer un pedido\n`;
     mensaje += `• *domicilio* - Pedido a domicilio\n`;
-    mensaje += `• *domicilio* - Pedido a domicilio\n`;
+    mensaje += `• *para llevar* - Pedido para recoger\n`;
     mensaje += `• *estado* - Ver estado de pedido\n`;
     mensaje += `• *cancelar* - Cancelar proceso actual\n`;
     mensaje += `• *ayuda* - Mostrar esta ayuda\n\n`;
@@ -2380,8 +2374,8 @@ class BotService {
       const { data: pedido, error: fetchError } = await supabase
         .from('pedidos')
         .select('*')
-        .eq('id', pedidoId)
-        .eq('telefono', telefono)
+        .eq('numero_pedido', pedidoId)
+        .eq('telefono_cliente', telefono)
         .single();
 
       if (fetchError || !pedido) {
@@ -2425,7 +2419,7 @@ class BotService {
       const { error: updateError } = await supabase
         .from('pedidos')
         .update({ estado: 'cancelado' })
-        .eq('id', pedidoId);
+        .eq('numero_pedido', pedidoId);
 
       if (updateError) {
         logger.error('Error al cancelar pedido del cliente:', updateError);
@@ -2651,84 +2645,88 @@ class BotService {
         };
       }
 
-      const pedidoId = parseInt(match[0]);
+      const numeroPedido = match[0];
 
       const { data: pedido, error } = await supabase
         .from('pedidos')
         .select(`
           id,
+          numero_pedido,
           total,
           estado,
+          tipo_pedido,
+          metodo_pago,
           direccion_entrega,
           referencias,
           created_at,
           clientes (
             nombre,
             telefono
-          ),
-          pedido_productos (
-            cantidad,
-            precio_unitario,
-            notas,
-            productos (
-              nombre,
-              descripcion
-            )
           )
         `)
-        .eq('id', pedidoId)
+        .eq('numero_pedido', numeroPedido)
         .single();
 
       if (error || !pedido) {
         return {
           success: true,
-          mensaje: `❌ No se encontró el pedido #${pedidoId}`
+          mensaje: `❌ No se encontró el pedido #${numeroPedido}`
         };
       }
 
-      let respuesta = `📋 *PEDIDO #${pedido.id}*\n${'='.repeat(35)}\n\n`;
-
-      // Estado y tipo
       const estadoEmoji = {
+        'pendiente_pago': '⏳',
         'pendiente': '🔴',
-        'en_proceso': '🟡',
-        'completado': '✅',
+        'preparando': '👨‍🍳',
+        'listo': '📦',
+        'enviado': '🛵',
+        'entregado': '✅',
         'cancelado': '❌'
       };
-      respuesta += `${estadoEmoji[pedido.estado] || '⚪'} *Estado:* ${pedido.estado.toUpperCase()}\n`;
-      respuesta += `${pedido.tipo_pedido === 'domicilio' ? '🏠' : '🏪'} *Tipo:* ${pedido.tipo_pedido}\n\n`;
 
-      // Cliente
+      let respuesta = `📋 *PEDIDO #${pedido.numero_pedido}*\n${'='.repeat(35)}\n\n`;
+      respuesta += `${estadoEmoji[pedido.estado] || '⚪'} *Estado:* ${pedido.estado.toUpperCase()}\n`;
+      respuesta += `${pedido.tipo_pedido === 'domicilio' ? '🏠' : '🏪'} *Tipo:* ${pedido.tipo_pedido || 'N/A'}\n`;
+      respuesta += `💳 *Pago:* ${pedido.metodo_pago?.toUpperCase() || 'N/A'}\n\n`;
+
       respuesta += `👤 *CLIENTE*\n`;
       respuesta += `Nombre: ${pedido.clientes?.nombre || 'Sin nombre'}\n`;
       respuesta += `Teléfono: ${pedido.clientes?.telefono || 'Sin teléfono'}\n\n`;
 
-      // Dirección (si es domicilio)
       if (pedido.tipo_pedido === 'domicilio' && pedido.direccion_entrega) {
         respuesta += `📍 *DIRECCIÓN*\n${pedido.direccion_entrega}\n`;
         if (pedido.referencias) {
-          respuesta += `Referencias: ${pedido.referencias}\n`;
+          respuesta += `Ref: ${pedido.referencias}\n`;
         }
         respuesta += `\n`;
       }
 
-      // Productos
+      // Obtener productos en consulta separada
+      const { data: productosData } = await supabase
+        .from('pedidos_productos')
+        .select('cantidad, productos(nombre)')
+        .eq('pedido_id', pedido.id);
+
       respuesta += `🍽️ *PRODUCTOS*\n`;
-      pedido.pedido_productos.forEach(item => {
-        respuesta += `• ${item.productos?.nombre} x${item.cantidad}\n`;
-        respuesta += `  ${formatearPrecio(item.precio_unitario)} c/u = ${formatearPrecio(item.cantidad * item.precio_unitario)}\n`;
-        if (item.notas) {
-          respuesta += `  📝 ${item.notas}\n`;
-        }
-      });
+      if (productosData && productosData.length > 0) {
+        productosData.forEach(item => {
+          respuesta += `• ${item.cantidad}x ${item.productos?.nombre || 'Producto'}\n`;
+        });
+      } else {
+        respuesta += `(Sin detalle de productos)\n`;
+      }
 
-      respuesta += `\n💰 *TOTAL: ${formatearPrecio(pedido.total)}*\n\n`;
-      respuesta += `🕐 ${new Date(pedido.created_at).toLocaleString('es-MX')}\n\n`;
+      respuesta += `\n💰 *TOTAL: ${formatearPrecio(pedido.total)}*\n`;
+      respuesta += `🕐 ${new Date(pedido.created_at).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}\n\n`;
 
-      respuesta += `📝 Cambiar estado:\n`;
-      respuesta += `• *estado #${pedido.id} en_proceso*\n`;
-      respuesta += `• *estado #${pedido.id} completado*\n`;
-      respuesta += `• *estado #${pedido.id} cancelado*`;
+      respuesta += `⚡ *COMANDOS RÁPIDOS:*\n`;
+      respuesta += `• *preparando #${pedido.numero_pedido}* — En cocina 👨‍🍳\n`;
+      respuesta += `• *enviado #${pedido.numero_pedido}* — En camino 🛵\n`;
+      respuesta += `• *entregado #${pedido.numero_pedido}* — Entregado ✅\n`;
+      respuesta += `• *cancelar #${pedido.numero_pedido}* — Cancelar\n`;
+      if (pedido.tipo_pedido === 'domicilio') {
+        respuesta += `• *ficha #${pedido.numero_pedido}* — Ver ficha 📋`;
+      }
 
       return {
         success: true,

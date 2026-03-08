@@ -150,8 +150,8 @@ class NotificationService {
         case 'cancelado':
           mensaje = `${EMOJIS.CRUZ} Tu pedido *#${pedido.numero_pedido}* ha sido cancelado.\n\n`;
 
-          if (pedido.notas) {
-            mensaje += `Razón: ${pedido.notas}\n\n`;
+          if (pedido.motivo_cancelacion) {
+            mensaje += `Razón: ${pedido.motivo_cancelacion}\n\n`;
           }
 
           mensaje += `Si tienes dudas, contáctanos.`;
