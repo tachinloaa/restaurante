@@ -2478,9 +2478,9 @@ class BotService {
     mensaje += `*El Rinconcito - Sistema de Pedidos*\n\n`;
 
     mensaje += `📋 *VER PEDIDOS*\n`;
-    mensaje += `• *pedidos* — Ver todos los activos\n`;
+    mensaje += `• *pedidos* / *pendientes* — Ver todos los activos\n`;
     mensaje += `• *ver #123* — Detalle completo del pedido\n`;
-    mensaje += `• *resumen* — Estadísticas del día 📊\n\n`;
+    mensaje += `• *resumen* / *hoy* / *estadisticas* — Resumen y ventas del día 📊\n\n`;
 
     mensaje += `✅ *APROBAR / RECHAZAR* (transferencias)\n`;
     mensaje += `• *aprobar #123* — Verificar pago y poner en preparación\n`;
