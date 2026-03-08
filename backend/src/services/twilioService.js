@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import twilioClient from '../config/twilio.js';
 import config from '../config/environment.js';
 import { ADMIN_PHONE_FIJO } from '../config/constants.js';
@@ -250,22 +249,6 @@ class TwilioService {
   }
 
   /**
-   * Generar token HMAC para URL de media proxy
-   */
-  static generarMediaToken(mediaUrl) {
-    const secret = config.twilio.authToken;
-    return crypto.createHmac('sha256', secret).update(mediaUrl).digest('hex');
-  }
-
-  /**
-   * Verificar token HMAC de media proxy
-   */
-  static verificarMediaToken(mediaUrl, token) {
-    const expected = TwilioService.generarMediaToken(mediaUrl);
-    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(token));
-  }
-
-  /**
    * Enviar mensaje con imagen
    */
   static async enviarMensajeConImagen(numeroDestino, mensaje, mediaUrl) {
@@ -277,33 +260,20 @@ class TwilioService {
         : `whatsapp:${numNorm}`;
 
       logger.info(`📤 Enviando mensaje con imagen a ${numeroDestino}`);
-      logger.info(`🖼️ URL de media original: ${mediaUrl}`);
-
-      // Si la URL es de Twilio, usar proxy del backend para que sea accesible públicamente
-      let urlFinal = mediaUrl;
-      if (mediaUrl.includes('api.twilio.com')) {
-        const token = TwilioService.generarMediaToken(mediaUrl);
-        const encodedUrl = encodeURIComponent(mediaUrl);
-        urlFinal = `${config.backendUrl}/api/media/proxy?url=${encodedUrl}&token=${token}`;
-        logger.info(`🔀 URL proxy generada para Twilio media`);
-      }
+      logger.info(`🖼️ URL de media: ${mediaUrl}`);
 
       const message = await twilioClient.messages.create({
         body: mensaje,
         from: config.twilio.whatsappClientes,
         to: numeroFormateado,
-        mediaUrl: [urlFinal]
+        mediaUrl: [mediaUrl]
       });
 
-      logger.info(`✅ Mensaje con imagen enviado exitosamente a ${numeroDestino}: ${message.sid}`);
-      logger.info(`📊 Estado del mensaje: ${message.status}`);
-
+      logger.info(`✅ Mensaje con imagen enviado a ${numeroDestino}: ${message.sid}`);
       return { success: true, messageSid: message.sid };
     } catch (error) {
       logger.error(`❌ Error al enviar mensaje con imagen a ${numeroDestino}:`, error);
-      logger.error(`📍 Detalles del error: ${error.message}`);
-      logger.error(`🔍 Código de error: ${error.code}`);
-
+      logger.error(`📍 Detalles: ${error.message} | Código: ${error.code}`);
       return { success: false, error: error.message, errorCode: error.code };
     }
   }

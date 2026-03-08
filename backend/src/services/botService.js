@@ -3,6 +3,7 @@ import MenuService from './menuService.js';
 import OrderService from './orderService.js';
 import NotificationService from './notificationService.js';
 import TwilioService from './twilioService.js';
+import StorageService from './storageService.js';
 import Customer from '../models/Customer.js';
 import { supabase } from '../config/database.js';
 import config from '../config/environment.js';
@@ -1145,10 +1146,24 @@ class BotService {
 
     // Verificar si recibió una imagen
     if (numMedia > 0 && mediaUrl) {
-      // Guardar URL del comprobante
+      // Subir imagen a Supabase Storage para obtener URL pública
+      let urlPublica = mediaUrl;
+      try {
+        const urlStorage = await StorageService.subirComprobanteDesdeTwilio(mediaUrl, telefono);
+        if (urlStorage) {
+          urlPublica = urlStorage;
+          logger.info(`✅ Comprobante subido a Storage: ${urlPublica}`);
+        } else {
+          logger.warn(`⚠️ No se pudo subir a Storage, usando URL original de Twilio`);
+        }
+      } catch (storageError) {
+        logger.warn(`⚠️ Error subiendo comprobante a Storage: ${storageError.message}`);
+      }
+
+      // Guardar URL del comprobante (pública de Supabase o la de Twilio como fallback)
       await SessionService.guardarDatos(telefono, {
         comprobante_recibido: true,
-        comprobante_url: mediaUrl,
+        comprobante_url: urlPublica,
         comprobante_info: 'Imagen recibida'
       });
 
