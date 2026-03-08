@@ -1583,26 +1583,25 @@ class BotService {
       const tipoPedido = session.datos.tipo_pedido || 'domicilio';
       const comprobanteUrl = session.datos.comprobante_url || null;
 
+      // SIEMPRE enviar el template de texto aprobado primero (garantizado que llega)
+      const resultadoTexto = await TwilioService.enviarNotificacionAdminConPlantilla(
+        numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl
+      );
+      if (resultadoTexto.success) {
+        logger.info(`✅ Template de texto enviado al admin para pedido #${numeroPedido}`);
+      } else {
+        logger.error(`❌ Error template de texto: ${resultadoTexto.error}`);
+      }
+
+      // ADEMÁS intentar el media template con imagen (solo funcionará cuando Meta lo apruebe)
       if (comprobanteUrl) {
-        // Hay comprobante → usar template con imagen (Media template, business-initiated, sin restricción 24h)
-        logger.info(`📸 Enviando template con imagen de comprobante al admin para pedido #${numeroPedido}`);
         const resultadoMedia = await TwilioService.enviarTemplateComprobanteAdmin(
           numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl
         );
         if (resultadoMedia.success) {
-          logger.info(`✅ Template con comprobante enviado al admin para pedido #${numeroPedido}: ${resultadoMedia.messageSid}`);
+          logger.info(`📸 Template media con comprobante también enviado: ${resultadoMedia.messageSid}`);
         } else {
-          logger.error(`❌ Error template con comprobante: ${resultadoMedia.error} — usando template de texto como fallback`);
-          // Fallback: template de texto con URL del comprobante en variable 5
-          await TwilioService.enviarNotificacionAdminConPlantilla(numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl);
-        }
-      } else {
-        // Sin comprobante → template de texto normal
-        const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
-          numeroPedido, cliente, telefono, total, tipoPedido, null
-        );
-        if (resultadoPlantilla.success) {
-          logger.info(`✅ Notificación con plantilla (texto) enviada al admin para pedido #${numeroPedido}`);
+          logger.warn(`⚠️ Template media pendiente de aprobación — solo llegó el de texto`);
         }
       }
 
