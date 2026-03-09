@@ -118,6 +118,40 @@ class NotificationService {
         logger.info(`Notificación de pedido #${pedido.numero_pedido} enviada al admin`);
       }
 
+      // Para efectivo domicilio: enviar ficha de reparto automáticamente
+      if (esEfectivo && esDomicilio) {
+        try {
+          const NL = '\n';
+          let ficha = `🛵 *ENTREGA PARA REPARTIDOR* 📦${NL}`;
+          ficha += `🆔 Pedido: *#${pedido.numero_pedido}*${NL}${NL}`;
+          ficha += `👤 *Cliente:* ${cliente.nombre || 'Sin nombre'}${NL}`;
+          ficha += `📞 *Tel:* wa.me/${(cliente.telefono || '').replace('whatsapp:', '').replace('+', '')}${NL}`;
+          ficha += `📍 *Ubicación:* ${pedido.direccion_entrega || 'No especificada'}${NL}`;
+          if (pedido.referencias || cliente.referencias) {
+            ficha += `ℹ️ *Ref:* ${pedido.referencias || cliente.referencias}${NL}`;
+          }
+          ficha += `${NL}`;
+          ficha += `💰 *COBRAR: ${formatearPrecio(pedido.total)}*${NL}`;
+          ficha += `💳 *Método:* EFECTIVO${NL}`;
+          ficha += `💡 *Nota:* El cliente paga todo al entregar (incluye $${COSTO_ENVIO} de envío)${NL}`;
+          ficha += `${NL}`;
+          ficha += `📋 *Productos:*${NL}`;
+          if (pedido.pedido_detalles && pedido.pedido_detalles.length > 0) {
+            pedido.pedido_detalles.forEach(d => {
+              ficha += `• ${d.cantidad}x ${d.productos?.nombre || 'Producto'}${NL}`;
+            });
+          } else {
+            ficha += `(Ver detalle en app)${NL}`;
+          }
+          ficha += `${NL}👉 *Reenvía este mensaje al repartidor*`;
+
+          await TwilioService.enviarMensajeAdmin(ficha);
+          logger.info(`✅ Ficha efectivo enviada al admin para pedido #${pedido.numero_pedido}`);
+        } catch (fichaError) {
+          logger.warn(`⚠️ Error al generar ficha efectivo: ${fichaError.message}`);
+        }
+      }
+
       return resultado;
     } catch (error) {
       logger.error('Error al notificar nuevo pedido:', error);
