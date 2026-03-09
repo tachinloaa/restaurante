@@ -2922,7 +2922,7 @@ class BotService {
       fichaReparto += `🆔 Pedido: *#${pedido.numero_pedido}*${NL}${NL}`;
 
       fichaReparto += `👤 *Cliente:* ${pedido.clientes.nombre}${NL}`;
-      fichaReparto += `📞 *Tel:* wa.me/${pedido.clientes.telefono.replace('whatsapp:', '').replace('+', '')}${NL}`;
+      fichaReparto += `📞 *Tel:* https://wa.me/${pedido.clientes.telefono.replace('whatsapp:', '').replace('+', '')}${NL}`;
       fichaReparto += `📍 *Ubicación:* ${pedido.direccion_entrega || 'No especificada'}${NL}`;
       if (pedido.referencias) fichaReparto += `ℹ️ *Ref:* ${pedido.referencias}${NL}`;
       fichaReparto += `${NL}`;
@@ -3266,7 +3266,7 @@ class BotService {
     fichaReparto += `${'─'.repeat(30)}${NL}`;
     fichaReparto += `🆔 Pedido: *#${pedido.numero_pedido}*${NL}${NL}`;
     fichaReparto += `👤 *Cliente:* ${pedido.clientes.nombre}${NL}`;
-    fichaReparto += `📞 *Tel:* wa.me/${pedido.clientes.telefono.replace('whatsapp:', '').replace('+', '')}${NL}`;
+    fichaReparto += `📞 *Tel:* https://wa.me/${pedido.clientes.telefono.replace('whatsapp:', '').replace('+', '')}${NL}`;
     fichaReparto += `📍 *Dirección:*${NL}${pedido.direccion_entrega || 'No especificada'}${NL}`;
     if (pedido.referencias) fichaReparto += `ℹ️ *Ref:* ${pedido.referencias}${NL}`;
     fichaReparto += `${NL}`;

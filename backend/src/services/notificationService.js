@@ -31,7 +31,7 @@ class NotificationService {
       mensaje += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
       mensaje += `${EMOJIS.RELOJ} Hora: ${formatearHora(pedido.created_at)}\n`;
       mensaje += `${EMOJIS.PERSONA} Cliente: *${cliente.nombre || 'Sin nombre'}*\n`;
-      mensaje += `${EMOJIS.TELEFONO} Tel: wa.me/${cliente.telefono.replace('whatsapp:', '').replace('+', '')}\n`;
+      mensaje += `${EMOJIS.TELEFONO} Tel: https://wa.me/${cliente.telefono.replace('whatsapp:', '').replace('+', '')}\n`;
 
       // Datos según tipo de pedido
       if (esDomicilio) {
@@ -125,7 +125,7 @@ class NotificationService {
           let ficha = `🛵 *ENTREGA PARA REPARTIDOR* 📦${NL}`;
           ficha += `🆔 Pedido: *#${pedido.numero_pedido}*${NL}${NL}`;
           ficha += `👤 *Cliente:* ${cliente.nombre || 'Sin nombre'}${NL}`;
-          ficha += `📞 *Tel:* wa.me/${(cliente.telefono || '').replace('whatsapp:', '').replace('+', '')}${NL}`;
+          ficha += `📞 *Tel:* https://wa.me/${(cliente.telefono || '').replace('whatsapp:', '').replace('+', '')}${NL}`;
           ficha += `📍 *Ubicación:* ${pedido.direccion_entrega || 'No especificada'}${NL}`;
           if (pedido.referencias || cliente.referencias) {
             ficha += `ℹ️ *Ref:* ${pedido.referencias || cliente.referencias}${NL}`;
@@ -244,7 +244,7 @@ class NotificationService {
     try {
       let mensaje = `${EMOJIS.PERSONA} *NUEVO CLIENTE REGISTRADO*\n\n`;
       mensaje += `Nombre: ${cliente.nombre || 'Sin nombre'}\n`;
-      mensaje += `${EMOJIS.TELEFONO} Teléfono: wa.me/${cliente.telefono.replace('whatsapp:', '').replace('+', '')}\n`;
+      mensaje += `${EMOJIS.TELEFONO} Teléfono: https://wa.me/${cliente.telefono.replace('whatsapp:', '').replace('+', '')}\n`;
 
       if (cliente.direccion) {
         mensaje += `${EMOJIS.UBICACION} Dirección: ${cliente.direccion}\n`;

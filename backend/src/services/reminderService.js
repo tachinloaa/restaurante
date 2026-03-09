@@ -148,7 +148,7 @@ class ReminderService {
       mensaje += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
       mensaje += `${EMOJIS.RELOJ} Creado: ${formatearHora(pedido.created_at)}\n`;
       mensaje += `${EMOJIS.PERSONA} Cliente: ${pedido.clientes?.nombre || 'Sin nombre'}\n`;
-      mensaje += `${EMOJIS.TELEFONO} wa.me/${(pedido.clientes?.telefono || '').replace('whatsapp:', '').replace('+', '')}\n`;
+      mensaje += `${EMOJIS.TELEFONO} https://wa.me/${(pedido.clientes?.telefono || '').replace('whatsapp:', '').replace('+', '')}\n`;
 
       if (pedido.direccion_entrega) {
         mensaje += `${EMOJIS.UBICACION} ${pedido.direccion_entrega}\n`;
