@@ -4,7 +4,7 @@ import Product from '../models/Product.js';
 import SessionService from './sessionService.js';
 import TwilioService from './twilioService.js';
 import { formatearPrecio, limpiarNumeroWhatsApp } from '../utils/formatters.js';
-import { TIPOS_PEDIDO, ESTADOS_PEDIDO } from '../config/constants.js';
+import { TIPOS_PEDIDO, ESTADOS_PEDIDO, COSTO_ENVIO } from '../config/constants.js';
 import config from '../config/environment.js';
 import logger from '../utils/logger.js';
 import fs from 'fs';
@@ -95,11 +95,13 @@ class OrderService {
         throw new Error(productosConDetalles.error);
       }
 
-      // Calcular total
-      const total = productosConDetalles.productos.reduce(
+      // Calcular total (productos + envío si es domicilio)
+      const totalProductos = productosConDetalles.productos.reduce(
         (sum, p) => sum + (p.precio_unitario * p.cantidad),
         0
       );
+      const esDomicilio = (datosCliente.tipo_pedido || TIPOS_PEDIDO.DOMICILIO) === TIPOS_PEDIDO.DOMICILIO;
+      const total = esDomicilio ? totalProductos + COSTO_ENVIO : totalProductos;
 
       // Crear pedido
       const pedidoData = {
@@ -267,6 +269,12 @@ class OrderService {
       total += subtotal;
       resumen += `${item.cantidad}x ${item.nombre} = ${formatearPrecio(subtotal)}\n`;
     });
+
+    const esDomicilio = session.datos?.tipo_pedido === TIPOS_PEDIDO.DOMICILIO;
+    if (esDomicilio) {
+      resumen += `🛵 Envío = ${formatearPrecio(COSTO_ENVIO)}\n`;
+      total += COSTO_ENVIO;
+    }
 
     resumen += `\n💰 *TOTAL: ${formatearPrecio(total)}*`;
 
