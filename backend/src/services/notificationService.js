@@ -79,7 +79,6 @@ class NotificationService {
       if (esEfectivo) {
         mensaje += `⚡ *ACCIONES:*\n`;
         if (esDomicilio) {
-          mensaje += `• *preparando #${pedido.numero_pedido}* — Poner en cocina 👨‍🍳\n`;
           mensaje += `• *ficha #${pedido.numero_pedido}* — Ver ficha de entrega 📋\n`;
         }
         mensaje += `• *entregado #${pedido.numero_pedido}* — ${esDomicilio ? 'Marcar en camino 🛵' : 'Listo para recoger 📦'}\n`;
