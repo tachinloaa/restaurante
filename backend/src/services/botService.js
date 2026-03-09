@@ -1112,12 +1112,18 @@ class BotService {
 
     const totalProductos = await SessionService.calcularTotalCarrito(telefono);
     const sessionTransf = await SessionService.getSession(telefono);
-    const total = sessionTransf?.datos?.tipo_pedido === TIPOS_PEDIDO.DOMICILIO
-      ? totalProductos + COSTO_ENVIO
-      : totalProductos;
+    const esDomicilio = sessionTransf?.datos?.tipo_pedido === TIPOS_PEDIDO.DOMICILIO;
+    const total = esDomicilio ? totalProductos + COSTO_ENVIO : totalProductos;
 
     let mensaje = `${EMOJIS.DINERO} *PAGO POR TRANSFERENCIA*\n\n`;
-    mensaje += `Total a pagar: *${formatearPrecio(total)}*\n\n`;
+    if (esDomicilio) {
+      mensaje += `🛒 Productos: *${formatearPrecio(totalProductos)}*\n`;
+      mensaje += `🛵 Envío a domicilio: *${formatearPrecio(COSTO_ENVIO)}*\n`;
+      mensaje += `💰 *Total a transferir: ${formatearPrecio(total)}*\n\n`;
+      mensaje += `⚠️ El envío ya va incluido en este monto — el repartidor NO cobrará nada extra.\n\n`;
+    } else {
+      mensaje += `Total a pagar: *${formatearPrecio(total)}*\n\n`;
+    }
     mensaje += `🏦 *DATOS BANCARIOS:*\n`;
     mensaje += `• Banco: *${config.datosBancarios.banco}*\n`;
     mensaje += `• Titular: *${config.datosBancarios.titular}*\n`;
