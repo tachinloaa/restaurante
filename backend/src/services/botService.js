@@ -1389,13 +1389,13 @@ class BotService {
     // Mostrar método de pago si es domicilio
     if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
       const metodoPago = session.datos.metodo_pago;
-      mensaje += `\n\n🛵 *Costo de envío:* ${formatearPrecio(COSTO_ENVIO)}`;
       if (metodoPago === METODOS_PAGO.EFECTIVO) {
-        mensaje += `\n${EMOJIS.DINERO} *Método de pago:* Efectivo`;
-        mensaje += `\n💵 El repartidor lleva cambio máximo de $${MAX_CAMBIO_REPARTIDOR} pesos`;
+        mensaje += `\n\n${EMOJIS.DINERO} *Método de pago:* Efectivo`;
+        mensaje += `\n💵 *El repartidor cobrará ${formatearPrecio(resumen.total)} al entregar*`;
+        mensaje += `\n💡 (incluye $${COSTO_ENVIO} de envío — lleva cambio, el repartidor trae máximo $${MAX_CAMBIO_REPARTIDOR})`;
       } else if (metodoPago === METODOS_PAGO.TRANSFERENCIA) {
-        mensaje += `\n${EMOJIS.DINERO} *Método de pago:* Transferencia`;
-        mensaje += `\n✅ El envío ya está incluido en tu transferencia`;
+        mensaje += `\n\n${EMOJIS.DINERO} *Método de pago:* Transferencia`;
+        mensaje += `\n✅ El envío ya está incluido en tu transferencia — el repartidor NO cobrará nada al entregar`;
       }
     }
 

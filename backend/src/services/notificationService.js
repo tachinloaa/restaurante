@@ -1,7 +1,7 @@
 import TwilioService from './twilioService.js';
 import { supabase } from '../config/database.js';
 import { formatearPrecio, formatearHora, formatearTelefono } from '../utils/formatters.js';
-import { EMOJIS, TIPOS_PEDIDO, DIRECCION_RESTAURANTE } from '../config/constants.js';
+import { EMOJIS, TIPOS_PEDIDO, DIRECCION_RESTAURANTE, COSTO_ENVIO } from '../config/constants.js';
 import config from '../config/environment.js';
 import logger from '../utils/logger.js';
 
@@ -51,6 +51,9 @@ class NotificationService {
         });
       }
 
+      if (esDomicilio) {
+        mensaje += `🛵 Envío a domicilio: ${formatearPrecio(COSTO_ENVIO)}\n`;
+      }
       mensaje += `\n${EMOJIS.DINERO} *TOTAL: ${formatearPrecio(pedido.total)}*\n`;
 
       // Sección de pago según método
