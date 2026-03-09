@@ -2953,8 +2953,8 @@ class BotService {
         `\n👨‍🍳 Estado actual: *PREPARANDO*\n\n` +
         `⚡ *COMANDOS RÁPIDOS:*\n` +
         `• *entregado #${pedido.numero_pedido}* - ${pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO ? 'En camino 🛵' : 'Listo para recoger 📦'}\n` +
-        `• *ficha #${pedido.numero_pedido}* - Reenviar ficha al repartidor\n\n` +
-        `✅ El cliente ya fue notificado de la aprobación del pago.`
+        (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO ? `• *ficha #${pedido.numero_pedido}* - Reenviar ficha al repartidor\n` : '') +
+        `\n✅ El cliente ya fue notificado de la aprobación del pago.`
     };
   }
 
