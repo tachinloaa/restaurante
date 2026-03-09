@@ -75,8 +75,8 @@ class NotificationService {
       mensaje += `\n${'─'.repeat(30)}\n`;
       if (esEfectivo) {
         mensaje += `⚡ *ACCIONES:*\n`;
-        mensaje += `• *preparando #${pedido.numero_pedido}* — Poner en cocina 👨‍🍳\n`;
         if (esDomicilio) {
+          mensaje += `• *preparando #${pedido.numero_pedido}* — Poner en cocina 👨‍🍳\n`;
           mensaje += `• *ficha #${pedido.numero_pedido}* — Ver ficha de entrega 📋\n`;
         }
         mensaje += `• *entregado #${pedido.numero_pedido}* — ${esDomicilio ? 'Marcar en camino 🛵' : 'Listo para recoger 📦'}\n`;
@@ -87,26 +87,29 @@ class NotificationService {
         mensaje += `• *rechazar #${pedido.numero_pedido}* — Pago inválido ❌\n`;
       }
 
-      // 1) Enviar plantilla aprobada primero (funciona fuera de ventana de 24h)
-      try {
-        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-        const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
-          pedido.numero_pedido,
-          cliente.nombre || 'Sin nombre',
-          cliente.telefono || 'N/A',
-          `$${pedido.total}`,
-          tipoPedidoTemplate
-        );
-        if (resultadoPlantilla.success) {
-          logger.info(`✅ Plantilla enviada al admin para pedido #${pedido.numero_pedido}`);
-        } else {
-          logger.warn(`⚠️ Plantilla falló para pedido #${pedido.numero_pedido}: ${resultadoPlantilla.error}`);
+      // Pedidos de transferencia: enviar plantilla primero para abrir ventana 24h
+      // Pedidos de efectivo: NO enviar plantilla (dice "aprobar/rechazar" que es incorrecto)
+      if (esTransferencia) {
+        try {
+          const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
+          const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
+            pedido.numero_pedido,
+            cliente.nombre || 'Sin nombre',
+            cliente.telefono || 'N/A',
+            `$${pedido.total}`,
+            tipoPedidoTemplate
+          );
+          if (resultadoPlantilla.success) {
+            logger.info(`✅ Plantilla enviada al admin para pedido #${pedido.numero_pedido}`);
+          } else {
+            logger.warn(`⚠️ Plantilla falló para pedido #${pedido.numero_pedido}: ${resultadoPlantilla.error}`);
+          }
+        } catch (templateError) {
+          logger.warn(`⚠️ Error al enviar plantilla al admin: ${templateError.message}`);
         }
-      } catch (templateError) {
-        logger.warn(`⚠️ Error al enviar plantilla al admin: ${templateError.message}`);
       }
 
-      // 2) Enviar detalle completo (freeform — funciona si la plantilla abrió la ventana)
+      // Enviar detalle completo (freeform)
       const resultado = await TwilioService.enviarMensajeAdmin(mensaje);
 
       if (resultado.success) {
