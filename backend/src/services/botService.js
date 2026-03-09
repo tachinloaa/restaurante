@@ -1110,7 +1110,11 @@ class BotService {
     await SessionService.extenderSesion(telefono, COMPROBANTE_TIMEOUT);
     logger.info(`⏰ Sesión extendida para ${telefono} - Esperando comprobante por ${COMPROBANTE_TIMEOUT / 60000} minutos`);
 
-    const total = await SessionService.calcularTotalCarrito(telefono);
+    const totalProductos = await SessionService.calcularTotalCarrito(telefono);
+    const sessionTransf = await SessionService.getSession(telefono);
+    const total = sessionTransf?.datos?.tipo_pedido === TIPOS_PEDIDO.DOMICILIO
+      ? totalProductos + COSTO_ENVIO
+      : totalProductos;
 
     let mensaje = `${EMOJIS.DINERO} *PAGO POR TRANSFERENCIA*\n\n`;
     mensaje += `Total a pagar: *${formatearPrecio(total)}*\n\n`;
@@ -1385,7 +1389,7 @@ class BotService {
         mensaje += `\n💵 El repartidor lleva cambio máximo de $${MAX_CAMBIO_REPARTIDOR} pesos`;
       } else if (metodoPago === METODOS_PAGO.TRANSFERENCIA) {
         mensaje += `\n${EMOJIS.DINERO} *Método de pago:* Transferencia`;
-        mensaje += `\n📝 El envío (${formatearPrecio(COSTO_ENVIO)}) se cobra al entregar`;
+        mensaje += `\n✅ El envío ya está incluido en tu transferencia`;
       }
     }
 
@@ -2917,16 +2921,16 @@ class BotService {
       if (pedido.referencias) fichaReparto += `ℹ️ *Ref:* ${pedido.referencias}${NL}`;
       fichaReparto += `${NL}`;
 
-      // Si el pago fue por transferencia, el repartidor solo cobra el envío
+      // Si el pago fue por transferencia, todo (incluyendo envío) ya fue pagado
       const montoCobrar = pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA
-        ? COSTO_ENVIO
+        ? 0
         : pedido.total;
 
       fichaReparto += `💰 *COBRAR:* ${formatearPrecio(montoCobrar)}${NL}`;
       fichaReparto += `💳 *Método:* ${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'EFECTIVO'}${NL}`;
 
       if (pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA) {
-        fichaReparto += `📝 *Nota:* Comida pagada por transferencia, solo cobrar envío${NL}`;
+        fichaReparto += `📝 *Nota:* Todo pagado por transferencia (incluye envío) — NO cobrar nada${NL}`;
       }
 
       fichaReparto += `${NL}`;
@@ -3261,11 +3265,11 @@ class BotService {
     if (pedido.referencias) fichaReparto += `ℹ️ *Ref:* ${pedido.referencias}${NL}`;
     fichaReparto += `${NL}`;
 
-    const montoCobrar = pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA ? COSTO_ENVIO : pedido.total;
+    const montoCobrar = pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA ? 0 : pedido.total;
     fichaReparto += `💰 *COBRAR: ${formatearPrecio(montoCobrar)}*${NL}`;
     fichaReparto += `💳 *Método:* ${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'EFECTIVO'}${NL}`;
     if (pedido.metodo_pago === METODOS_PAGO.TRANSFERENCIA) {
-      fichaReparto += `📝 Comida pagada por transferencia — solo cobrar envío${NL}`;
+      fichaReparto += `📝 Todo pagado por transferencia (incluye envío) — NO cobrar nada${NL}`;
     }
     fichaReparto += `${NL}`;
 
