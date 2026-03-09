@@ -1022,7 +1022,15 @@ class BotService {
     const tipoPedido = session.datos.tipo_pedido;
 
     let mensaje = `${EMOJIS.DINERO} *MÉTODO DE PAGO*\n\n`;
-    mensaje += `Total a pagar: *${formatearPrecio(total)}*\n\n`;
+    mensaje += `Total productos: *${formatearPrecio(total)}*\n`;
+
+    if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
+      mensaje += `🛵 Costo de envío: *${formatearPrecio(COSTO_ENVIO)}*\n`;
+      mensaje += `💰 *Total a pagar: ${formatearPrecio(total + COSTO_ENVIO)}*\n\n`;
+    } else {
+      mensaje += `\n`;
+    }
+
     mensaje += `¿Cómo deseas pagar?\n\n`;
 
     if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
@@ -1371,9 +1379,13 @@ class BotService {
     // Mostrar método de pago si es domicilio
     if (tipoPedido === TIPOS_PEDIDO.DOMICILIO) {
       const metodoPago = session.datos.metodo_pago;
+      mensaje += `\n\n🛵 *Costo de envío:* ${formatearPrecio(COSTO_ENVIO)}`;
       if (metodoPago === METODOS_PAGO.EFECTIVO) {
-        mensaje += `\n\n${EMOJIS.DINERO} *Método de pago:* Efectivo`;
+        mensaje += `\n${EMOJIS.DINERO} *Método de pago:* Efectivo`;
         mensaje += `\n💵 El repartidor lleva cambio máximo de $${MAX_CAMBIO_REPARTIDOR} pesos`;
+      } else if (metodoPago === METODOS_PAGO.TRANSFERENCIA) {
+        mensaje += `\n${EMOJIS.DINERO} *Método de pago:* Transferencia`;
+        mensaje += `\n📝 El envío (${formatearPrecio(COSTO_ENVIO)}) se cobra al entregar`;
       }
     }
 
