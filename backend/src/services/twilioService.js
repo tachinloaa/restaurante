@@ -108,7 +108,10 @@ class TwilioService {
         if (job.tipo === 'cliente') {
           resultado = await this.enviarMensajeCliente(job.numeroDestino, job.mensaje, 2, { skipQueue: true });
         } else if (job.tipo === 'admin') {
-          resultado = await this.enviarMensajeAdmin(job.mensaje, { skipQueue: true });
+          resultado = await this.enviarMensajeAdmin(job.mensaje, {
+            skipQueue: true,
+            adminTargets: Array.isArray(job.adminTargets) ? job.adminTargets : null
+          });
         } else {
           resultado = { success: true };
         }
@@ -167,6 +170,19 @@ class TwilioService {
         maxQueueRetries: this.maxQueueRetries
       }
     };
+  }
+
+  static getAdminRecipients(overrideTargets = null) {
+    if (Array.isArray(overrideTargets) && overrideTargets.length > 0) {
+      return [...new Set(overrideTargets.map(n => this.normalizarNumeroAdmin(n)).filter(Boolean))];
+    }
+
+    const recipients = [
+      this.normalizarNumeroAdmin(config.admin.phoneNumber),
+      config.admin.secondaryPhoneNumber ? this.normalizarNumeroAdmin(config.admin.secondaryPhoneNumber) : null
+    ].filter(Boolean);
+
+    return [...new Set(recipients)];
   }
 
   /**
@@ -333,52 +349,85 @@ class TwilioService {
         return { success: true, messageSid: 'TEST_MODE', test: true };
       }
 
-      // Obtener número del admin con validación y normalización robusta
-      const numeroAdmin = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
-      if (!numeroAdmin) {
+      // Obtener números admin (principal + secundario)
+      const recipients = this.getAdminRecipients(opciones.adminTargets);
+      if (recipients.length === 0) {
         logger.error('❌ ADMIN_PHONE_NUMBER no está configurado o tiene formato inválido — no se envió mensaje al admin');
         return { success: false, error: 'Admin phone not configured' };
       }
-      const numeroFormateado = `whatsapp:${numeroAdmin}`;
-      logger.info(`📤 Enviando mensaje al admin: ${numeroAdmin}`);
 
-      // Dividir mensaje si es necesario
-      const partes = this.dividirMensaje(mensaje);
+      const failures = [];
       const messageSids = [];
 
-      // Enviar cada parte
-      for (let i = 0; i < partes.length; i++) {
-        const parte = partes[i];
-        let mensajeConEncabezado = parte;
+      for (const numeroAdmin of recipients) {
+        const numeroFormateado = `whatsapp:${numeroAdmin}`;
+        logger.info(`📤 Enviando mensaje al admin: ${numeroAdmin}`);
 
-        // Agregar número de parte si hay múltiples
-        if (partes.length > 1) {
-          mensajeConEncabezado = `📱 *Parte ${i + 1}/${partes.length}*\n\n${parte}`;
-        }
+        try {
+          // Dividir mensaje si es necesario
+          const partes = this.dividirMensaje(mensaje);
 
-        const message = await twilioClient.messages.create({
-          body: mensajeConEncabezado,
-          from: config.twilio.whatsappClientes,
-          to: numeroFormateado
-        });
+          // Enviar cada parte
+          for (let i = 0; i < partes.length; i++) {
+            const parte = partes[i];
+            let mensajeConEncabezado = parte;
 
-        messageSids.push(message.sid);
-        logger.info(`Mensaje enviado a admin ${numeroAdmin} (parte ${i + 1}/${partes.length}): ${message.sid}`);
+            // Agregar número de parte si hay múltiples
+            if (partes.length > 1) {
+              mensajeConEncabezado = `📱 *Parte ${i + 1}/${partes.length}*\n\n${parte}`;
+            }
 
-        // Pequeño delay entre mensajes
-        if (i < partes.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 800));
+            const message = await twilioClient.messages.create({
+              body: mensajeConEncabezado,
+              from: config.twilio.whatsappClientes,
+              to: numeroFormateado
+            });
+
+            messageSids.push(message.sid);
+            logger.info(`Mensaje enviado a admin ${numeroAdmin} (parte ${i + 1}/${partes.length}): ${message.sid}`);
+
+            // Pequeño delay entre mensajes
+            if (i < partes.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 800));
+            }
+          }
+        } catch (targetError) {
+          failures.push({ numeroAdmin, error: targetError.message || 'Error desconocido' });
+          logger.error(`❌ Falló envío a admin ${numeroAdmin}:`, targetError.message);
         }
       }
 
-      return { success: true, messageSid: messageSids[0], messageSids, partes: partes.length };
+      // Si al menos un admin recibió, consideramos éxito parcial/total.
+      if (messageSids.length > 0) {
+        // Si hubo fallos parciales, encolar solo para los objetivos fallidos.
+        if (!opciones.skipQueue && failures.length > 0) {
+          this.encolarNotificacionFallida({
+            tipo: 'admin',
+            mensaje,
+            adminTargets: failures.map(f => f.numeroAdmin)
+          });
+        }
+
+        return {
+          success: true,
+          partial: failures.length > 0,
+          failures,
+          messageSid: messageSids[0],
+          messageSids
+        };
+      }
+
+      // Fallo total en todos los admin targets.
+      const errorConsolidado = failures.map(f => `${f.numeroAdmin}: ${f.error}`).join(' | ') || 'Error desconocido';
+      throw new Error(errorConsolidado);
     } catch (error) {
       logger.error('Error al enviar mensaje a admin:', error);
 
       if (!opciones.skipQueue) {
         this.encolarNotificacionFallida({
           tipo: 'admin',
-          mensaje
+          mensaje,
+          adminTargets: opciones.adminTargets || null
         });
 
         return {
