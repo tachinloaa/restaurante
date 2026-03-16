@@ -1,10 +1,7 @@
 import { BOT_STATES, SESSION_TIMEOUT, MAX_ITEMS_CARRITO, MAX_TIPOS_PRODUCTOS } from '../config/constants.js';
 import logger from '../utils/logger.js';
 import config from '../config/environment.js';
-import fs from 'fs';
-import path from 'path';
-
-const SESSION_BACKUP_FILE = path.join(process.cwd(), 'sessions_backup.json');
+import DatabaseStorageService from './databaseStorageService.js';
 
 // Inicializar Redis solo si está habilitado
 let redisClient = null;
@@ -83,14 +80,9 @@ class SessionService {
     }
   }
 
-  cargarRespaldoSesiones() {
+  async cargarRespaldoSesiones() {
     try {
-      if (!fs.existsSync(SESSION_BACKUP_FILE)) {
-        return;
-      }
-
-      const raw = fs.readFileSync(SESSION_BACKUP_FILE, 'utf8');
-      const data = JSON.parse(raw);
+      const data = await DatabaseStorageService.loadAllSessions();
 
       if (!Array.isArray(data)) {
         return;
@@ -108,18 +100,18 @@ class SessionService {
     }
   }
 
-  guardarRespaldoSesiones() {
+  async guardarRespaldoSesiones() {
     try {
       const payload = Array.from(this.sessions.values());
 
       if (payload.length === 0) {
-        if (fs.existsSync(SESSION_BACKUP_FILE)) {
-          fs.unlinkSync(SESSION_BACKUP_FILE);
-        }
         return;
       }
 
-      fs.writeFileSync(SESSION_BACKUP_FILE, JSON.stringify(payload, null, 2));
+      // Guardar cada sesión en Supabase
+      for (const session of payload) {
+        await DatabaseStorageService.saveSession(session.telefono, session);
+      }
     } catch (error) {
       logger.error('❌ Error guardando respaldo de sesiones:', error.message);
     }
@@ -210,7 +202,11 @@ class SessionService {
 
     // Siempre guardar en memoria como fallback
     this.sessions.set(telefono, session);
-    this.guardarRespaldoSesiones();
+    
+    // Guardar en Supabase (no-blocking)
+    DatabaseStorageService.saveSession(telefono, session).catch(err => {
+      logger.warn('⚠️ No se pudo guardar sesión en Supabase:', err.message);
+    });
     
     logger.debug(`Sesión actualizada para ${telefono}: ${session.estado}`);
     return session;

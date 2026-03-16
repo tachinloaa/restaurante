@@ -2,10 +2,7 @@ import twilioClient from '../config/twilio.js';
 import config from '../config/environment.js';
 import { ADMIN_PHONE_FIJO } from '../config/constants.js';
 import logger from '../utils/logger.js';
-import fs from 'fs';
-import path from 'path';
-
-const NOTIFICATION_QUEUE_FILE = path.join(process.cwd(), 'failed_notifications.json');
+import DatabaseStorageService from './databaseStorageService.js';
 
 /**
  * Servicio de Twilio para envío de mensajes de WhatsApp
@@ -33,25 +30,22 @@ class TwilioService {
     }, 30000);
 
     process.on('SIGTERM', () => {
-      this.guardarColaPersistente();
+      // No es necesario guardar más (ahora está en el DB)
     });
 
     process.on('SIGINT', () => {
-      this.guardarColaPersistente();
+      // No es necesario guardar más (ahora está en el DB)
     });
 
     this.isReliabilityInitialized = true;
     logger.info(`📨 Sistema confiable de notificaciones activo. Cola inicial: ${this.notificationQueue.length}`);
   }
 
-  static cargarColaPersistente() {
+  static async cargarColaPersistente() {
     try {
-      if (fs.existsSync(NOTIFICATION_QUEUE_FILE)) {
-        const raw = fs.readFileSync(NOTIFICATION_QUEUE_FILE, 'utf8');
-        const data = JSON.parse(raw);
-        if (Array.isArray(data)) {
-          this.notificationQueue = data;
-        }
+      const data = await DatabaseStorageService.loadPendingNotifications();
+      if (Array.isArray(data)) {
+        this.notificationQueue = data;
       }
     } catch (error) {
       logger.error('❌ Error cargando cola de notificaciones:', error.message);
@@ -60,29 +54,25 @@ class TwilioService {
   }
 
   static guardarColaPersistente() {
-    try {
-      if (this.notificationQueue.length === 0) {
-        if (fs.existsSync(NOTIFICATION_QUEUE_FILE)) {
-          fs.unlinkSync(NOTIFICATION_QUEUE_FILE);
-        }
-        return;
-      }
-
-      fs.writeFileSync(NOTIFICATION_QUEUE_FILE, JSON.stringify(this.notificationQueue, null, 2));
-    } catch (error) {
-      logger.error('❌ Error guardando cola de notificaciones:', error.message);
-    }
+    // Ya no es necesario guardar en archivo (está en DB)
+    // Este método se mantiene para compatibilidad pero no hace nada
   }
 
-  static encolarNotificacionFallida(job) {
-    this.notificationQueue.push({
+  static async encolarNotificacionFallida(job) {
+    const queueItem = {
       ...job,
       retryCount: job.retryCount || 0,
       nextRetryAt: job.nextRetryAt || Date.now() + 30000,
       createdAt: job.createdAt || new Date().toISOString()
+    };
+
+    this.notificationQueue.push(queueItem);
+    
+    // Guardar en BD (no-blocking)
+    DatabaseStorageService.enqueueNotification(queueItem).catch(err => {
+      logger.warn('⚠️ No se pudo guardar notificación en Supabase:', err.message);
     });
 
-    this.guardarColaPersistente();
     logger.warn(`⚠️ Notificación encolada para reintento (${job.tipo})`);
   }
 
@@ -106,11 +96,11 @@ class TwilioService {
         let resultado;
 
         if (job.tipo === 'cliente') {
-          resultado = await this.enviarMensajeCliente(job.numeroDestino, job.mensaje, 2, { skipQueue: true });
+          resultado = await this.enviarMensajeCliente(job.numero_destino, job.mensaje, 2, { skipQueue: true });
         } else if (job.tipo === 'admin') {
           resultado = await this.enviarMensajeAdmin(job.mensaje, {
             skipQueue: true,
-            adminTargets: Array.isArray(job.adminTargets) ? job.adminTargets : null
+            adminTargets: Array.isArray(job.admin_targets) ? job.admin_targets : null
           });
         } else {
           resultado = { success: true };
@@ -118,11 +108,16 @@ class TwilioService {
 
         if (resultado.success) {
           logger.info(`✅ Notificación recuperada desde cola (${job.tipo})`);
+          // Remover de BD
+          if (job.id) {
+            DatabaseStorageService.removeNotification(job.id).catch(err => {
+              logger.warn('⚠️ No se pudo remover notificación de DB:', err.message);
+            });
+          }
           continue;
         }
 
-        const retryCount = (job.retryCount || 0) + 1;
-
+        const retryCount = (job.numero_intentos || 0) + 1;
         const backoff = Math.min(600000, 30000 * Math.pow(2, Math.min(retryCount, 5)));
 
         // Nunca descartar automáticamente: mantener fuera de limbo y seguir reintentando.
@@ -130,16 +125,25 @@ class TwilioService {
           logger.error(`🚨 Notificación sigue pendiente tras ${retryCount} intentos (${job.tipo})`);
         }
 
-        pendientes.push({
+        const updatedJob = {
           ...job,
-          retryCount,
-          nextRetryAt: Date.now() + backoff,
-          lastError: resultado.error || 'Error desconocido'
-        });
+          numero_intentos: retryCount,
+          proximo_reintento_at: new Date(Date.now() + backoff).toISOString(),
+          ultimo_error: resultado.error || 'Error desconocido'
+        };
+
+        pendientes.push(updatedJob);
+        
+        // Actualizar en BD
+        if (job.id) {
+          DatabaseStorageService.updateNotificationRetry(job.id, resultado.error || 'Error desconocido').catch(err => {
+            logger.warn('⚠️ No se pudo actualizar notificación en DB:', err.message);
+          });
+        }
       }
 
       this.notificationQueue = pendientes;
-      this.guardarColaPersistente();
+      // Ya no es necesario guardar en archivo
     } catch (error) {
       logger.error('❌ Error procesando cola de notificaciones:', error.message);
     } finally {

@@ -4,43 +4,18 @@ import Product from '../models/Product.js';
 import SessionService from './sessionService.js';
 import TwilioService from './twilioService.js';
 import IdempotencyService from './idempotencyService.js';
+import DatabaseStorageService from './databaseStorageService.js';
 import { formatearPrecio, limpiarNumeroWhatsApp } from '../utils/formatters.js';
 import { TIPOS_PEDIDO, ESTADOS_PEDIDO, COSTO_ENVIO } from '../config/constants.js';
 import config from '../config/environment.js';
 import logger from '../utils/logger.js';
-import fs from 'fs';
-import path from 'path';
 
 /**
  * 🚨 COLA DE EMERGENCIA PARA PEDIDOS
- * Si Supabase falla, los pedidos se guardan aquí temporalmente
+ * Si Supabase falla, los pedidos se guardan en la BD (order_emergency_queue table)
+ * Local cache para rápido acceso cuando BD no está disponible
  */
 const pendingOrders = [];
-const EMERGENCY_QUEUE_FILE = path.join(process.cwd(), 'emergency_orders.json');
-
-// Cargar pedidos pendientes al iniciar (si existen)
-try {
-  if (fs.existsSync(EMERGENCY_QUEUE_FILE)) {
-    const data = fs.readFileSync(EMERGENCY_QUEUE_FILE, 'utf8');
-    const savedOrders = JSON.parse(data);
-    pendingOrders.push(...savedOrders);
-    logger.info(`📦 ${pendingOrders.length} pedidos cargados de la cola de emergencia`);
-  }
-} catch (error) {
-  logger.error('Error cargando cola de emergencia:', error);
-}
-
-// Guardar cola en archivo cada 30 segundos
-setInterval(() => {
-  if (pendingOrders.length > 0) {
-    try {
-      fs.writeFileSync(EMERGENCY_QUEUE_FILE, JSON.stringify(pendingOrders, null, 2));
-      logger.info(`💾 Cola de emergencia guardada: ${pendingOrders.length} pedidos`);
-    } catch (error) {
-      logger.error('Error guardando cola de emergencia:', error);
-    }
-  }
-}, 30000);
 
 /**
  * Servicio para procesar pedidos
@@ -49,17 +24,16 @@ class OrderService {
   constructor() {
     this.isEmergencyProcessorStarted = false;
     this.isProcessingEmergencyQueue = false;
+    this.cargarColaEmergenciaDesdeDB();
   }
 
-  guardarColaEmergenciaEnArchivo() {
+  async cargarColaEmergenciaDesdeDB() {
     try {
-      if (pendingOrders.length > 0) {
-        fs.writeFileSync(EMERGENCY_QUEUE_FILE, JSON.stringify(pendingOrders, null, 2));
-      } else if (fs.existsSync(EMERGENCY_QUEUE_FILE)) {
-        fs.unlinkSync(EMERGENCY_QUEUE_FILE);
-      }
+      const orders = await DatabaseStorageService.loadPendingOrders();
+      pendingOrders.push(...orders);
+      logger.info(`📦 ${pendingOrders.length} pedidos cargados de la cola de emergencia`);
     } catch (error) {
-      logger.error('Error guardando cola de emergencia:', error);
+      logger.error('Error cargando cola de emergencia:', error);
     }
   }
 
@@ -246,8 +220,11 @@ class OrderService {
 
         pendingOrders.push(pedidoEmergencia);
         
-        // Guardar inmediatamente en archivo
-        this.guardarColaEmergenciaEnArchivo();
+        // Guardar en BD
+        const saveResult = await DatabaseStorageService.enqueueOrder(pedidoEmergencia);
+        if (saveResult.usedLocal) {
+          logger.warn('⚠️ Pedido guardado en cache local (BD no disponible)');
+        }
 
         logger.warn(`📦 Pedido guardado en cola de emergencia: ${pedidoEmergencia.id}`);
 
@@ -259,8 +236,7 @@ class OrderService {
             `📞 Tel: ${telefonoLimpio}\n` +
             `💰 Total: ${formatearPrecio(total)}\n` +
             `📦 ID Emergencia: ${pedidoEmergencia.id}\n\n` +
-            `⚠️ El pedido está guardado en cola.\n` +
-            `Revisa emergency_orders.json`;
+            `⚠️ El pedido está guardado en BD de emergencia.`;
           
           await TwilioService.enviarMensajeAdmin(mensajeAdmin);
         } catch (notifError) {
