@@ -126,8 +126,8 @@ export const EMOJIS = {
   MOTO: '🛵'
 };
 
-// Tiempo de sesión en milisegundos (30 minutos)
-export const SESSION_TIMEOUT = 30 * 60 * 1000;
+// Tiempo de sesión en milisegundos (60 minutos - para que cliente reciba actualizaciones durante preparación)
+export const SESSION_TIMEOUT = 60 * 60 * 1000;
 
 // Tiempo extendido para esperar comprobante (15 minutos)
 export const COMPROBANTE_TIMEOUT = 15 * 60 * 1000;

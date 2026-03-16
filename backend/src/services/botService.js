@@ -3074,14 +3074,9 @@ class BotService {
         // Continuar con el pedido original si falla
       }
 
-      // Notificar al cliente en estados relevantes:
-      // - enviado: avisarle que el pedido va en camino (domicilio)
-      // - entregado: confirmar entrega
-      // - cancelado: avisar cancelación
+      // Notificar al cliente en estados relevantes
       let notificacionEnviada = false;
       if (['entregado', 'cancelado'].includes(nuevoEstado)) {
-        // Forzar nuevoEstado siempre — evita race condition donde pedidoActualizado
-        // llega con el estado anterior (stale) de Supabase
         const pedidoParaNotificar = {
           ...(pedidoActualizado || pedido),
           estado: nuevoEstado
@@ -3095,13 +3090,11 @@ class BotService {
 
       // Mensajes según el estado
       const estadoEmojis = {
-        'preparando': '👨‍🍳',
-        'entregado': '🎉',
+        'entregado': '🛵',
         'cancelado': '❌'
       };
 
       const estadoTextos = {
-        'preparando': 'PREPARANDO',
         'entregado': 'ENTREGADO',
         'cancelado': 'CANCELADO'
       };
