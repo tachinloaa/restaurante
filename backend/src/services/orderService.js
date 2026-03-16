@@ -626,26 +626,45 @@ class OrderService {
 
         // 🛑 LÍMITE DE REINTENTOS: si supera MAX → Dead Letter Queue + intervención manual
         if (pedidoEmergencia.intentos >= MAX_INTENTOS_EMERGENCIA) {
-          pendingOrders.splice(index, 1);
-          await DatabaseStorageService.removeOrder(emergencyId);
-          await DatabaseStorageService.moveToDeadLetterQueue(
+          // CRÍTICO: insertar en DLQ PRIMERO. Solo si tiene éxito se borra de la cola activa.
+          // Si el insert DLQ falla (Supabase caída), el pedido se MANTIENE en cola y en el
+          // mensaje al admin van todos los datos para que pueda crearlo manualmente sin depender de DLQ.
+          const dlqResult = await DatabaseStorageService.moveToDeadLetterQueue(
             'pedido_emergencia',
             pedidoEmergencia.datos,
             pedidoEmergencia.intentos,
             pedidoEmergencia.ultimoError
           );
-          logger.error(`🛑 Pedido ${emergencyId} movido a DLQ tras ${pedidoEmergencia.intentos} intentos`);
 
+          const dlqOk = dlqResult?.success === true;
+
+          if (dlqOk) {
+            // Solo borramos si el DLQ confirma el guardado
+            pendingOrders.splice(index, 1);
+            await DatabaseStorageService.removeOrder(emergencyId);
+            logger.error(`🛑 Pedido ${emergencyId} movido a DLQ tras ${pedidoEmergencia.intentos} intentos`);
+          } else {
+            // DLQ también falló: congelar intentos en MAX-1 para que el próximo ciclo lo
+            // reintente en DLQ sin volver a crecer los intentos indefinidamente.
+            pedidoEmergencia.intentos = MAX_INTENTOS_EMERGENCIA - 1;
+            logger.error(`🚨 DLQ falló para pedido ${emergencyId}. Se mantiene en cola. Admin notificado con datos completos.`);
+          }
+
+          // Notificar admin con TODOS los datos del pedido independientemente del DLQ
           try {
+            const listaProductos = (pedidoEmergencia.datos?.productos || [])
+              .map(p => `${p.cantidad}x prod#${p.producto_id}`)
+              .join(', ') || 'ver log';
             await TwilioService.enviarMensajeAdmin(
               `🛑 *PEDIDO REQUIERE INTERVENCIÓN MANUAL*\n\n` +
               `❌ ${MAX_INTENTOS_EMERGENCIA} intentos fallidos sin éxito\n` +
-              `📦 ID Emergencia: ${emergencyId}\n` +
+              (dlqOk ? `✅ Archivado en Dead Letter Queue\n` : `🔴 DLQ también falló — datos abajo\n`) +
+              `\n📦 ID Emergencia: ${emergencyId}\n` +
               `📞 Cliente: ${pedidoEmergencia.telefono || 'desconocido'}\n` +
               `💰 Total: ${formatearPrecio(pedidoEmergencia.datos?.total || 0)}\n` +
+              `🛒 Productos: ${listaProductos}\n` +
               `❌ Último error: ${pedidoEmergencia.ultimoError}\n\n` +
-              `⚠️ *Crea el pedido MANUALMENTE en el panel admin.*\n` +
-              `El pedido fue archivado en Dead Letter Queue para auditoría.`
+              `⚠️ *CREA ESTE PEDIDO MANUALMENTE EN EL PANEL ADMIN.*`
             );
           } catch (notifError) {
             logger.error('Error notificando DLQ al admin:', notifError);
@@ -666,8 +685,11 @@ class OrderService {
 
           return {
             success: false,
-            deadLettered: true,
-            error: `Movido a Dead Letter Queue tras ${pedidoEmergencia.intentos} intentos`
+            deadLettered: dlqOk,
+            dlqFailed: !dlqOk,
+            error: dlqOk
+              ? `Movido a Dead Letter Queue tras ${pedidoEmergencia.intentos} intentos`
+              : `DLQ falló. Pedido mantenido en cola. Admin notificado.`
           };
         }
 
