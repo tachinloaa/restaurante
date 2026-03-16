@@ -202,11 +202,21 @@ class SessionService {
 
     // Siempre guardar en memoria como fallback
     this.sessions.set(telefono, session);
-    
-    // Guardar en Supabase (no-blocking)
-    DatabaseStorageService.saveSession(telefono, session).catch(err => {
-      logger.warn('⚠️ No se pudo guardar sesión en Supabase:', err.message);
-    });
+
+    // Persistencia fuerte en producción cuando Redis no está disponible.
+    // Evita perder sesiones en reinicios justo durante incidentes de Redis.
+    if (config.isProduction && !isRedisConnected) {
+      try {
+        await DatabaseStorageService.saveSession(telefono, session);
+      } catch (err) {
+        logger.warn('⚠️ No se pudo guardar sesión en Supabase (modo crítico sin Redis):', err.message);
+      }
+    } else {
+      // En operación normal, persistir asíncrono para menor latencia.
+      DatabaseStorageService.saveSession(telefono, session).catch(err => {
+        logger.warn('⚠️ No se pudo guardar sesión en Supabase:', err.message);
+      });
+    }
     
     logger.debug(`Sesión actualizada para ${telefono}: ${session.estado}`);
     return session;

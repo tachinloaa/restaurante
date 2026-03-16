@@ -279,6 +279,12 @@ class OrderService {
           logger.error('Error notificando al admin:', notifError);
         }
 
+        // Fail-safe: si no se pudo persistir en BD, NO confirmar pedido ni limpiar sesión.
+        // Así el cliente puede reintentar y evitamos dar una falsa confirmación.
+        if (soloEnMemoria) {
+          throw new Error('No fue posible asegurar tu pedido en almacenamiento persistente. Intenta nuevamente en unos minutos.');
+        }
+
         // Limpiar sesión de todas formas
         await SessionService.limpiarCarrito(telefono);
         await SessionService.guardarDatos(telefono, { ultimo_pedido_emergencia: pedidoEmergencia.id });

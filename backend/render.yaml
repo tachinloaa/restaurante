@@ -12,9 +12,10 @@ services:
     env: node
     region: oregon
     plan: free
+    autoDeploy: false
     buildCommand: npm install
     startCommand: npm start
-    healthCheckPath: /api/health
+    healthCheckPath: /api/health/ops
     envVars:
       - key: NODE_ENV
         value: production
@@ -40,6 +41,9 @@ services:
         sync: false
       # Admin (OBLIGATORIO)
       - key: ADMIN_PHONE_NUMBER
+        sync: false
+      # Fallback push (ntfy)
+      - key: NTFY_TOPIC
         sync: false
       # Redis
       - key: REDIS_URL
