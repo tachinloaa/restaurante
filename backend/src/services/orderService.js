@@ -3,6 +3,7 @@ import Customer from '../models/Customer.js';
 import Product from '../models/Product.js';
 import SessionService from './sessionService.js';
 import TwilioService from './twilioService.js';
+import IdempotencyService from './idempotencyService.js';
 import { formatearPrecio, limpiarNumeroWhatsApp } from '../utils/formatters.js';
 import { TIPOS_PEDIDO, ESTADOS_PEDIDO, COSTO_ENVIO } from '../config/constants.js';
 import config from '../config/environment.js';
@@ -103,8 +104,33 @@ class OrderService {
   /**
    * Crear pedido desde el bot de WhatsApp
    */
-  async crearPedidoDesdeBot(telefono) {
+  async crearPedidoDesdeBot(telefono, opciones = {}) {
     try {
+      const idempotencyKey = opciones.idempotencyKey || null;
+
+      if (idempotencyKey) {
+        const idemStart = await IdempotencyService.begin(idempotencyKey);
+        if (!idemStart.ok) {
+          logger.warn(`⚠️ Idempotencia no disponible (${idempotencyKey}): ${idemStart.error}`);
+        } else if (idemStart.completed && idemStart.pedidoId) {
+          const pedidoExistente = await Order.getById(idemStart.pedidoId);
+          if (pedidoExistente.success && pedidoExistente.data) {
+            return {
+              success: true,
+              pedido: pedidoExistente.data,
+              cliente: pedidoExistente.data.clientes || null,
+              idempotentReplay: true
+            };
+          }
+        } else if (idemStart.inProgress) {
+          return {
+            success: false,
+            inProgress: true,
+            error: 'Pedido ya en procesamiento'
+          };
+        }
+      }
+
       // Obtener datos de la sesión
       const session = await SessionService.getSession(telefono);
       
@@ -187,6 +213,13 @@ class OrderService {
 
         logger.info(`✅ Pedido creado desde bot: #${pedido.data.numero_pedido}`);
 
+        if (idempotencyKey) {
+          await IdempotencyService.markCompleted(idempotencyKey, pedido.data.id, {
+            numero_pedido: pedido.data.numero_pedido,
+            pedido_id: pedido.data.id
+          });
+        }
+
         return {
           success: true,
           pedido: pedido.data,
@@ -253,6 +286,11 @@ class OrderService {
       }
     } catch (error) {
       logger.error('Error al crear pedido desde bot:', error);
+
+      if (opciones.idempotencyKey) {
+        await IdempotencyService.markFailed(opciones.idempotencyKey, error.message);
+      }
+
       return {
         success: false,
         error: error.message

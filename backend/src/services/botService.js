@@ -28,6 +28,7 @@ import {
 import { limpiarNumeroWhatsApp, formatearPrecio } from '../utils/formatters.js';
 import { sanitizarInput, esValidoNombre, esValidaDireccion } from '../utils/validators.js';
 import logger from '../utils/logger.js';
+import crypto from 'crypto';
 
 /**
  * Servicio del Bot conversacional de WhatsApp
@@ -48,6 +49,7 @@ class BotService {
       const mediaType = mensajeData.mediaType || null;
       const latitude = mensajeData.latitude || null;
       const longitude = mensajeData.longitude || null;
+      const messageSid = mensajeData.messageSid || null;
 
       // Sanitizar input del usuario
       const bodySanitizado = sanitizarInput(body);
@@ -121,6 +123,11 @@ class BotService {
 
       // Obtener o crear sesión del usuario
       let session = await SessionService.getSession(telefono);
+
+      if (messageSid) {
+        await SessionService.guardarDatos(telefono, { last_message_sid: messageSid });
+        session = await SessionService.getSession(telefono);
+      }
 
       // 🕐 VALIDACIÓN DE HORARIO: Servicio de 7am a 10pm hora México
       const horaMexico = new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City', hour: 'numeric', hour12: false });
@@ -1286,7 +1293,8 @@ class BotService {
       }
 
       // CREAR EL PEDIDO INMEDIATAMENTE con estado PENDIENTE_PAGO
-      const resultado = await OrderService.crearPedidoDesdeBot(telefono);
+      const idemKeyComprobanteImg = this.generarIdempotencyKey(telefono, session, 'comprobante_imagen');
+      const resultado = await OrderService.crearPedidoDesdeBot(telefono, { idempotencyKey: idemKeyComprobanteImg });
 
       if (!resultado.success) {
         logger.error('Error al crear pedido con comprobante:', resultado.error);
@@ -1352,7 +1360,8 @@ class BotService {
       const resumenTexto = resumenCarrito ? resumenCarrito.resumen : null;
 
       // CREAR EL PEDIDO INMEDIATAMENTE con estado PENDIENTE_PAGO
-      const resultado = await OrderService.crearPedidoDesdeBot(telefono);
+      const idemKeyComprobanteRef = this.generarIdempotencyKey(telefono, session, 'comprobante_referencia');
+      const resultado = await OrderService.crearPedidoDesdeBot(telefono, { idempotencyKey: idemKeyComprobanteRef });
 
       if (!resultado.success) {
         logger.error('Error al crear pedido con referencia:', resultado.error);
@@ -1581,7 +1590,8 @@ class BotService {
     const resumenTexto = resumenCarrito ? resumenCarrito.resumen : null;
 
     // SIEMPRE crear el pedido en la base de datos
-    const resultado = await OrderService.crearPedidoDesdeBot(telefono);
+    const idemKeyConfirmacion = this.generarIdempotencyKey(telefono, session, 'confirmar_pedido');
+    const resultado = await OrderService.crearPedidoDesdeBot(telefono, { idempotencyKey: idemKeyConfirmacion });
 
     if (!resultado.success) {
       logger.error('Error al crear pedido:', resultado.error);
@@ -2289,6 +2299,26 @@ class BotService {
         // Estaba en confirmación final, volver a mostrar confirmación
         return await this.mostrarConfirmacion(telefono);
     }
+  }
+
+  generarIdempotencyKey(telefono, session, contexto = 'pedido') {
+    const sid = session?.datos?.last_message_sid || 'no-sid';
+    const carrito = Array.isArray(session?.carrito) ? session.carrito : [];
+    const datos = session?.datos || {};
+
+    const payload = JSON.stringify({
+      telefono,
+      contexto,
+      sid,
+      carrito: carrito.map(i => ({ id: i.id, c: i.cantidad, p: i.precio })),
+      tipo: datos.tipo_pedido || null,
+      pago: datos.metodo_pago || null,
+      direccion: datos.direccion || null,
+      nombre: datos.nombre || null
+    });
+
+    const hash = crypto.createHash('sha256').update(payload).digest('hex').slice(0, 40);
+    return `order:${contexto}:${telefono}:${hash}`;
   }
 
   /**

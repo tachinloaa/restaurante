@@ -153,28 +153,48 @@ class Order {
    */
   static async create(pedidoData) {
     try {
-      // Generar número de pedido único
-      const numeroPedido = generarNumeroPedido();
+      let pedido = null;
+      let numeroPedido = null;
+      let lastInsertError = null;
 
-      // Crear el pedido principal
-      const { data: pedido, error: errorPedido } = await supabase
-        .from('pedidos')
-        .insert([{
-          numero_pedido: numeroPedido,
-          cliente_id: pedidoData.cliente_id,
-          total: pedidoData.total,
-          tipo_pedido: pedidoData.tipo_pedido,
-          estado: pedidoData.estado || 'pendiente',
-          direccion_entrega: pedidoData.direccion_entrega || null,
-          notas: pedidoData.notas || null,
-          metodo_pago: pedidoData.metodo_pago || 'efectivo',
-          pago_verificado: pedidoData.pago_verificado !== undefined ? pedidoData.pago_verificado : true,
-          comprobante_pago: pedidoData.comprobante_pago || null
-        }])
-        .select()
-        .single();
+      // Reintento limitado para colisiones de numero_pedido.
+      for (let intento = 0; intento < 5; intento++) {
+        numeroPedido = generarNumeroPedido();
 
-      if (errorPedido) throw errorPedido;
+        const { data: pedidoInsertado, error: errorPedido } = await supabase
+          .from('pedidos')
+          .insert([{
+            numero_pedido: numeroPedido,
+            cliente_id: pedidoData.cliente_id,
+            total: pedidoData.total,
+            tipo_pedido: pedidoData.tipo_pedido,
+            estado: pedidoData.estado || 'pendiente',
+            direccion_entrega: pedidoData.direccion_entrega || null,
+            notas: pedidoData.notas || null,
+            metodo_pago: pedidoData.metodo_pago || 'efectivo',
+            pago_verificado: pedidoData.pago_verificado !== undefined ? pedidoData.pago_verificado : true,
+            comprobante_pago: pedidoData.comprobante_pago || null
+          }])
+          .select()
+          .single();
+
+        if (!errorPedido) {
+          pedido = pedidoInsertado;
+          break;
+        }
+
+        lastInsertError = errorPedido;
+        const isUniqueCollision = errorPedido.code === '23505';
+        if (!isUniqueCollision) {
+          throw errorPedido;
+        }
+
+        logger.warn(`⚠️ Colisión de numero_pedido (${numeroPedido}), reintentando...`);
+      }
+
+      if (!pedido) {
+        throw lastInsertError || new Error('No se pudo crear pedido por colisión de identificador');
+      }
 
       // Crear los detalles del pedido
       const detalles = pedidoData.productos.map(producto => ({

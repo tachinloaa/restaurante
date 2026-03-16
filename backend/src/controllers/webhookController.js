@@ -2,6 +2,7 @@ import BotService from '../services/botService.js';
 import TwilioService from '../services/twilioService.js';
 import OrderService from '../services/orderService.js';
 import SessionService from '../services/sessionService.js';
+import WebhookDedupService from '../services/webhookDedupService.js';
 import { supabase } from '../config/database.js';
 import { success } from '../utils/responses.js';
 import logger from '../utils/logger.js';
@@ -39,6 +40,16 @@ class WebhookController {
         res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
         return;
       }
+
+      // Deduplicación persistente para resistir reinicios del proceso
+      const dedup = await WebhookDedupService.isDuplicateOrRegister(MessageSid, From, Body);
+      if (dedup.duplicate) {
+        logger.warn(`⚠️ Mensaje duplicado persistente detectado de ${From}, ignorando... (${dedup.reason})`);
+        res.type('text/xml');
+        res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+        return;
+      }
+
       recentMessages.set(msgKey, Date.now());
 
       // ⚡ RESPUESTA INMEDIATA A TWILIO (prevenir reintentos)
@@ -62,6 +73,7 @@ class WebhookController {
       // Preparar datos del mensaje
       const mensajeData = {
         body: Body,
+        messageSid: MessageSid || null,
         numMedia: parseInt(NumMedia) || 0,
         mediaUrl: MediaUrl0 || null,
         mediaType: MediaContentType0 || null,
