@@ -1626,6 +1626,12 @@ class BotService {
         );
         if (resultado.success) {
           logger.info(`✅ Media template con comprobante enviado al admin para pedido #${numeroPedido}`);
+          // Enviar también el detalle completo del pedido (productos, dirección, etc.)
+          try {
+            await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+          } catch (e) {
+            logger.warn(`⚠️ No se pudo enviar detalle del pedido al admin: ${e.message}`);
+          }
         } else {
           logger.error(`❌ Error media template: ${resultado.error}`);
           // Fallback al template de texto
@@ -1638,6 +1644,12 @@ class BotService {
         );
         if (resultadoTexto.success) {
           logger.info(`✅ Template de texto enviado al admin para pedido #${numeroPedido}`);
+          // Enviar también el detalle completo del pedido (productos, dirección, etc.)
+          try {
+            await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+          } catch (e) {
+            logger.warn(`⚠️ No se pudo enviar detalle del pedido al admin: ${e.message}`);
+          }
         } else {
           logger.error(`❌ Error template de texto: ${resultadoTexto.error}`);
         }
@@ -2709,8 +2721,8 @@ class BotService {
 
       // Obtener productos en consulta separada
       const { data: productosData } = await supabase
-        .from('pedidos_productos')
-        .select('cantidad, productos(nombre)')
+        .from('pedido_detalles')
+        .select('cantidad, precio_unitario, productos(nombre)')
         .eq('pedido_id', pedido.id);
 
       respuesta += `🍽️ *PRODUCTOS*\n`;
@@ -2895,10 +2907,24 @@ class BotService {
 
     const NL = '\n';
 
+    // Obtener productos del pedido (tabla correcta: pedido_detalles)
+    const { data: productosData } = await supabase
+      .from('pedido_detalles')
+      .select('cantidad, precio_unitario, productos(nombre)')
+      .eq('pedido_id', pedido.id);
+
     let mensajeCliente = `✅ *¡TU PAGO HA SIDO VERIFICADO!*${NL}${NL}`;
     mensajeCliente += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*${NL}${NL}`;
     mensajeCliente += `${EMOJIS.CHECK} Tu pedido ha sido *APROBADO* y ya está en preparación ${EMOJIS.COCINERO}${NL}${NL}`;
     mensajeCliente += `${EMOJIS.RELOJ} Tiempo estimado: ${tiempoEstimado.min}-${tiempoEstimado.max} minutos${NL}${NL}`;
+
+    if (productosData && productosData.length > 0) {
+      mensajeCliente += `🛒 *Tu pedido:*${NL}`;
+      productosData.forEach(p => {
+        mensajeCliente += `• ${p.cantidad}x ${p.productos?.nombre || 'Producto'}${NL}`;
+      });
+      mensajeCliente += `${NL}`;
+    }
 
     if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
       mensajeCliente += `${EMOJIS.MOTO} Tu pedido saldrá pronto a tu domicilio${NL}${NL}`;
@@ -2943,15 +2969,9 @@ class BotService {
 
       fichaReparto += `📋 *Productos:*${NL}`;
 
-      // Obtener productos en consulta separada para evitar errores de relación
-      const { data: productosData } = await supabase
-        .from('pedidos_productos')
-        .select('cantidad, productos(nombre)')
-        .eq('pedido_id', pedido.id);
-
       if (productosData && productosData.length > 0) {
         productosData.forEach(p => {
-          fichaReparto += `• ${p.cantidad}x ${p.productos.nombre}${NL}`;
+          fichaReparto += `• ${p.cantidad}x ${p.productos?.nombre || 'Producto'}${NL}`;
         });
       } else {
         fichaReparto += `(Ver detalle en app)${NL}`;
@@ -2964,6 +2984,10 @@ class BotService {
       logger.info(`✅ Ficha de reparto enviada al admin para pedido #${pedido.numero_pedido}`);
     }
 
+    const resumenAdmin = productosData && productosData.length > 0
+      ? `\n📋 *Productos:*\n` + productosData.map(p => `• ${p.cantidad}x ${p.productos?.nombre || 'Producto'}`).join('\n') + '\n'
+      : '';
+
     return {
       success: true,
       mensaje: `✅ *PEDIDO APROBADO Y EN PREPARACIÓN*\n\n` +
@@ -2972,6 +2996,7 @@ class BotService {
         `📞 Teléfono: ${pedido.clientes.telefono}\n` +
         `💰 Total: ${formatearPrecio(pedido.total)}\n` +
         `${pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO ? `📍 Dirección: ${pedido.direccion_entrega || 'N/A'}\n` : '📦 Tipo: Recoger en restaurante\n'}` +
+        resumenAdmin +
         `\n👨‍🍳 Estado actual: *PREPARANDO*\n\n` +
         `⚡ *COMANDOS RÁPIDOS:*\n` +
         `• *entregado #${pedido.numero_pedido}* - ${pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO ? 'En camino 🛵' : 'Listo para recoger 📦'}\n` +
@@ -3281,8 +3306,8 @@ class BotService {
 
     // Obtener productos
     const { data: productosData } = await supabase
-      .from('pedidos_productos')
-      .select('cantidad, productos(nombre)')
+      .from('pedido_detalles')
+      .select('cantidad, precio_unitario, productos(nombre)')
       .eq('pedido_id', pedido.id);
 
     fichaReparto += `📋 *Productos:*${NL}`;
