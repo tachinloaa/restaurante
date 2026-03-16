@@ -41,7 +41,8 @@ class BotService {
     }
 
     const nombre = String(producto.nombre || '').trim();
-    const subcategoria = String(producto.subcategoria || '').trim();
+    // Eliminar la palabra "General" (no aporta contexto al cliente)
+    let subcategoria = String(producto.subcategoria || '').trim().replace(/\bgeneral\b/gi, '').trim();
 
     if (!subcategoria) {
       return nombre;
@@ -3063,7 +3064,7 @@ class BotService {
     // Obtener productos del pedido (tabla correcta: pedido_detalles)
     const { data: productosData } = await supabase
       .from('pedido_detalles')
-      .select('cantidad, precio_unitario, productos(nombre)')
+      .select('cantidad, precio_unitario, productos(nombre, subcategorias(nombre))')
       .eq('pedido_id', pedido.id);
 
     let mensajeCliente = `✅ *¡TU PAGO HA SIDO VERIFICADO!*${NL}${NL}`;
@@ -3074,7 +3075,8 @@ class BotService {
     if (productosData && productosData.length > 0) {
       mensajeCliente += `🛒 *Tu pedido:*${NL}`;
       productosData.forEach(p => {
-        mensajeCliente += `• ${p.cantidad}x ${p.productos?.nombre || 'Producto'}${NL}`;
+        const nombreFormateado = this.formatearNombreProducto({ nombre: p.productos?.nombre, subcategoria: p.productos?.subcategorias?.nombre });
+        mensajeCliente += `• ${p.cantidad}x ${nombreFormateado || 'Producto'}${NL}`;
       });
       mensajeCliente += `${NL}`;
     }
@@ -3124,7 +3126,8 @@ class BotService {
 
       if (productosData && productosData.length > 0) {
         productosData.forEach(p => {
-          fichaReparto += `• ${p.cantidad}x ${p.productos?.nombre || 'Producto'}${NL}`;
+          const nombreFormateado = this.formatearNombreProducto({ nombre: p.productos?.nombre, subcategoria: p.productos?.subcategorias?.nombre });
+          fichaReparto += `• ${p.cantidad}x ${nombreFormateado || 'Producto'}${NL}`;
         });
       } else {
         fichaReparto += `(Ver detalle en app)${NL}`;
@@ -3138,7 +3141,10 @@ class BotService {
     }
 
     const resumenAdmin = productosData && productosData.length > 0
-      ? `\n📋 *Productos:*\n` + productosData.map(p => `• ${p.cantidad}x ${p.productos?.nombre || 'Producto'}`).join('\n') + '\n'
+      ? `\n📋 *Productos:*\n` + productosData.map(p => {
+          const nombreFormateado = this.formatearNombreProducto({ nombre: p.productos?.nombre, subcategoria: p.productos?.subcategorias?.nombre });
+          return `• ${p.cantidad}x ${nombreFormateado || 'Producto'}`;
+        }).join('\n') + '\n'
       : '';
 
     return {
