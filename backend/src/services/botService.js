@@ -131,20 +131,28 @@ class BotService {
       const esConsulta = this.esComandoMisPedidos(mensajeLimpio) || this.esComandoEstado(mensajeLimpio) || this.esComandoAyuda(mensajeLimpio);
 
       if (fueraDéHorario && !esConsulta) {
-        // Si está en medio de un pedido, lo cancelamos
-        if (session) await SessionService.resetSession(telefono);
+        // No eliminar progreso fuera de horario: conservar sesión para retomar después.
         return {
           success: true,
           mensaje: `😴 *EL RINCONCITO ESTÁ CERRADO*\n\n` +
             `Nuestro horario de atención es:\n` +
             `🕖 *7:00 AM – 10:00 PM*\n\n` +
+            `✅ Tu progreso queda guardado y podrás continuar cuando abramos.\n\n` +
             `¡Vuelve en horario de servicio y con gusto te atendemos! 🌮\n\n` +
             `📞 Para urgencias: *563-639-9034*`
         };
       }
 
-      // Si no hay sesión o es comando de inicio, iniciar conversación
-      if (!session || this.esComandoInicio(mensajeLimpio)) {
+      // Si no hay sesión, iniciar conversación nueva
+      if (!session) {
+        return await this.iniciarConversacion(telefono);
+      }
+
+      // Si escribe comando de inicio pero ya tiene progreso, reanudar en vez de reiniciar
+      if (this.esComandoInicio(mensajeLimpio)) {
+        if (this.tienePedidoEnProceso(session)) {
+          return await this.reanudarConversacion(telefono, session);
+        }
         return await this.iniciarConversacion(telefono);
       }
 
@@ -310,6 +318,45 @@ class BotService {
     return {
       success: true,
       mensaje: MENSAJES_BOT.BIENVENIDA
+    };
+  }
+
+  /**
+   * Verifica si el cliente tiene un pedido en proceso para evitar reinicios accidentales.
+   */
+  tienePedidoEnProceso(session) {
+    if (!session) return false;
+
+    const estadosNoActivos = [
+      BOT_STATES.INICIO,
+      BOT_STATES.MENU_PRINCIPAL,
+      BOT_STATES.PEDIDO_COMPLETADO
+    ];
+
+    if (Array.isArray(session.carrito) && session.carrito.length > 0) {
+      return true;
+    }
+
+    return !estadosNoActivos.includes(session.estado);
+  }
+
+  /**
+   * Reanuda el flujo actual del cliente sin perder carrito ni datos capturados.
+   */
+  async reanudarConversacion(telefono, session) {
+    const items = Array.isArray(session.carrito)
+      ? session.carrito.reduce((acc, item) => acc + (item.cantidad || 0), 0)
+      : 0;
+
+    let mensaje = `🔄 *Reanudamos tu pedido donde te quedaste*\n\n`;
+    mensaje += `📌 Estado actual: *${String(session.estado || '').replace(/_/g, ' ')}*\n`;
+    mensaje += `🛒 Productos en carrito: *${items}*\n\n`;
+    mensaje += `Continuamos ahora mismo con tu proceso.\n`;
+    mensaje += `Si quieres empezar desde cero, escribe *cancelar*.`;
+
+    return {
+      success: true,
+      mensaje
     };
   }
 
