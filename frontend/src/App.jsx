@@ -6,6 +6,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import MainLayout from './components/Layout/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Monitoring from './pages/Monitoring';
 import Products from './pages/Products';
 import Orders from './pages/Orders';
 import Customers from './pages/Customers';
@@ -53,6 +54,7 @@ function App() {
           }>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="monitoring" element={<Monitoring />} />
             <Route path="products" element={<Products />} />
             <Route path="orders" element={<Orders />} />
             <Route path="customers" element={<Customers />} />

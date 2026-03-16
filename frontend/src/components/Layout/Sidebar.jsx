@@ -14,6 +14,7 @@
 import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
+  Activity,
   Package, 
   ShoppingCart, 
   Users, 
@@ -27,6 +28,7 @@ function Sidebar({ isOpen, onClose }) {
   // Configuración de enlaces de navegación
   const navLinks = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/monitoring', icon: Activity, label: 'Monitoreo' },
     { to: '/orders', icon: ShoppingCart, label: 'Pedidos' },
     { to: '/products', icon: Package, label: 'Productos' },
     { to: '/categories', icon: FolderTree, label: 'Categorías' },
