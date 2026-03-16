@@ -315,7 +315,7 @@ class Customer {
         .from('clientes')
         .select('cancelaciones_count, bloqueado_hasta')
         .eq('telefono', telefono)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
