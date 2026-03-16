@@ -93,7 +93,8 @@ class Order {
             productos(
               id,
               nombre,
-              descripcion
+              descripcion,
+              subcategorias(nombre)
             )
           )
         `)
@@ -132,7 +133,8 @@ class Order {
             productos(
               id,
               nombre,
-              descripcion
+              descripcion,
+              subcategorias(nombre)
             )
           )
         `)

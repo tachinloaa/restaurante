@@ -126,6 +126,20 @@ export const pluralizar = (cantidad, singular, plural) => {
   return cantidad === 1 ? singular : plural;
 };
 
+/**
+ * Formatear nombre de producto combinando subcategoría + nombre.
+ * Elimina la palabra "General" que no aporta contexto.
+ * Acepta tanto un objeto producto como {nombre, subcategoria}.
+ */
+export const formatearNombreProducto = (producto) => {
+  if (!producto) return '';
+  const nombre = String(producto.nombre || '').trim();
+  let subcategoria = String(producto.subcategoria || '').trim().replace(/\bgeneral\b/gi, '').trim();
+  if (!subcategoria) return nombre;
+  if (nombre.toLowerCase().includes(subcategoria.toLowerCase())) return nombre;
+  return `${subcategoria} - ${nombre}`;
+};
+
 export default {
   formatearPrecio,
   formatearFecha,
@@ -136,5 +150,6 @@ export default {
   limpiarNumeroWhatsApp,
   capitalizar,
   truncarTexto,
-  pluralizar
+  pluralizar,
+  formatearNombreProducto
 };

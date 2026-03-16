@@ -2876,13 +2876,14 @@ class BotService {
       // Obtener productos en consulta separada
       const { data: productosData } = await supabase
         .from('pedido_detalles')
-        .select('cantidad, precio_unitario, productos(nombre)')
+        .select('cantidad, precio_unitario, productos(nombre, subcategorias(nombre))')
         .eq('pedido_id', pedido.id);
 
       respuesta += `🍽️ *PRODUCTOS*\n`;
       if (productosData && productosData.length > 0) {
         productosData.forEach(item => {
-          respuesta += `• ${item.cantidad}x ${item.productos?.nombre || 'Producto'}\n`;
+          const nombreFormateado = this.formatearNombreProducto({ nombre: item.productos?.nombre, subcategoria: item.productos?.subcategorias?.nombre });
+          respuesta += `• ${item.cantidad}x ${nombreFormateado || 'Producto'}\n`;
         });
       } else {
         respuesta += `(Sin detalle de productos)\n`;
@@ -3459,13 +3460,14 @@ class BotService {
     // Obtener productos
     const { data: productosData } = await supabase
       .from('pedido_detalles')
-      .select('cantidad, precio_unitario, productos(nombre)')
+      .select('cantidad, precio_unitario, productos(nombre, subcategorias(nombre))')
       .eq('pedido_id', pedido.id);
 
     fichaReparto += `📋 *Productos:*${NL}`;
     if (productosData && productosData.length > 0) {
       productosData.forEach(p => {
-        fichaReparto += `• ${p.cantidad}x ${p.productos.nombre}${NL}`;
+        const nombreFormateado = this.formatearNombreProducto({ nombre: p.productos?.nombre, subcategoria: p.productos?.subcategorias?.nombre });
+        fichaReparto += `• ${p.cantidad}x ${nombreFormateado || 'Producto'}${NL}`;
       });
     } else {
       fichaReparto += `(Ver detalle en app)${NL}`;

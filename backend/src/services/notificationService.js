@@ -1,6 +1,6 @@
 import TwilioService from './twilioService.js';
 import { supabase } from '../config/database.js';
-import { formatearPrecio, formatearHora, formatearTelefono } from '../utils/formatters.js';
+import { formatearPrecio, formatearHora, formatearTelefono, formatearNombreProducto } from '../utils/formatters.js';
 import { EMOJIS, TIPOS_PEDIDO, DIRECCION_RESTAURANTE, COSTO_ENVIO } from '../config/constants.js';
 import config from '../config/environment.js';
 import logger from '../utils/logger.js';
@@ -45,9 +45,9 @@ class NotificationService {
 
       if (pedido.pedido_detalles && pedido.pedido_detalles.length > 0) {
         pedido.pedido_detalles.forEach(detalle => {
-          const productoNombre = detalle.productos?.nombre || 'Producto';
+          const productoNombre = formatearNombreProducto({ nombre: detalle.productos?.nombre, subcategoria: detalle.productos?.subcategorias?.nombre });
           const subtotal = detalle.cantidad * detalle.precio_unitario;
-          mensaje += `• ${detalle.cantidad}x ${productoNombre} — ${formatearPrecio(subtotal)}\n`;
+          mensaje += `• ${detalle.cantidad}x ${productoNombre || 'Producto'} — ${formatearPrecio(subtotal)}\n`;
         });
       }
 
@@ -138,7 +138,7 @@ class NotificationService {
           ficha += `📋 *Productos:*${NL}`;
           if (pedido.pedido_detalles && pedido.pedido_detalles.length > 0) {
             pedido.pedido_detalles.forEach(d => {
-              ficha += `• ${d.cantidad}x ${d.productos?.nombre || 'Producto'}${NL}`;
+              ficha += `• ${d.cantidad}x ${formatearNombreProducto({ nombre: d.productos?.nombre, subcategoria: d.productos?.subcategorias?.nombre }) || 'Producto'}${NL}`;
             });
           } else {
             ficha += `(Ver detalle en app)${NL}`;
