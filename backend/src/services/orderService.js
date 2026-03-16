@@ -17,6 +17,10 @@ import logger from '../utils/logger.js';
  */
 const pendingOrders = [];
 
+// Después de este número de intentos fallidos el pedido pasa a Dead Letter Queue
+// y se exige intervención manual del admin para no perder el pedido
+const MAX_INTENTOS_EMERGENCIA = 15;
+
 /**
  * Servicio para procesar pedidos
  */
@@ -236,22 +240,40 @@ class OrderService {
         
         // Guardar en BD
         const saveResult = await DatabaseStorageService.enqueueOrder(pedidoEmergencia);
-        if (saveResult.usedLocal) {
-          logger.warn('⚠️ Pedido guardado en cache local (BD no disponible)');
+        const soloEnMemoria = saveResult.usedLocal === true;
+        if (soloEnMemoria) {
+          logger.error('🚨 CRÍTICO: Pedido guardado SOLO en memoria RAM. Si el servidor reinicia SE PIERDE.');
         }
 
         logger.warn(`📦 Pedido guardado en cola de emergencia: ${pedidoEmergencia.id}`);
 
-        // 🚨 NOTIFICAR AL ADMIN URGENTE (siempre, sin condición)
+        // 🚨 NOTIFICAR AL ADMIN URGENTE — mensaje diferente según si hay respaldo real o no
         try {
-          const mensajeAdmin = `🚨 *PEDIDO EN COLA DE EMERGENCIA*\n\n` +
-            `❌ Supabase falló al guardar pedido\n` +
-            `👤 Cliente: ${datosCliente.nombre}\n` +
-            `📞 Tel: ${telefonoLimpio}\n` +
-            `💰 Total: ${formatearPrecio(total)}\n` +
-            `📦 ID Emergencia: ${pedidoEmergencia.id}\n\n` +
-            `⚠️ El pedido está guardado en BD de emergencia.`;
-          
+          let mensajeAdmin;
+          if (soloEnMemoria) {
+            // 🔴 MÁXIMA URGENCIA: solo existe en RAM, peligro real de pérdida
+            const listaProductos = (session?.carrito || []).map(p => `${p.cantidad}x ${p.nombre}`).join(', ') || 'ver sesión del cliente';
+            mensajeAdmin =
+              `🚨🔴 *ALERTA CRÍTICA — PEDIDO EN RIESGO DE PÉRDIDA*\n\n` +
+              `❌ Supabase Y BD de emergencia fallaron\n` +
+              `⚠️ *EL PEDIDO ESTÁ SOLO EN MEMORIA RAM*\n` +
+              `⚠️ *SE PERDERÁ si el servidor reinicia*\n\n` +
+              `👤 Cliente: ${datosCliente.nombre}\n` +
+              `📞 Tel: ${telefonoLimpio}\n` +
+              `💰 Total: ${formatearPrecio(total)}\n` +
+              `🛒 Productos: ${listaProductos}\n` +
+              `📦 ID: ${pedidoEmergencia.id}\n\n` +
+              `🛑 *ACCIÓN INMEDIATA: Anota este pedido manualmente.*`;
+          } else {
+            mensajeAdmin =
+              `🚨 *PEDIDO EN COLA DE EMERGENCIA*\n\n` +
+              `❌ Supabase falló al guardar pedido\n` +
+              `👤 Cliente: ${datosCliente.nombre}\n` +
+              `📞 Tel: ${telefonoLimpio}\n` +
+              `💰 Total: ${formatearPrecio(total)}\n` +
+              `📦 ID Emergencia: ${pedidoEmergencia.id}\n\n` +
+              `✅ Guardado en BD de emergencia. Se reintentará automáticamente.`;
+          }
           await TwilioService.enviarMensajeAdmin(mensajeAdmin);
         } catch (notifError) {
           logger.error('Error notificando al admin:', notifError);
@@ -513,7 +535,8 @@ class OrderService {
     let maxIntentos = 0;
 
     for (const pedido of pendingOrders) {
-      const created = new Date(pedido.timestamp || ahora).getTime();
+      const tsRaw = pedido.timestamp || pedido.creado_at;
+      const created = tsRaw ? new Date(tsRaw).getTime() : ahora;
       const age = ahora - created;
       if (age > oldestPendingMs) oldestPendingMs = age;
       if ((pedido.intentos || 0) > maxIntentos) maxIntentos = pedido.intentos || 0;
@@ -601,11 +624,58 @@ class OrderService {
           error_mensaje: pedidoEmergencia.ultimoError
         });
 
+        // 🛑 LÍMITE DE REINTENTOS: si supera MAX → Dead Letter Queue + intervención manual
+        if (pedidoEmergencia.intentos >= MAX_INTENTOS_EMERGENCIA) {
+          pendingOrders.splice(index, 1);
+          await DatabaseStorageService.removeOrder(emergencyId);
+          await DatabaseStorageService.moveToDeadLetterQueue(
+            'pedido_emergencia',
+            pedidoEmergencia.datos,
+            pedidoEmergencia.intentos,
+            pedidoEmergencia.ultimoError
+          );
+          logger.error(`🛑 Pedido ${emergencyId} movido a DLQ tras ${pedidoEmergencia.intentos} intentos`);
+
+          try {
+            await TwilioService.enviarMensajeAdmin(
+              `🛑 *PEDIDO REQUIERE INTERVENCIÓN MANUAL*\n\n` +
+              `❌ ${MAX_INTENTOS_EMERGENCIA} intentos fallidos sin éxito\n` +
+              `📦 ID Emergencia: ${emergencyId}\n` +
+              `📞 Cliente: ${pedidoEmergencia.telefono || 'desconocido'}\n` +
+              `💰 Total: ${formatearPrecio(pedidoEmergencia.datos?.total || 0)}\n` +
+              `❌ Último error: ${pedidoEmergencia.ultimoError}\n\n` +
+              `⚠️ *Crea el pedido MANUALMENTE en el panel admin.*\n` +
+              `El pedido fue archivado en Dead Letter Queue para auditoría.`
+            );
+          } catch (notifError) {
+            logger.error('Error notificando DLQ al admin:', notifError);
+          }
+
+          try {
+            if (pedidoEmergencia.telefono) {
+              await TwilioService.enviarMensajeCliente(
+                pedidoEmergencia.telefono,
+                `⚠️ Tuvimos un problema técnico con tu pedido.\n\n` +
+                `Un representante se comunicará contigo a la brevedad para confirmarlo.\n\n` +
+                `📞 ID de referencia: ${emergencyId}`
+              );
+            }
+          } catch (clienteNotifError) {
+            logger.error('Error notificando DLQ al cliente:', clienteNotifError);
+          }
+
+          return {
+            success: false,
+            deadLettered: true,
+            error: `Movido a Dead Letter Queue tras ${pedidoEmergencia.intentos} intentos`
+          };
+        }
+
         if (!opciones.silentNoisyFailure && pedidoEmergencia.intentos % 5 === 0) {
           await TwilioService.enviarMensajeAdmin(
             `⚠️ *Pedido aún en cola de emergencia*\n\n` +
             `🆔 ID: ${emergencyId}\n` +
-            `🔁 Intentos: ${pedidoEmergencia.intentos}\n` +
+            `🔁 Intentos: ${pedidoEmergencia.intentos} / ${MAX_INTENTOS_EMERGENCIA}\n` +
             `🕒 Próximo reintento en ${Math.ceil(retryDelay / 60000)} min\n` +
             `❌ Motivo: ${pedidoEmergencia.ultimoError}`
           );
