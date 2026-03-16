@@ -1251,6 +1251,18 @@ class BotService {
         };
       }
 
+      if (resultado.queued) {
+        await SessionService.resetSession(telefono);
+        return {
+          success: true,
+          mensaje: `✅ *COMPROBANTE RECIBIDO*\n\n` +
+            `⚠️ En este momento estamos finalizando el registro de tu pedido por alta carga del sistema.\n` +
+            `🧾 Folio temporal: *${resultado.emergencyId}*\n\n` +
+            `Tu pedido *NO se perdió*.\n` +
+            `Te confirmaremos por WhatsApp en cuanto quede registrado.`
+        };
+      }
+
       const { pedido } = resultado;
 
       // Cambiar estado a PENDIENTE_PAGO
@@ -1300,6 +1312,18 @@ class BotService {
         return {
           success: false,
           mensaje: `Lo sentimos, ocurrió un error al procesar tu pedido: ${resultado.error}\n\nPor favor intenta de nuevo.`
+        };
+      }
+
+      if (resultado.queued) {
+        await SessionService.resetSession(telefono);
+        return {
+          success: true,
+          mensaje: `✅ *REFERENCIA RECIBIDA*\n\n` +
+            `⚠️ Estamos finalizando el registro de tu pedido por alta carga.\n` +
+            `🧾 Folio temporal: *${resultado.emergencyId}*\n\n` +
+            `Tu pedido *NO se perdió*.\n` +
+            `Te confirmaremos por WhatsApp en cuanto quede registrado.`
         };
       }
 
@@ -1517,6 +1541,18 @@ class BotService {
       return {
         success: false,
         mensaje: `Lo sentimos, ocurrió un error al procesar tu pedido: ${resultado.error}\n\nPor favor intenta de nuevo o contacta a un asesor.`
+      };
+    }
+
+    if (resultado.queued) {
+      await SessionService.resetSession(telefono);
+      return {
+        success: true,
+        mensaje: `✅ *PEDIDO RECIBIDO*\n\n` +
+          `⚠️ Estamos finalizando tu registro por alta carga del sistema.\n` +
+          `🧾 Folio temporal: *${resultado.emergencyId}*\n\n` +
+          `Tu pedido *NO se perdió*.\n` +
+          `Te confirmaremos por WhatsApp en cuanto quede registrado.`
       };
     }
 

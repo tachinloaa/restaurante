@@ -45,6 +45,61 @@ setInterval(() => {
  * Servicio para procesar pedidos
  */
 class OrderService {
+  constructor() {
+    this.isEmergencyProcessorStarted = false;
+    this.isProcessingEmergencyQueue = false;
+  }
+
+  guardarColaEmergenciaEnArchivo() {
+    try {
+      if (pendingOrders.length > 0) {
+        fs.writeFileSync(EMERGENCY_QUEUE_FILE, JSON.stringify(pendingOrders, null, 2));
+      } else if (fs.existsSync(EMERGENCY_QUEUE_FILE)) {
+        fs.unlinkSync(EMERGENCY_QUEUE_FILE);
+      }
+    } catch (error) {
+      logger.error('Error guardando cola de emergencia:', error);
+    }
+  }
+
+  iniciarProcesadorColaEmergencia() {
+    if (this.isEmergencyProcessorStarted) {
+      return;
+    }
+
+    // Reintento automático cada 60s para evitar limbo de pedidos
+    setInterval(async () => {
+      await this.procesarColaEmergencia();
+    }, 60000);
+
+    this.isEmergencyProcessorStarted = true;
+    logger.info('🛡️ Procesador automático de cola de emergencia ACTIVADO (cada 60s)');
+  }
+
+  async procesarColaEmergencia() {
+    if (this.isProcessingEmergencyQueue || pendingOrders.length === 0) {
+      return;
+    }
+
+    this.isProcessingEmergencyQueue = true;
+
+    try {
+      const snapshot = [...pendingOrders];
+
+      for (const pedido of snapshot) {
+        if (pedido.nextRetryAt && Date.now() < pedido.nextRetryAt) {
+          continue;
+        }
+
+        await this.reintentarPedidoEmergencia(pedido.id, { silentNoisyFailure: true });
+      }
+    } catch (error) {
+      logger.error('Error en procesador automático de cola de emergencia:', error);
+    } finally {
+      this.isProcessingEmergencyQueue = false;
+    }
+  }
+
   /**
    * Crear pedido desde el bot de WhatsApp
    */
@@ -151,17 +206,15 @@ class OrderService {
           },
           datos: pedidoData,
           timestamp: new Date().toISOString(),
-          intentos: 0
+          intentos: 0,
+          nextRetryAt: Date.now() + 60000,
+          ultimoError: dbError?.message || 'Error desconocido de Supabase'
         };
 
         pendingOrders.push(pedidoEmergencia);
         
         // Guardar inmediatamente en archivo
-        try {
-          fs.writeFileSync(EMERGENCY_QUEUE_FILE, JSON.stringify(pendingOrders, null, 2));
-        } catch (fileError) {
-          logger.error('Error guardando en archivo de emergencia:', fileError);
-        }
+        this.guardarColaEmergenciaEnArchivo();
 
         logger.warn(`📦 Pedido guardado en cola de emergencia: ${pedidoEmergencia.id}`);
 
@@ -425,7 +478,7 @@ class OrderService {
   /**
    * 🔄 Reintentar guardar un pedido de la cola de emergencia
    */
-  async reintentarPedidoEmergencia(emergencyId) {
+  async reintentarPedidoEmergencia(emergencyId, opciones = {}) {
     try {
       const index = pendingOrders.findIndex(p => p.id === emergencyId);
       
@@ -447,18 +500,23 @@ class OrderService {
       if (pedido.success) {
         // ✅ Pedido creado exitosamente, eliminar de la cola
         pendingOrders.splice(index, 1);
-        
-        // Actualizar archivo
-        if (pendingOrders.length > 0) {
-          fs.writeFileSync(EMERGENCY_QUEUE_FILE, JSON.stringify(pendingOrders, null, 2));
-        } else {
-          // Eliminar archivo si ya no hay pedidos
-          if (fs.existsSync(EMERGENCY_QUEUE_FILE)) {
-            fs.unlinkSync(EMERGENCY_QUEUE_FILE);
-          }
-        }
+        this.guardarColaEmergenciaEnArchivo();
 
         logger.info(`✅ Pedido de emergencia guardado exitosamente: #${pedido.data.numero_pedido}`);
+
+        // Notificar al cliente que su pedido fue recuperado y confirmado
+        try {
+          if (pedidoEmergencia.telefono) {
+            const mensajeCliente = `✅ *Tu pedido fue procesado correctamente*\n\n` +
+              `📝 Número de pedido: *#${pedido.data.numero_pedido}*\n` +
+              `💰 Total: ${formatearPrecio(pedido.data.total)}\n\n` +
+              `Gracias por tu paciencia. Ya estamos trabajando en tu pedido.`;
+
+            await TwilioService.enviarMensajeCliente(pedidoEmergencia.telefono, mensajeCliente);
+          }
+        } catch (clienteNotifError) {
+          logger.error('Error notificando recuperación al cliente:', clienteNotifError);
+        }
 
         // Notificar al admin
         try {
@@ -479,7 +537,20 @@ class OrderService {
         };
       } else {
         // ❌ Aún falló, actualizar intentos en el archivo
-        fs.writeFileSync(EMERGENCY_QUEUE_FILE, JSON.stringify(pendingOrders, null, 2));
+        const retryDelay = Math.min(10 * 60 * 1000, 30000 * Math.pow(2, Math.min(pedidoEmergencia.intentos, 5)));
+        pedidoEmergencia.nextRetryAt = Date.now() + retryDelay;
+        pedidoEmergencia.ultimoError = pedido.error || 'Supabase aún no disponible';
+        this.guardarColaEmergenciaEnArchivo();
+
+        if (!opciones.silentNoisyFailure && pedidoEmergencia.intentos % 5 === 0) {
+          await TwilioService.enviarMensajeAdmin(
+            `⚠️ *Pedido aún en cola de emergencia*\n\n` +
+            `🆔 ID: ${emergencyId}\n` +
+            `🔁 Intentos: ${pedidoEmergencia.intentos}\n` +
+            `🕒 Próximo reintento en ${Math.ceil(retryDelay / 60000)} min\n` +
+            `❌ Motivo: ${pedidoEmergencia.ultimoError}`
+          );
+        }
         
         return {
           success: false,
@@ -513,14 +584,7 @@ class OrderService {
       const pedido = pendingOrders.splice(index, 1)[0];
       
       // Actualizar archivo
-      if (pendingOrders.length > 0) {
-        fs.writeFileSync(EMERGENCY_QUEUE_FILE, JSON.stringify(pendingOrders, null, 2));
-      } else {
-        // Eliminar archivo si ya no hay pedidos
-        if (fs.existsSync(EMERGENCY_QUEUE_FILE)) {
-          fs.unlinkSync(EMERGENCY_QUEUE_FILE);
-        }
-      }
+      this.guardarColaEmergenciaEnArchivo();
 
       logger.info(`🗑️ Pedido de emergencia eliminado: ${emergencyId} - Motivo: ${motivo}`);
 
