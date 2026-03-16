@@ -99,7 +99,7 @@ class TwilioService {
       const res = await fetch(url, {
         method: 'POST',
         headers: {
-          'Title': '🚨 El Rinconcito — Alerta',
+          'Title': 'El Rinconcito - Alerta',
           'Priority': prioridad,
           'Tags': 'warning,restaurant',
           'Content-Type': 'text/plain'
