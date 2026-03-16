@@ -12,6 +12,7 @@ import logger from './utils/logger.js';
 import reminderService from './services/reminderService.js';
 import TwilioService from './services/twilioService.js';
 import OrderService from './services/orderService.js';
+import reliabilityWatchdogService from './services/reliabilityWatchdogService.js';
 
 /**
  * Servidor Express para El Rinconcito
@@ -121,6 +122,9 @@ const startServer = async () => {
 
     // Iniciar recuperador automático de pedidos en cola de emergencia
     OrderService.iniciarProcesadorColaEmergencia();
+
+    // Iniciar watchdog de confiabilidad (alerta automática en degradación/recuperación)
+    reliabilityWatchdogService.start();
 
     // Iniciar sistema de recordatorios automáticos
     reminderService.iniciarVerificacionPeriodica();
