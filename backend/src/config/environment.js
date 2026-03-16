@@ -46,7 +46,7 @@ const config = {
 
   // Admin — respaldo fijo si la variable de entorno no está configurada
   admin: {
-    phoneNumber: process.env.ADMIN_PHONE_NUMBER || '+525636399034'
+    phoneNumber: process.env.ADMIN_PHONE_NUMBER || '+5213349420820'
   },
 
   // Repartidor — opcional, configura REPARTIDOR_PHONE_NUMBER en Render si tienes uno
