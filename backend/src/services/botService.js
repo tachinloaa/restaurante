@@ -35,6 +35,28 @@ import crypto from 'crypto';
  * Maneja toda la lógica de la conversación con los clientes
  */
 class BotService {
+  formatearNombreProducto(producto) {
+    if (!producto) {
+      return '';
+    }
+
+    const nombre = String(producto.nombre || '').trim();
+    const subcategoria = String(producto.subcategoria || '').trim();
+
+    if (!subcategoria) {
+      return nombre;
+    }
+
+    const nombreLower = nombre.toLowerCase();
+    const subcategoriaLower = subcategoria.toLowerCase();
+
+    if (nombreLower.includes(subcategoriaLower)) {
+      return nombre;
+    }
+
+    return `${subcategoria} - ${nombre}`;
+  }
+
   /**
    * Procesar mensaje entrante del cliente
    */
@@ -714,9 +736,11 @@ class BotService {
       // Guardar el producto seleccionado temporalmente
       await SessionService.guardarDatos(telefono, { producto_preseleccionado: producto });
 
+      const nombreProducto = this.formatearNombreProducto(producto);
+
       return {
         success: true,
-        mensaje: `${EMOJIS.CHECK} *${producto.nombre}* - ${formatearPrecio(producto.precio)}\n\n¿Deseas ordenar este producto?\n\nEscribe *pedir* para iniciar tu pedido o *menu* para seguir viendo.`
+        mensaje: `${EMOJIS.CHECK} *${nombreProducto}* - ${formatearPrecio(producto.precio)}\n\n¿Deseas ordenar este producto?\n\nEscribe *pedir* para iniciar tu pedido o *menu* para seguir viendo.`
       };
     }
 
@@ -724,7 +748,8 @@ class BotService {
     await SessionService.guardarDatos(telefono, { producto_temporal: producto });
     await SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_CANTIDAD);
 
-    const mensaje = `${EMOJIS.CHECK} Has seleccionado:\n*${producto.nombre}*\n${formatearPrecio(producto.precio)}\n\n¿Cuántos deseas?\nEscribe la cantidad (ejemplo: 2)`;
+    const nombreProducto = this.formatearNombreProducto(producto);
+    const mensaje = `${EMOJIS.CHECK} Has seleccionado:\n*${nombreProducto}*\n${formatearPrecio(producto.precio)}\n\n¿Cuántos deseas?\nEscribe la cantidad (ejemplo: 2)`;
 
     return {
       success: true,
@@ -768,9 +793,10 @@ class BotService {
 
     // Agregar todos los productos al carrito con cantidad 1
     for (const producto of productosEncontrados) {
+      const nombreProducto = this.formatearNombreProducto(producto);
       await SessionService.agregarAlCarrito(telefono, {
         id: producto.id,
-        nombre: producto.nombre,
+        nombre: nombreProducto,
         precio: producto.precio,
         cantidad: 1
       });
@@ -780,7 +806,8 @@ class BotService {
     let mensaje = `${EMOJIS.CHECK} *Productos agregados al carrito:*\n\n`;
 
     productosEncontrados.forEach(p => {
-      mensaje += `• 1x ${p.nombre} - ${formatearPrecio(p.precio)}\n`;
+      const nombreProducto = this.formatearNombreProducto(p);
+      mensaje += `• 1x ${nombreProducto} - ${formatearPrecio(p.precio)}\n`;
     });
 
     if (productosNoEncontrados.length > 0) {
@@ -826,9 +853,10 @@ class BotService {
     // No validar stock
 
     // Agregar al carrito con validación de límites
+    const nombreProducto = this.formatearNombreProducto(producto);
     const resultado = await SessionService.agregarAlCarrito(telefono, {
       id: producto.id,
-      nombre: producto.nombre,
+      nombre: nombreProducto,
       precio: producto.precio,
       cantidad: cantidad
     });

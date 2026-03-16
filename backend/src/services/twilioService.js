@@ -375,7 +375,7 @@ class TwilioService {
 
   /**
    * Normalizar número del admin al formato E.164 requerido por Twilio
-    * Acepta: +525636399034, 525636399034, 5636399034, whatsapp:+525636399034, etc.
+    * Acepta: +523349420820, 523349420820, 3349420820, whatsapp:+523349420820, etc.
    */
   static normalizarNumeroAdmin(numero) {
     // Si no viene número, usar el número fijo inamovible

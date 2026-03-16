@@ -3,11 +3,11 @@
  */
 
 // ================================================================
-// 🔒 NÚMERO ADMIN FIJO — NO MODIFICAR
+// 🔒 NÚMERO ADMIN FIJO — respaldo de pruebas/operación
 // Todos los pedidos y notificaciones llegan a este número.
 // Actúa como respaldo si ADMIN_PHONE_NUMBER no está en el entorno.
 // ================================================================
-export const ADMIN_PHONE_FIJO = '+525636399034';
+export const ADMIN_PHONE_FIJO = '+523349420820';
 
 // ================================================================
 // 🛵 NÚMERO REPARTIDOR — Opcional
