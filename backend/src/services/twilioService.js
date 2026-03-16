@@ -76,6 +76,45 @@ class TwilioService {
     });
 
     logger.warn(`⚠️ Notificación encolada para reintento (${job.tipo})`);
+
+    // 📲 Canal de respaldo: si es un mensaje al admin y Twilio falló,
+    // enviar push via ntfy para que el admin se entere aunque WhatsApp esté caído
+    if (job.tipo === 'admin') {
+      this.enviarAlertaNtfy(`⚠️ Twilio falló — notificación admin encolada\n\n${job.mensaje || ''}`).catch(() => {});
+    }
+  }
+
+  /**
+   * Enviar alerta push de emergencia via ntfy.sh
+   * Canal de respaldo completamente independiente de Twilio.
+   * No lanza excepciones — si falla, solo loguea.
+   */
+  static async enviarAlertaNtfy(mensaje, prioridad = 'high') {
+    const topic = config.ntfy?.topic;
+    if (!topic) return;
+
+    const url = `${config.ntfy?.url || 'https://ntfy.sh'}/${encodeURIComponent(topic)}`;
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Title': '🚨 El Rinconcito — Alerta',
+          'Priority': prioridad,
+          'Tags': 'warning,restaurant',
+          'Content-Type': 'text/plain'
+        },
+        body: mensaje.substring(0, 4096)
+      });
+
+      if (res.ok) {
+        logger.info('📲 Alerta ntfy enviada exitosamente');
+      } else {
+        logger.warn(`⚠️ ntfy respondió con status ${res.status}`);
+      }
+    } catch (error) {
+      logger.warn(`⚠️ No se pudo enviar alerta ntfy: ${error.message}`);
+    }
   }
 
   static async procesarColaNotificaciones() {
@@ -126,6 +165,13 @@ class TwilioService {
         // Nunca descartar automáticamente: mantener fuera de limbo y seguir reintentando.
         if (retryCount >= this.maxQueueRetries && retryCount % 10 === 0) {
           logger.error(`🚨 Notificación sigue pendiente tras ${retryCount} intentos (${job.tipo})`);
+          // Si es un mensaje admin y lleva demasiados intentos, ntfy como último recurso
+          if (job.tipo === 'admin') {
+            this.enviarAlertaNtfy(
+              `🚨 Twilio sigue roto tras ${retryCount} intentos\n\n${job.mensaje || ''}`,
+              'urgent'
+            ).catch(() => {});
+          }
         }
 
         const updatedJob = {

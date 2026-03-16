@@ -95,7 +95,15 @@ const config = {
   logLevel: process.env.LOG_LEVEL || 'info',
 
   // Zona horaria
-    timezone: 'America/Mexico_City'
+  timezone: 'America/Mexico_City',
+
+  // Notificaciones push de emergencia via ntfy.sh (canal de respaldo cuando Twilio falla)
+  // Configurar NTFY_TOPIC en Render con un nombre privado, ej: "rinconcito-alertas-k3x9z"
+  // El admin instala la app ntfy en su celular y se suscribe a ese mismo topic
+  ntfy: {
+    topic: process.env.NTFY_TOPIC || null,
+    url: process.env.NTFY_SERVER_URL || 'https://ntfy.sh'
+  }
 };
 
 // Validar variables requeridas en desarrollo
