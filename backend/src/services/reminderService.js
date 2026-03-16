@@ -27,9 +27,9 @@ class ReminderService {
       }
       this.ultimaVerificacion = ahora;
 
-      // Obtener pedidos pendientes y preparando
+      // Obtener pedidos pendientes de pago, pendientes y en preparación
       const resultado = await Order.getAll({
-        estados: ['pendiente', 'preparando']
+        estados: ['pendiente_pago', 'pendiente', 'preparando']
       });
 
       if (!resultado.success || !resultado.data.length) {
@@ -39,7 +39,16 @@ class ReminderService {
       for (const pedido of resultado.data) {
         const tiempoTranscurrido = this.calcularMinutosTranscurridos(pedido.created_at, ahora);
 
-        // Verificar si necesita recordatorio
+        // Regla crítica: si pasan 2 minutos sin aprobar pago, avisar al cliente (sin autoaprobar)
+        if (pedido.estado === 'pendiente_pago') {
+          const keyClientePendiente = `${pedido.id}-pendiente_pago-cliente`;
+          if (tiempoTranscurrido >= 2 && !this.recordatoriosEnviados.has(keyClientePendiente)) {
+            await this.enviarRecordatorioPendientePagoCliente(pedido, tiempoTranscurrido);
+          }
+          continue;
+        }
+
+        // Verificar si necesita recordatorio al admin
         if (this.necesitaRecordatorio(pedido, tiempoTranscurrido)) {
           // Verificar en BD si ya se envió recordatorio
           const yaEnviado = await this.verificarRecordatorioEnviado(pedido.id, pedido.estado);
@@ -50,6 +59,53 @@ class ReminderService {
       }
     } catch (error) {
       logger.error('Error al verificar pedidos pendientes:', error);
+    }
+  }
+
+  /**
+   * Avisar al cliente que su comprobante sigue en verificación manual
+   */
+  async enviarRecordatorioPendientePagoCliente(pedido, minutos) {
+    try {
+      const keyClientePendiente = `${pedido.id}-pendiente_pago-cliente`;
+
+      const telefonoCliente = pedido.clientes?.telefono;
+      if (!telefonoCliente) {
+        logger.warn(`⚠️ No se pudo enviar recordatorio de pago al cliente para #${pedido.numero_pedido}: sin teléfono`);
+        return { success: false, error: 'Cliente sin teléfono' };
+      }
+
+      let mensajeCliente = `⏳ *Seguimos verificando tu pago*\n\n`;
+      mensajeCliente += `🧾 Pedido: *#${pedido.numero_pedido}*\n`;
+      mensajeCliente += `Han pasado ${minutos} minutos desde que recibimos tu comprobante.\n\n`;
+      mensajeCliente += `✅ Tu pedido sigue activo y en revisión manual por el equipo.\n`;
+      mensajeCliente += `⚠️ No necesitas reenviar el comprobante por ahora.\n\n`;
+      mensajeCliente += `Te avisaremos en cuanto quede aprobado.\n`;
+      mensajeCliente += `*El Rinconcito* 🌮`;
+
+      const resultadoCliente = await TwilioService.enviarMensajeCliente(telefonoCliente, mensajeCliente);
+
+      if (resultadoCliente.success) {
+        this.recordatoriosEnviados.add(keyClientePendiente);
+        logger.info(`📨 Recordatorio pendiente_pago enviado al cliente para #${pedido.numero_pedido}`);
+      }
+
+      // Refuerzo al admin para atender aprobación pendiente
+      let mensajeAdmin = `⚠️ *PAGO AÚN SIN APROBAR*\n\n`;
+      mensajeAdmin += `🧾 Pedido: *#${pedido.numero_pedido}*\n`;
+      mensajeAdmin += `👤 Cliente: ${pedido.clientes?.nombre || 'Sin nombre'}\n`;
+      mensajeAdmin += `📞 https://wa.me/${(telefonoCliente || '').replace('whatsapp:', '').replace('+', '')}\n`;
+      mensajeAdmin += `⏱️ Tiempo en espera: ${minutos} min\n\n`;
+      mensajeAdmin += `Acción requerida:\n`;
+      mensajeAdmin += `• *aprobar #${pedido.numero_pedido}*\n`;
+      mensajeAdmin += `• *rechazar #${pedido.numero_pedido}*`;
+
+      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+
+      return resultadoCliente;
+    } catch (error) {
+      logger.error('Error enviando recordatorio pendiente_pago al cliente:', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -217,12 +273,12 @@ class ReminderService {
    * Iniciar verificación periódica (cada 5 minutos)
    */
   iniciarVerificacionPeriodica() {
-    // Ejecutar cada 5 minutos (suficiente para detectar pedidos a los 10 min)
+    // Ejecutar cada 1 minuto para detectar el umbral de 2 minutos en pendiente_pago
     setInterval(() => {
       this.verificarPedidosPendientes();
-    }, 5 * 60 * 1000); // 5 minutos
+    }, 60 * 1000);
 
-    logger.info('Sistema de recordatorios ACTIVADO - verificando cada 5 minutos, enviando 1 solo recordatorio a los 10 min');
+    logger.info('Sistema de recordatorios ACTIVADO - verificación cada 1 minuto (pendiente_pago a 2 min)');
   }
 }
 

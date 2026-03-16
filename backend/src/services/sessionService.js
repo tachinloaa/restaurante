@@ -1,6 +1,10 @@
 import { BOT_STATES, SESSION_TIMEOUT, MAX_ITEMS_CARRITO, MAX_TIPOS_PRODUCTOS } from '../config/constants.js';
 import logger from '../utils/logger.js';
 import config from '../config/environment.js';
+import fs from 'fs';
+import path from 'path';
+
+const SESSION_BACKUP_FILE = path.join(process.cwd(), 'sessions_backup.json');
 
 // Inicializar Redis solo si está habilitado
 let redisClient = null;
@@ -59,9 +63,66 @@ class SessionService {
   constructor() {
     // Almacén de sesiones en memoria (fallback si Redis no está disponible)
     this.sessions = new Map();
+
+    // Cargar respaldo de sesiones para evitar limbo si Redis cae o reinicia proceso
+    this.cargarRespaldoSesiones();
     
     // Limpiar sesiones expiradas cada 5 minutos
     setInterval(() => this.limpiarSesionesExpiradas(), 5 * 60 * 1000);
+
+    // Persistir respaldo cada 30 segundos
+    setInterval(() => this.guardarRespaldoSesiones(), 30000);
+
+    // Alerta continua en producción cuando Redis no está conectado
+    if (config.isProduction) {
+      setInterval(() => {
+        if (!isRedisConnected) {
+          logger.error('🚨 Redis no conectado en producción: usando respaldo local de sesiones');
+        }
+      }, 60000);
+    }
+  }
+
+  cargarRespaldoSesiones() {
+    try {
+      if (!fs.existsSync(SESSION_BACKUP_FILE)) {
+        return;
+      }
+
+      const raw = fs.readFileSync(SESSION_BACKUP_FILE, 'utf8');
+      const data = JSON.parse(raw);
+
+      if (!Array.isArray(data)) {
+        return;
+      }
+
+      for (const session of data) {
+        if (session?.telefono) {
+          this.sessions.set(session.telefono, session);
+        }
+      }
+
+      logger.info(`💾 Respaldo de sesiones cargado: ${this.sessions.size} sesiones`);
+    } catch (error) {
+      logger.error('❌ Error cargando respaldo de sesiones:', error.message);
+    }
+  }
+
+  guardarRespaldoSesiones() {
+    try {
+      const payload = Array.from(this.sessions.values());
+
+      if (payload.length === 0) {
+        if (fs.existsSync(SESSION_BACKUP_FILE)) {
+          fs.unlinkSync(SESSION_BACKUP_FILE);
+        }
+        return;
+      }
+
+      fs.writeFileSync(SESSION_BACKUP_FILE, JSON.stringify(payload, null, 2));
+    } catch (error) {
+      logger.error('❌ Error guardando respaldo de sesiones:', error.message);
+    }
   }
 
   /**
@@ -94,7 +155,6 @@ class SessionService {
           
           return session;
         }
-        return null;
       }
     } catch (error) {
       logger.error('Error obteniendo sesión de Redis:', error);
@@ -150,6 +210,7 @@ class SessionService {
 
     // Siempre guardar en memoria como fallback
     this.sessions.set(telefono, session);
+    this.guardarRespaldoSesiones();
     
     logger.debug(`Sesión actualizada para ${telefono}: ${session.estado}`);
     return session;
@@ -284,6 +345,7 @@ class SessionService {
     }
 
     const deleted = this.sessions.delete(telefono);
+    this.guardarRespaldoSesiones();
     
     if (deleted) {
       logger.info(`Sesión eliminada para ${telefono}`);
@@ -325,6 +387,10 @@ class SessionService {
         this.sessions.delete(telefono);
         contadorEliminados++;
       }
+    }
+
+    if (contadorEliminados > 0) {
+      this.guardarRespaldoSesiones();
     }
 
     if (contadorEliminados > 0) {

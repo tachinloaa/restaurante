@@ -2,6 +2,10 @@ import twilioClient from '../config/twilio.js';
 import config from '../config/environment.js';
 import { ADMIN_PHONE_FIJO } from '../config/constants.js';
 import logger from '../utils/logger.js';
+import fs from 'fs';
+import path from 'path';
+
+const NOTIFICATION_QUEUE_FILE = path.join(process.cwd(), 'failed_notifications.json');
 
 /**
  * Servicio de Twilio para envío de mensajes de WhatsApp
@@ -12,6 +16,132 @@ class TwilioService {
    * Usamos 1500 para dejar un margen de seguridad
    */
   static MAX_CARACTERES = 1500;
+  static notificationQueue = [];
+  static isQueueProcessing = false;
+  static isReliabilityInitialized = false;
+  static maxQueueRetries = 20;
+
+  static iniciarSistemaConfiabilidad() {
+    if (this.isReliabilityInitialized) {
+      return;
+    }
+
+    this.cargarColaPersistente();
+
+    setInterval(() => {
+      this.procesarColaNotificaciones();
+    }, 30000);
+
+    process.on('SIGTERM', () => {
+      this.guardarColaPersistente();
+    });
+
+    process.on('SIGINT', () => {
+      this.guardarColaPersistente();
+    });
+
+    this.isReliabilityInitialized = true;
+    logger.info(`📨 Sistema confiable de notificaciones activo. Cola inicial: ${this.notificationQueue.length}`);
+  }
+
+  static cargarColaPersistente() {
+    try {
+      if (fs.existsSync(NOTIFICATION_QUEUE_FILE)) {
+        const raw = fs.readFileSync(NOTIFICATION_QUEUE_FILE, 'utf8');
+        const data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          this.notificationQueue = data;
+        }
+      }
+    } catch (error) {
+      logger.error('❌ Error cargando cola de notificaciones:', error.message);
+      this.notificationQueue = [];
+    }
+  }
+
+  static guardarColaPersistente() {
+    try {
+      if (this.notificationQueue.length === 0) {
+        if (fs.existsSync(NOTIFICATION_QUEUE_FILE)) {
+          fs.unlinkSync(NOTIFICATION_QUEUE_FILE);
+        }
+        return;
+      }
+
+      fs.writeFileSync(NOTIFICATION_QUEUE_FILE, JSON.stringify(this.notificationQueue, null, 2));
+    } catch (error) {
+      logger.error('❌ Error guardando cola de notificaciones:', error.message);
+    }
+  }
+
+  static encolarNotificacionFallida(job) {
+    this.notificationQueue.push({
+      ...job,
+      retryCount: job.retryCount || 0,
+      nextRetryAt: job.nextRetryAt || Date.now() + 30000,
+      createdAt: job.createdAt || new Date().toISOString()
+    });
+
+    this.guardarColaPersistente();
+    logger.warn(`⚠️ Notificación encolada para reintento (${job.tipo})`);
+  }
+
+  static async procesarColaNotificaciones() {
+    if (this.isQueueProcessing || this.notificationQueue.length === 0) {
+      return;
+    }
+
+    this.isQueueProcessing = true;
+
+    try {
+      const ahora = Date.now();
+      const pendientes = [];
+
+      for (const job of this.notificationQueue) {
+        if (job.nextRetryAt > ahora) {
+          pendientes.push(job);
+          continue;
+        }
+
+        let resultado;
+
+        if (job.tipo === 'cliente') {
+          resultado = await this.enviarMensajeCliente(job.numeroDestino, job.mensaje, 2, { skipQueue: true });
+        } else if (job.tipo === 'admin') {
+          resultado = await this.enviarMensajeAdmin(job.mensaje, { skipQueue: true });
+        } else {
+          resultado = { success: true };
+        }
+
+        if (resultado.success) {
+          logger.info(`✅ Notificación recuperada desde cola (${job.tipo})`);
+          continue;
+        }
+
+        const retryCount = (job.retryCount || 0) + 1;
+
+        if (retryCount >= this.maxQueueRetries) {
+          logger.error(`❌ Notificación descartada tras ${retryCount} intentos (${job.tipo})`);
+          continue;
+        }
+
+        const backoff = Math.min(600000, 30000 * Math.pow(2, Math.min(retryCount, 5)));
+        pendientes.push({
+          ...job,
+          retryCount,
+          nextRetryAt: Date.now() + backoff,
+          lastError: resultado.error || 'Error desconocido'
+        });
+      }
+
+      this.notificationQueue = pendientes;
+      this.guardarColaPersistente();
+    } catch (error) {
+      logger.error('❌ Error procesando cola de notificaciones:', error.message);
+    } finally {
+      this.isQueueProcessing = false;
+    }
+  }
 
   /**
    * Dividir mensaje en partes si excede el límite
@@ -55,7 +185,7 @@ class TwilioService {
    * Si el mensaje es muy largo, lo divide automáticamente
    * Con reintentos automáticos en caso de fallo
    */
-  static async enviarMensajeCliente(numeroDestino, mensaje, intentos = 3) {
+  static async enviarMensajeCliente(numeroDestino, mensaje, intentos = 3, opciones = {}) {
     let ultimoError = null;
     
     for (let i = 0; i < intentos; i++) {
@@ -120,10 +250,26 @@ class TwilioService {
 
     // Todos los intentos fallaron
     logger.error(`❌ Todos los intentos fallaron para ${numeroDestino}`);
-    return { 
-      success: false, 
+
+    if (!opciones.skipQueue) {
+      this.encolarNotificacionFallida({
+        tipo: 'cliente',
+        numeroDestino,
+        mensaje,
+        intentos
+      });
+
+      return {
+        success: true,
+        queued: true,
+        error: ultimoError?.message || 'Encolado para reintento'
+      };
+    }
+
+    return {
+      success: false,
       error: ultimoError?.message || 'Error desconocido al enviar mensaje',
-      code: ultimoError?.code 
+      code: ultimoError?.code
     };
   }
 
@@ -153,7 +299,7 @@ class TwilioService {
    * Enviar mensaje de WhatsApp al administrador
    * Si el mensaje es muy largo, lo divide automáticamente
    */
-  static async enviarMensajeAdmin(mensaje) {
+  static async enviarMensajeAdmin(mensaje, opciones = {}) {
     try {
       // Modo de prueba: No enviar mensajes reales
       if (process.env.TWILIO_TEST_MODE === 'true') {
@@ -202,6 +348,20 @@ class TwilioService {
       return { success: true, messageSid: messageSids[0], messageSids, partes: partes.length };
     } catch (error) {
       logger.error('Error al enviar mensaje a admin:', error);
+
+      if (!opciones.skipQueue) {
+        this.encolarNotificacionFallida({
+          tipo: 'admin',
+          mensaje
+        });
+
+        return {
+          success: true,
+          queued: true,
+          error: error.message
+        };
+      }
+
       return { success: false, error: error.message };
     }
   }
