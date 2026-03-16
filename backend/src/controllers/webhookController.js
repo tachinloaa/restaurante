@@ -22,6 +22,72 @@ setInterval(() => {
 }, 60000);
 
 class WebhookController {
+  async procesarMensajeEnSegundoPlano(from, mensajeData) {
+    try {
+      const respuesta = await BotService.procesarMensaje(from, mensajeData);
+
+      if (!respuesta.success) {
+        logger.error('❌ Error al procesar mensaje del bot:', respuesta.mensaje);
+      }
+
+      if (respuesta.mensaje) {
+        await TwilioService.enviarMensajeCliente(from, respuesta.mensaje);
+      }
+    } catch (error) {
+      logger.error('💥 Error crítico en procesamiento del mensaje:', error);
+
+      try {
+        await TwilioService.enviarMensajeCliente(
+          from,
+          '❌ Disculpa, hubo un problema procesando tu mensaje.\n\nEscribe *hola* para comenzar de nuevo o intenta más tarde.'
+        );
+      } catch (notificationError) {
+        logger.error('💥 Error al enviar notificación de error al cliente:', notificationError);
+      }
+    }
+  }
+
+  getSafeMetric(getter, fallback, source, metricErrors) {
+    try {
+      return getter();
+    } catch (error) {
+      logger.error(`Error obteniendo métrica ${source}:`, error);
+      metricErrors[source] = error.message;
+      return fallback;
+    }
+  }
+
+  async getSafeDatabaseProbe(metricErrors) {
+    const dbProbe = {
+      ok: true,
+      latencyMs: null,
+      error: null
+    };
+
+    try {
+      const dbStart = Date.now();
+      const { error: dbError } = await supabase
+        .from('productos')
+        .select('id')
+        .limit(1);
+
+      dbProbe.latencyMs = Date.now() - dbStart;
+
+      if (dbError) {
+        dbProbe.ok = false;
+        dbProbe.error = dbError.message || 'Error desconocido en consulta BD';
+        metricErrors.database = dbProbe.error;
+      }
+    } catch (error) {
+      logger.error('Error obteniendo métrica database:', error);
+      dbProbe.ok = false;
+      dbProbe.error = error.message;
+      metricErrors.database = error.message;
+    }
+
+    return dbProbe;
+  }
+
   /**
    * Webhook para recibir mensajes de WhatsApp desde Twilio
    * POST /webhook
@@ -29,6 +95,13 @@ class WebhookController {
   async whatsapp(req, res) {
     try {
       const { From, Body, NumMedia, MediaUrl0, MediaContentType0, Latitude, Longitude, MessageSid } = req.body;
+
+      if (!From) {
+        logger.warn('⚠️ Webhook WhatsApp recibido sin From, ignorando');
+        res.type('text/xml');
+        res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+        return;
+      }
 
       logger.info(`📱 Webhook WhatsApp recibido de ${From}`);
 
@@ -83,32 +156,10 @@ class WebhookController {
 
       logger.info(`📦 Datos del mensaje preparados:`, JSON.stringify(mensajeData, null, 2));
 
-      // 🔄 PROCESAR MENSAJE DE FORMA ASÍNCRONA (después de responder)
-      try {
-        // Procesar mensaje con el bot
-        const respuesta = await BotService.procesarMensaje(From, mensajeData);
-
-        if (!respuesta.success) {
-          logger.error('❌ Error al procesar mensaje del bot:', respuesta.mensaje);
-        }
-
-        // Enviar respuesta al cliente
-        if (respuesta.mensaje) {
-          await TwilioService.enviarMensajeCliente(From, respuesta.mensaje);
-        }
-      } catch (error) {
-        logger.error('💥 Error crítico en procesamiento del mensaje:', error);
-        
-        // 🚨 SIEMPRE AVISAR AL CLIENTE DEL ERROR
-        try {
-          await TwilioService.enviarMensajeCliente(
-            From,
-            '❌ Disculpa, hubo un problema procesando tu mensaje.\n\nEscribe *hola* para comenzar de nuevo o intenta más tarde.'
-          );
-        } catch (notificationError) {
-          logger.error('💥 Error al enviar notificación de error al cliente:', notificationError);
-        }
-      }
+      // 🔄 PROCESAR FUERA DEL CICLO DE RESPUESTA PARA NO RETENER EL REQUEST
+      setImmediate(() => {
+        this.procesarMensajeEnSegundoPlano(From, mensajeData);
+      });
     } catch (error) {
       logger.error('💥 Error fatal en webhook WhatsApp:', error);
       
@@ -122,7 +173,7 @@ class WebhookController {
 
   /**
    * Webhook para estado de mensajes de Twilio
-   * GET /webhook/status
+    * POST /webhook/status
    */
   async status(req, res) {
     try {
@@ -195,34 +246,64 @@ class WebhookController {
   async healthOps(req, res) {
     try {
       const nowIso = new Date().toISOString();
-      const sessionMetrics = SessionService.getOperationalMetrics();
-      const twilioMetrics = TwilioService.getOperationalMetrics();
-      const emergencyMetrics = OrderService.getOperationalMetrics();
+      const metricErrors = {};
+      const sessionMetrics = this.getSafeMetric(
+        () => SessionService.getOperationalMetrics(),
+        {
+          sessions: {
+            total: 0,
+            activas: 0,
+            redisEnabled: !!config.redis.enabled,
+            redisConnected: false,
+            centralStorageConnected: false,
+            localBackupExists: false,
+            localBackupSizeBytes: 0,
+            localCachedSessions: 0,
+            timeoutMs: 0
+          }
+        },
+        'sessions',
+        metricErrors
+      );
+      const twilioMetrics = this.getSafeMetric(
+        () => TwilioService.getOperationalMetrics(),
+        {
+          queue: {
+            total: 0,
+            adminPendientes: 0,
+            clientePendientes: 0,
+            oldestPendingMs: 0,
+            processing: false,
+            maxQueueRetries: 0
+          }
+        },
+        'twilio',
+        metricErrors
+      );
+      const emergencyMetrics = this.getSafeMetric(
+        () => OrderService.getOperationalMetrics(),
+        {
+          emergencyOrders: {
+            totalPendientes: 0,
+            oldestPendingMs: 0,
+            maxIntentos: 0,
+            processing: false,
+            processorStarted: false
+          }
+        },
+        'orders',
+        metricErrors
+      );
 
-      const dbProbe = {
-        ok: true,
-        latencyMs: null,
-        error: null
-      };
-
-      const dbStart = Date.now();
-      const { error: dbError } = await supabase
-        .from('productos')
-        .select('id')
-        .limit(1);
-
-      dbProbe.latencyMs = Date.now() - dbStart;
-      if (dbError) {
-        dbProbe.ok = false;
-        dbProbe.error = dbError.message || 'Error desconocido en consulta BD';
-      }
+      const dbProbe = await this.getSafeDatabaseProbe(metricErrors);
 
       const redisDegraded = config.isProduction && !sessionMetrics.sessions.redisConnected;
-      const pendingAdminNotifications = twilioMetrics.queue.adminPendientes;
-      const staleAdminQueue = pendingAdminNotifications > 0 && twilioMetrics.queue.oldestPendingMs > 5 * 60 * 1000;
+      const pendingAdminNotifications = twilioMetrics.queue?.adminPendientes || 0;
+      const staleAdminQueue = pendingAdminNotifications > 0 && (twilioMetrics.queue?.oldestPendingMs || 0) > 5 * 60 * 1000;
       const dbDegraded = !dbProbe.ok;
+      const metricFailures = Object.keys(metricErrors).length > 0;
 
-      const estado = (redisDegraded || staleAdminQueue || dbDegraded) ? 'degraded' : 'ok';
+      const estado = (redisDegraded || staleAdminQueue || dbDegraded || metricFailures) ? 'degraded' : 'ok';
 
       return success(res, {
         status: estado,
@@ -235,22 +316,44 @@ class WebhookController {
           database: dbProbe,
           webhook: {
             recentMessageCacheSize: recentMessages.size
-          }
+          },
+          metricErrors
         },
         alerts: {
           redisDegraded,
           dbDegraded,
           staleAdminQueue,
-          pendingAdminNotifications
+          pendingAdminNotifications,
+          metricFailures
         }
       }, 'Health operativo obtenido');
     } catch (error) {
       logger.error('Error en healthOps:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Error obteniendo health operativo',
-        error: error.message
-      });
+      return success(res, {
+        status: 'degraded',
+        timestamp: new Date().toISOString(),
+        uptimeSeconds: process.uptime(),
+        metrics: {
+          database: {
+            ok: false,
+            latencyMs: null,
+            error: error.message
+          },
+          webhook: {
+            recentMessageCacheSize: recentMessages.size
+          },
+          metricErrors: {
+            healthOps: error.message
+          }
+        },
+        alerts: {
+          redisDegraded: true,
+          dbDegraded: true,
+          staleAdminQueue: false,
+          pendingAdminNotifications: 0,
+          metricFailures: true
+        }
+      }, 'Health operativo degradado');
     }
   }
 }
