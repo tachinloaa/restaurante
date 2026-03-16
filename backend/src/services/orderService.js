@@ -476,6 +476,33 @@ class OrderService {
   }
 
   /**
+   * Métricas operativas para monitoreo en vivo
+   */
+  getOperationalMetrics() {
+    const ahora = Date.now();
+
+    let oldestPendingMs = 0;
+    let maxIntentos = 0;
+
+    for (const pedido of pendingOrders) {
+      const created = new Date(pedido.timestamp || ahora).getTime();
+      const age = ahora - created;
+      if (age > oldestPendingMs) oldestPendingMs = age;
+      if ((pedido.intentos || 0) > maxIntentos) maxIntentos = pedido.intentos || 0;
+    }
+
+    return {
+      emergencyOrders: {
+        totalPendientes: pendingOrders.length,
+        oldestPendingMs,
+        maxIntentos,
+        processing: this.isProcessingEmergencyQueue,
+        processorStarted: this.isEmergencyProcessorStarted
+      }
+    };
+  }
+
+  /**
    * 🔄 Reintentar guardar un pedido de la cola de emergencia
    */
   async reintentarPedidoEmergencia(emergencyId, opciones = {}) {

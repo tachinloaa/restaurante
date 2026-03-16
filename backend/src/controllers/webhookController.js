@@ -1,7 +1,10 @@
 import BotService from '../services/botService.js';
 import TwilioService from '../services/twilioService.js';
+import OrderService from '../services/orderService.js';
+import SessionService from '../services/sessionService.js';
 import { success } from '../utils/responses.js';
 import logger from '../utils/logger.js';
+import config from '../config/environment.js';
 
 // Map para detectar mensajes duplicados
 const recentMessages = new Map();
@@ -170,6 +173,51 @@ class WebhookController {
       timestamp: new Date().toISOString(),
       uptime: process.uptime()
     }, 'API funcionando correctamente');
+  }
+
+  /**
+   * Health operativo con métricas en vivo
+   * GET /api/health/ops
+   */
+  healthOps(req, res) {
+    try {
+      const nowIso = new Date().toISOString();
+      const sessionMetrics = SessionService.getOperationalMetrics();
+      const twilioMetrics = TwilioService.getOperationalMetrics();
+      const emergencyMetrics = OrderService.getOperationalMetrics();
+
+      const redisDegraded = config.isProduction && !sessionMetrics.sessions.redisConnected;
+      const pendingAdminNotifications = twilioMetrics.queue.adminPendientes;
+      const staleAdminQueue = pendingAdminNotifications > 0 && twilioMetrics.queue.oldestPendingMs > 5 * 60 * 1000;
+
+      const estado = (redisDegraded || staleAdminQueue) ? 'degraded' : 'ok';
+
+      return success(res, {
+        status: estado,
+        timestamp: nowIso,
+        uptimeSeconds: process.uptime(),
+        metrics: {
+          ...sessionMetrics,
+          ...twilioMetrics,
+          ...emergencyMetrics,
+          webhook: {
+            recentMessageCacheSize: recentMessages.size
+          }
+        },
+        alerts: {
+          redisDegraded,
+          staleAdminQueue,
+          pendingAdminNotifications
+        }
+      }, 'Health operativo obtenido');
+    } catch (error) {
+      logger.error('Error en healthOps:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error obteniendo health operativo',
+        error: error.message
+      });
+    }
   }
 }
 

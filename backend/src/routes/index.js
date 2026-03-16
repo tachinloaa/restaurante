@@ -32,5 +32,6 @@ router.use('/analytics', analyticsRoutes);
 // Utility Routes
 router.post('/whatsapp/send', webhookController.sendMessage.bind(webhookController));
 router.get('/health', webhookController.health.bind(webhookController));
+router.get('/health/ops', webhookController.healthOps.bind(webhookController));
 
 export default router;

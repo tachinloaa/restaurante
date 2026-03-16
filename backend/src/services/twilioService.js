@@ -120,12 +120,13 @@ class TwilioService {
 
         const retryCount = (job.retryCount || 0) + 1;
 
-        if (retryCount >= this.maxQueueRetries) {
-          logger.error(`❌ Notificación descartada tras ${retryCount} intentos (${job.tipo})`);
-          continue;
+        const backoff = Math.min(600000, 30000 * Math.pow(2, Math.min(retryCount, 5)));
+
+        // Nunca descartar automáticamente: mantener fuera de limbo y seguir reintentando.
+        if (retryCount >= this.maxQueueRetries && retryCount % 10 === 0) {
+          logger.error(`🚨 Notificación sigue pendiente tras ${retryCount} intentos (${job.tipo})`);
         }
 
-        const backoff = Math.min(600000, 30000 * Math.pow(2, Math.min(retryCount, 5)));
         pendientes.push({
           ...job,
           retryCount,
@@ -141,6 +142,31 @@ class TwilioService {
     } finally {
       this.isQueueProcessing = false;
     }
+  }
+
+  static getOperationalMetrics() {
+    const ahora = Date.now();
+    const total = this.notificationQueue.length;
+    const adminPendientes = this.notificationQueue.filter(j => j.tipo === 'admin').length;
+    const clientePendientes = this.notificationQueue.filter(j => j.tipo === 'cliente').length;
+
+    let oldestMs = 0;
+    for (const job of this.notificationQueue) {
+      const created = new Date(job.createdAt || ahora).getTime();
+      const age = ahora - created;
+      if (age > oldestMs) oldestMs = age;
+    }
+
+    return {
+      queue: {
+        total,
+        adminPendientes,
+        clientePendientes,
+        oldestPendingMs: oldestMs,
+        processing: this.isQueueProcessing,
+        maxQueueRetries: this.maxQueueRetries
+      }
+    };
   }
 
   /**

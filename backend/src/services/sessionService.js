@@ -411,6 +411,35 @@ class SessionService {
   }
 
   /**
+   * Métricas operativas para monitoreo en vivo
+   */
+  getOperationalMetrics() {
+    const stats = this.getEstadisticas();
+    const backupExists = fs.existsSync(SESSION_BACKUP_FILE);
+    let backupSizeBytes = 0;
+
+    try {
+      if (backupExists) {
+        backupSizeBytes = fs.statSync(SESSION_BACKUP_FILE).size;
+      }
+    } catch (error) {
+      logger.error('Error leyendo tamaño de respaldo de sesiones:', error.message);
+    }
+
+    return {
+      sessions: {
+        total: stats.total,
+        activas: stats.activas,
+        redisEnabled: !!config.redis.enabled,
+        redisConnected: !!isRedisConnected,
+        localBackupExists: backupExists,
+        localBackupSizeBytes: backupSizeBytes,
+        timeoutMs: SESSION_TIMEOUT
+      }
+    };
+  }
+
+  /**
    * Calcular total del carrito
    */
   async calcularTotalCarrito(telefono) {
