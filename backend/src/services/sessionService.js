@@ -411,16 +411,7 @@ class SessionService {
    */
   getOperationalMetrics() {
     const stats = this.getEstadisticas();
-    const backupExists = fs.existsSync(SESSION_BACKUP_FILE);
-    let backupSizeBytes = 0;
-
-    try {
-      if (backupExists) {
-        backupSizeBytes = fs.statSync(SESSION_BACKUP_FILE).size;
-      }
-    } catch (error) {
-      logger.error('Error leyendo tamaño de respaldo de sesiones:', error.message);
-    }
+    const storageStatus = DatabaseStorageService.getStatus();
 
     return {
       sessions: {
@@ -428,8 +419,10 @@ class SessionService {
         activas: stats.activas,
         redisEnabled: !!config.redis.enabled,
         redisConnected: !!isRedisConnected,
-        localBackupExists: backupExists,
-        localBackupSizeBytes: backupSizeBytes,
+        centralStorageConnected: !!storageStatus.supabaseConnected,
+        localBackupExists: storageStatus.localSessions > 0,
+        localBackupSizeBytes: 0,
+        localCachedSessions: storageStatus.localSessions,
         timeoutMs: SESSION_TIMEOUT
       }
     };

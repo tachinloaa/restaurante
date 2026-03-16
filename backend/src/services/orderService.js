@@ -27,10 +27,24 @@ class OrderService {
     this.cargarColaEmergenciaDesdeDB();
   }
 
+  normalizarPedidoEmergencia(pedido) {
+    return {
+      id: pedido.id,
+      telefono: pedido.telefono || pedido.pedido_data?.telefono || null,
+      cliente: pedido.cliente || pedido.pedido_data?.cliente || null,
+      datos: pedido.datos || pedido.pedido_data?.datos || pedido.pedido_data || {},
+      timestamp: pedido.timestamp || pedido.creado_at || new Date().toISOString(),
+      intentos: pedido.intentos ?? pedido.numero_intentos ?? 0,
+      nextRetryAt: pedido.nextRetryAt || (pedido.proximo_reintento_at ? new Date(pedido.proximo_reintento_at).getTime() : Date.now()),
+      ultimoError: pedido.ultimoError || pedido.error_mensaje || null
+    };
+  }
+
   async cargarColaEmergenciaDesdeDB() {
     try {
       const orders = await DatabaseStorageService.loadPendingOrders();
-      pendingOrders.push(...orders);
+      pendingOrders.length = 0;
+      pendingOrders.push(...orders.map(order => this.normalizarPedidoEmergencia(order)));
       logger.info(`📦 ${pendingOrders.length} pedidos cargados de la cola de emergencia`);
     } catch (error) {
       logger.error('Error cargando cola de emergencia:', error);
@@ -541,7 +555,7 @@ class OrderService {
       if (pedido.success) {
         // ✅ Pedido creado exitosamente, eliminar de la cola
         pendingOrders.splice(index, 1);
-        this.guardarColaEmergenciaEnArchivo();
+        await DatabaseStorageService.removeOrder(emergencyId);
 
         logger.info(`✅ Pedido de emergencia guardado exitosamente: #${pedido.data.numero_pedido}`);
 
@@ -577,11 +591,15 @@ class OrderService {
           message: 'Pedido guardado exitosamente'
         };
       } else {
-        // ❌ Aún falló, actualizar intentos en el archivo
+        // ❌ Aún falló, actualizar intentos en almacenamiento central
         const retryDelay = Math.min(10 * 60 * 1000, 30000 * Math.pow(2, Math.min(pedidoEmergencia.intentos, 5)));
         pedidoEmergencia.nextRetryAt = Date.now() + retryDelay;
         pedidoEmergencia.ultimoError = pedido.error || 'Supabase aún no disponible';
-        this.guardarColaEmergenciaEnArchivo();
+        await DatabaseStorageService.updateOrderRetry(emergencyId, {
+          numero_intentos: pedidoEmergencia.intentos,
+          proximo_reintento_at: new Date(pedidoEmergencia.nextRetryAt).toISOString(),
+          error_mensaje: pedidoEmergencia.ultimoError
+        });
 
         if (!opciones.silentNoisyFailure && pedidoEmergencia.intentos % 5 === 0) {
           await TwilioService.enviarMensajeAdmin(
@@ -623,9 +641,7 @@ class OrderService {
       }
 
       const pedido = pendingOrders.splice(index, 1)[0];
-      
-      // Actualizar archivo
-      this.guardarColaEmergenciaEnArchivo();
+      await DatabaseStorageService.removeOrder(emergencyId);
 
       logger.info(`🗑️ Pedido de emergencia eliminado: ${emergencyId} - Motivo: ${motivo}`);
 

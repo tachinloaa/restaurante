@@ -20,6 +20,11 @@ class DatabaseStorageService {
     };
   }
 
+  isMissingTableError(error) {
+    const message = error?.message || '';
+    return message.includes('schema cache') || message.includes('Could not find the table');
+  }
+
   // ============================================================
   // SESSIONS BACKUP
   // ============================================================
@@ -36,8 +41,11 @@ class DatabaseStorageService {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        // PGRST116 = no row found
-        logger.warn(`⚠️ Error cargando sesión de Supabase: ${error.message}`);
+        if (this.isMissingTableError(error)) {
+          logger.warn('⚠️ Tabla sessions_backup no disponible todavía en Supabase');
+        } else {
+          logger.warn(`⚠️ Error cargando sesión de Supabase: ${error.message}`);
+        }
         this.isSupabaseConnected = false;
         return this.localCache.sessions.get(telefono) || null;
       }
@@ -86,7 +94,11 @@ class DatabaseStorageService {
         });
 
       if (error) {
-        logger.warn(`⚠️ Error guardando sesión en Supabase: ${error.message}`);
+        if (this.isMissingTableError(error)) {
+          logger.warn('⚠️ Tabla sessions_backup no disponible todavía en Supabase');
+        } else {
+          logger.warn(`⚠️ Error guardando sesión en Supabase: ${error.message}`);
+        }
         this.isSupabaseConnected = false;
         return { success: false, usedLocal: true };
       }
@@ -110,7 +122,12 @@ class DatabaseStorageService {
         .gt('actualizado_at', new Date(Date.now() - 2*60*60*1000).toISOString()); // últimas 2h
 
       if (error) {
-        logger.warn(`⚠️ Error cargando todas las sesiones: ${error.message}`);
+        if (this.isMissingTableError(error)) {
+          logger.warn('⚠️ Tabla sessions_backup no disponible todavía en Supabase');
+        } else {
+          logger.warn(`⚠️ Error cargando todas las sesiones: ${error.message}`);
+        }
+        this.isSupabaseConnected = false;
         return [];
       }
 
@@ -187,7 +204,12 @@ class DatabaseStorageService {
         .select();
 
       if (error) {
-        logger.warn(`⚠️ Error enqueueing pedido: ${error.message}`);
+        if (this.isMissingTableError(error)) {
+          logger.warn('⚠️ Tabla order_emergency_queue no disponible todavía en Supabase');
+        } else {
+          logger.warn(`⚠️ Error enqueueing pedido: ${error.message}`);
+        }
+        this.isSupabaseConnected = false;
         return { success: false, usedLocal: true, id: queueItem.id };
       }
 
@@ -210,10 +232,16 @@ class DatabaseStorageService {
         .limit(100);
 
       if (error) {
-        logger.warn(`⚠️ Error cargando pedidos pendientes: ${error.message}`);
+        if (this.isMissingTableError(error)) {
+          logger.warn('⚠️ Tabla order_emergency_queue no disponible todavía en Supabase');
+        } else {
+          logger.warn(`⚠️ Error cargando pedidos pendientes: ${error.message}`);
+        }
+        this.isSupabaseConnected = false;
         return this.localCache.orderQueue;
       }
 
+      this.localCache.orderQueue = Array.isArray(data) ? [...data] : [];
       return data || [];
     } catch (error) {
       logger.error(`❌ Error en loadPendingOrders: ${error.message}`);
@@ -224,9 +252,19 @@ class DatabaseStorageService {
   /**
    * Actualizar intento de reintento de pedido
    */
-  async updateOrderRetry(orderId, error = null) {
+  async updateOrderRetry(orderId, retryInfo = {}) {
     try {
-      const newRetryTime = new Date(Date.now() + Math.min(600000, 30000 * Math.pow(2, 3)));
+      const localOrder = this.localCache.orderQueue.find(item => item.id === orderId);
+      const numeroIntentos = retryInfo.numero_intentos ?? ((localOrder?.numero_intentos || 0) + 1);
+      const proximoReintentoAt = retryInfo.proximo_reintento_at || new Date(Date.now() + Math.min(600000, 30000 * Math.pow(2, 3))).toISOString();
+      const errorMensaje = retryInfo.error_mensaje || null;
+
+      if (localOrder) {
+        localOrder.numero_intentos = numeroIntentos;
+        localOrder.proximo_reintento_at = proximoReintentoAt;
+        localOrder.error_mensaje = errorMensaje;
+        localOrder.actualizado_at = new Date().toISOString();
+      }
 
       if (!this.isSupabaseConnected) {
         return { success: false, usedLocal: true };
@@ -235,9 +273,9 @@ class DatabaseStorageService {
       const { error: updateError } = await supabase
         .from('order_emergency_queue')
         .update({
-          numero_intentos: supabase.rpc('increment', { row_id: orderId }),
-          proximo_reintento_at: newRetryTime.toISOString(),
-          error_mensaje: error,
+          numero_intentos: numeroIntentos,
+          proximo_reintento_at: proximoReintentoAt,
+          error_mensaje: errorMensaje,
           actualizado_at: new Date().toISOString()
         })
         .eq('id', orderId);
@@ -294,12 +332,12 @@ class DatabaseStorageService {
       const queueItem = {
         id: job.id || `notif-${Date.now()}`,
         tipo: job.tipo,
-        numero_destino: job.numeroDestino || null,
+        numero_destino: job.numero_destino || job.numeroDestino || null,
         mensaje: job.mensaje,
-        numero_intentos: job.retryCount || 0,
-        proximo_reintento_at: job.nextRetryAt || new Date(Date.now() + 30000).toISOString(),
-        admin_targets: job.adminTargets || null,
-        ultimo_error: job.lastError || null
+        numero_intentos: job.numero_intentos ?? job.retryCount ?? 0,
+        proximo_reintento_at: job.proximo_reintento_at || new Date(job.nextRetryAt || Date.now() + 30000).toISOString(),
+        admin_targets: job.admin_targets || job.adminTargets || null,
+        ultimo_error: job.ultimo_error || job.lastError || null
       };
 
       this.localCache.notificationQueue.push(queueItem);
@@ -315,7 +353,12 @@ class DatabaseStorageService {
         .select();
 
       if (error) {
-        logger.warn(`⚠️ Error enqueueing notificación: ${error.message}`);
+        if (this.isMissingTableError(error)) {
+          logger.warn('⚠️ Tabla notification_queue no disponible todavía en Supabase');
+        } else {
+          logger.warn(`⚠️ Error enqueueing notificación: ${error.message}`);
+        }
+        this.isSupabaseConnected = false;
         return { success: false, usedLocal: true, id: queueItem.id };
       }
 
@@ -338,10 +381,16 @@ class DatabaseStorageService {
         .limit(50);
 
       if (error) {
-        logger.warn(`⚠️ Error cargando notificaciones: ${error.message}`);
+        if (this.isMissingTableError(error)) {
+          logger.warn('⚠️ Tabla notification_queue no disponible todavía en Supabase');
+        } else {
+          logger.warn(`⚠️ Error cargando notificaciones: ${error.message}`);
+        }
+        this.isSupabaseConnected = false;
         return this.localCache.notificationQueue;
       }
 
+      this.localCache.notificationQueue = Array.isArray(data) ? [...data] : [];
       return data || [];
     } catch (error) {
       logger.error(`❌ Error en loadPendingNotifications: ${error.message}`);
@@ -352,10 +401,19 @@ class DatabaseStorageService {
   /**
    * Actualizar reintento de notificación
    */
-  async updateNotificationRetry(notificationId, error = null) {
+  async updateNotificationRetry(notificationId, retryInfo = {}) {
     try {
-      const backoff = Math.min(600000, 30000 * Math.pow(2, 3));
-      const newRetryTime = new Date(Date.now() + backoff);
+      const localNotification = this.localCache.notificationQueue.find(item => item.id === notificationId);
+      const numeroIntentos = retryInfo.numero_intentos ?? ((localNotification?.numero_intentos || 0) + 1);
+      const proximoReintentoAt = retryInfo.proximo_reintento_at || new Date(Date.now() + Math.min(600000, 30000 * Math.pow(2, 3))).toISOString();
+      const ultimoError = retryInfo.ultimo_error || null;
+
+      if (localNotification) {
+        localNotification.numero_intentos = numeroIntentos;
+        localNotification.proximo_reintento_at = proximoReintentoAt;
+        localNotification.ultimo_error = ultimoError;
+        localNotification.actualizado_at = new Date().toISOString();
+      }
 
       if (!this.isSupabaseConnected) {
         return { success: false, usedLocal: true };
@@ -364,9 +422,9 @@ class DatabaseStorageService {
       const { error: updateError } = await supabase
         .from('notification_queue')
         .update({
-          numero_intentos: supabase.rpc('increment', { row_id: notificationId }),
-          proximo_reintento_at: newRetryTime.toISOString(),
-          ultimo_error: error,
+          numero_intentos: numeroIntentos,
+          proximo_reintento_at: proximoReintentoAt,
+          ultimo_error: ultimoError,
           actualizado_at: new Date().toISOString()
         })
         .eq('id', notificationId);

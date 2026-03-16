@@ -61,9 +61,11 @@ class TwilioService {
   static async encolarNotificacionFallida(job) {
     const queueItem = {
       ...job,
-      retryCount: job.retryCount || 0,
-      nextRetryAt: job.nextRetryAt || Date.now() + 30000,
-      createdAt: job.createdAt || new Date().toISOString()
+      numero_intentos: job.numero_intentos ?? job.retryCount ?? 0,
+      proximo_reintento_at: job.proximo_reintento_at || new Date(job.nextRetryAt || Date.now() + 30000).toISOString(),
+      createdAt: job.createdAt || job.creado_at || new Date().toISOString(),
+      numero_destino: job.numero_destino || job.numeroDestino || null,
+      admin_targets: job.admin_targets || job.adminTargets || null
     };
 
     this.notificationQueue.push(queueItem);
@@ -88,7 +90,8 @@ class TwilioService {
       const pendientes = [];
 
       for (const job of this.notificationQueue) {
-        if (job.nextRetryAt > ahora) {
+        const nextRetryAt = job.nextRetryAt || (job.proximo_reintento_at ? new Date(job.proximo_reintento_at).getTime() : 0);
+        if (nextRetryAt > ahora) {
           pendientes.push(job);
           continue;
         }
@@ -129,6 +132,7 @@ class TwilioService {
           ...job,
           numero_intentos: retryCount,
           proximo_reintento_at: new Date(Date.now() + backoff).toISOString(),
+          nextRetryAt: Date.now() + backoff,
           ultimo_error: resultado.error || 'Error desconocido'
         };
 
@@ -136,7 +140,11 @@ class TwilioService {
         
         // Actualizar en BD
         if (job.id) {
-          DatabaseStorageService.updateNotificationRetry(job.id, resultado.error || 'Error desconocido').catch(err => {
+          DatabaseStorageService.updateNotificationRetry(job.id, {
+            numero_intentos: retryCount,
+            proximo_reintento_at: updatedJob.proximo_reintento_at,
+            ultimo_error: updatedJob.ultimo_error
+          }).catch(err => {
             logger.warn('⚠️ No se pudo actualizar notificación en DB:', err.message);
           });
         }
@@ -159,7 +167,7 @@ class TwilioService {
 
     let oldestMs = 0;
     for (const job of this.notificationQueue) {
-      const created = new Date(job.createdAt || ahora).getTime();
+      const created = new Date(job.createdAt || job.creado_at || ahora).getTime();
       const age = ahora - created;
       if (age > oldestMs) oldestMs = age;
     }
