@@ -7,7 +7,7 @@
 // Todos los pedidos y notificaciones llegan a este número.
 // Actúa como respaldo si ADMIN_PHONE_NUMBER no está en el entorno.
 // ================================================================
-export const ADMIN_PHONE_FIJO = '+5213349420820';
+export const ADMIN_PHONE_FIJO = '+525636399034';
 
 // ================================================================
 // 🛵 NÚMERO REPARTIDOR — Opcional
@@ -163,7 +163,7 @@ export const TIEMPO_ENTREGA = {
 
 // Mensajes del bot
 export const MENSAJES_BOT = {
-  BIENVENIDA: `¡Hola! ${EMOJIS.SALUDO} Bienvenido a *El Rinconcito* ${EMOJIS.TACO}\n\n⚠️ *IMPORTANTE*: Este número (+1 570 707-7315) es exclusivo para *PEDIDOS AUTOMÁTICOS*, no recibe llamadas.\n📞 Si tienes alguna duda, quejas o sugerencias, puedes llamar al: *334-942-0820*\n\n¿En qué puedo ayudarte hoy?\n\n📋 *menú* - Ver productos disponibles\n${EMOJIS.CARRITO} *pedir* - Hacer un pedido\n📦 *mis pedidos* - Ver mis pedidos recientes\n${EMOJIS.TELEFONO} *contacto* - Información de contacto\nℹ️ *ayuda* - Ver comandos disponibles\n\nEscribe una opción para comenzar.`,
+  BIENVENIDA: `¡Hola! ${EMOJIS.SALUDO} Bienvenido a *El Rinconcito* ${EMOJIS.TACO}\n\n⚠️ *IMPORTANTE*: Este número (+1 570 707-7315) es exclusivo para *PEDIDOS AUTOMÁTICOS*, no recibe llamadas.\n📞 Si tienes alguna duda, quejas o sugerencias, puedes llamar al: *563-639-9034*\n\n¿En qué puedo ayudarte hoy?\n\n📋 *menú* - Ver productos disponibles\n${EMOJIS.CARRITO} *pedir* - Hacer un pedido\n📦 *mis pedidos* - Ver mis pedidos recientes\n${EMOJIS.TELEFONO} *contacto* - Información de contacto\nℹ️ *ayuda* - Ver comandos disponibles\n\nEscribe una opción para comenzar.`,
 
   ERROR_GENERAL: 'Lo siento, ocurrió un error. Por favor intenta de nuevo o escribe *ayuda* para ver las opciones.',
 

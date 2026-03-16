@@ -139,7 +139,7 @@ class BotService {
             `Nuestro horario de atención es:\n` +
             `🕖 *7:00 AM – 10:00 PM*\n\n` +
             `¡Vuelve en horario de servicio y con gusto te atendemos! 🌮\n\n` +
-            `📞 Para urgencias: *334-942-0820*`
+            `📞 Para urgencias: *563-639-9034*`
         };
       }
 
@@ -2541,7 +2541,7 @@ class BotService {
    */
   esAdmin(telefono) {
     // Comparar solo los últimos 10 dígitos del número local.
-    // Funciona con: +5213349420820, 5213349420820, 3349420820, whatsapp:+52...
+    // Funciona con: +525636399034, 525636399034, 5636399034, whatsapp:+52...
     const extraerLocal = (num) => {
       const digits = String(num).replace(/\D/g, '');
       return digits.length >= 10 ? digits.slice(-10) : digits;
@@ -3235,7 +3235,7 @@ class BotService {
     let mensajeCliente = `❌ *TU PEDIDO HA SIDO CANCELADO*\n\n`;
     mensajeCliente += `📝 Pedido #${pedido.numero_pedido}\n\n`;
     mensajeCliente += `📋 Motivo: ${motivo}\n\n`;
-    mensajeCliente += `Si tienes dudas, contáctanos:\n📞 ${config.admin.phoneNumber?.replace(/^\+52(?:1)?/, '') || '334-942-0820'}\n\n`;
+    mensajeCliente += `Si tienes dudas, contáctanos:\n📞 ${config.admin.phoneNumber?.replace(/^\+52(?:1)?/, '') || '563-639-9034'}\n\n`;
     mensajeCliente += `Escribe *hola* para hacer un nuevo pedido.`;
     await TwilioService.enviarMensajeCliente(pedido.clientes.telefono, mensajeCliente);
 
