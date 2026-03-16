@@ -92,6 +92,7 @@ function Monitoring() {
   const sessions = data?.metrics?.sessions || {};
   const queue = data?.metrics?.queue || {};
   const emergency = data?.metrics?.emergencyOrders || {};
+  const database = data?.metrics?.database || {};
   const alerts = data?.alerts || {};
 
   return (
@@ -158,6 +159,13 @@ function Monitoring() {
           subtitle={`Backup local: ${sessions.localBackupExists ? 'Sí' : 'No'}`}
           tone={sessions.redisConnected ? 'good' : 'bad'}
         />
+
+        <Kpi
+          title="Base de datos"
+          value={database.ok === false ? 'Degradada' : 'Operativa'}
+          subtitle={`Latencia: ${database.latencyMs ?? 0} ms`}
+          tone={database.ok === false ? 'bad' : 'good'}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -174,9 +182,17 @@ function Monitoring() {
             <p className={alerts.staleAdminQueue ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-300'}>
               Cola admin estancada: {alerts.staleAdminQueue ? 'Sí' : 'No'}
             </p>
+            <p className={alerts.dbDegraded ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-300'}>
+              Base de datos degradada: {alerts.dbDegraded ? 'Sí' : 'No'}
+            </p>
             <p className="text-gray-700 dark:text-gray-300">
               Pendientes de admin: {alerts.pendingAdminNotifications ?? 0}
             </p>
+            {database.error ? (
+              <p className="text-red-700 dark:text-red-300">
+                Error BD: {database.error}
+              </p>
+            ) : null}
           </div>
         </Card>
 

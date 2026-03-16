@@ -2,6 +2,7 @@ import BotService from '../services/botService.js';
 import TwilioService from '../services/twilioService.js';
 import OrderService from '../services/orderService.js';
 import SessionService from '../services/sessionService.js';
+import { supabase } from '../config/database.js';
 import { success } from '../utils/responses.js';
 import logger from '../utils/logger.js';
 import config from '../config/environment.js';
@@ -179,18 +180,37 @@ class WebhookController {
    * Health operativo con métricas en vivo
    * GET /api/health/ops
    */
-  healthOps(req, res) {
+  async healthOps(req, res) {
     try {
       const nowIso = new Date().toISOString();
       const sessionMetrics = SessionService.getOperationalMetrics();
       const twilioMetrics = TwilioService.getOperationalMetrics();
       const emergencyMetrics = OrderService.getOperationalMetrics();
 
+      const dbProbe = {
+        ok: true,
+        latencyMs: null,
+        error: null
+      };
+
+      const dbStart = Date.now();
+      const { error: dbError } = await supabase
+        .from('productos')
+        .select('id')
+        .limit(1);
+
+      dbProbe.latencyMs = Date.now() - dbStart;
+      if (dbError) {
+        dbProbe.ok = false;
+        dbProbe.error = dbError.message || 'Error desconocido en consulta BD';
+      }
+
       const redisDegraded = config.isProduction && !sessionMetrics.sessions.redisConnected;
       const pendingAdminNotifications = twilioMetrics.queue.adminPendientes;
       const staleAdminQueue = pendingAdminNotifications > 0 && twilioMetrics.queue.oldestPendingMs > 5 * 60 * 1000;
+      const dbDegraded = !dbProbe.ok;
 
-      const estado = (redisDegraded || staleAdminQueue) ? 'degraded' : 'ok';
+      const estado = (redisDegraded || staleAdminQueue || dbDegraded) ? 'degraded' : 'ok';
 
       return success(res, {
         status: estado,
@@ -200,12 +220,14 @@ class WebhookController {
           ...sessionMetrics,
           ...twilioMetrics,
           ...emergencyMetrics,
+          database: dbProbe,
           webhook: {
             recentMessageCacheSize: recentMessages.size
           }
         },
         alerts: {
           redisDegraded,
+          dbDegraded,
           staleAdminQueue,
           pendingAdminNotifications
         }
