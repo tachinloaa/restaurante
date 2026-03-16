@@ -175,6 +175,18 @@ class BotService {
         return await this.procesarCancelacionPedido(telefono, bodySanitizado);
       }
 
+      // 🛡️ BLOQUEO DE PEDIDOS PARA ADMIN (seguridad adicional)
+      if (this.esComandoPedir(mensajeLimpio) || COMANDOS_BOT.DOMICILIO.some(cmd => mensajeLimpio.includes(cmd)) || COMANDOS_BOT.PARA_LLEVAR.some(cmd => mensajeLimpio.includes(cmd))) {
+        // Double-check: Verificar nuevamente que no sea admin
+        if (this.esAdmin(telefono)) {
+          logger.warn(`🔒 Admin intentó hacer pedido: ${telefono} - BLOQUEADO`);
+          return {
+            success: true,
+            mensaje: `🔒 *ACCESO DENEGADO*\n\nLos administradores no pueden hacer pedidos directos.\n\nEscribe *ayuda* para ver los comandos disponibles.`
+          };
+        }
+      }
+
       // Comandos directos de acción (pedir, domicilio, para llevar)
       if (this.esComandoPedir(mensajeLimpio)) {
         return await this.solicitarTipoPedido(telefono);
@@ -1256,8 +1268,8 @@ class BotService {
       mensajeCliente += `📱 Te notificaremos cuando tu pago sea verificado y tu pedido esté en preparación.\n\n`;
       mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
 
-      // Limpiar sesión DESPUÉS de enviar notificación
-      await SessionService.deleteSession(telefono);
+      // Reiniciar sesión (mantener cliente rastreable para notificaciones, no eliminar)
+      await SessionService.resetSession(telefono);
 
       logger.info(`✅ Pedido #${pedido.numero_pedido} creado con comprobante, esperando aprobación`);
 
@@ -1307,8 +1319,8 @@ class BotService {
       mensajeCliente += `📱 Te notificaremos cuando tu pago sea verificado y tu pedido esté en preparación.\n\n`;
       mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
 
-      // Limpiar sesión
-      await SessionService.deleteSession(telefono);
+      // Reiniciar sesión (mantener cliente rastreable para notificaciones, no eliminar)
+      await SessionService.resetSession(telefono);
 
       logger.info(`Pedido #${pedido.numero_pedido} creado con referencia, esperando aprobación`);
 
@@ -1530,8 +1542,8 @@ class BotService {
       // Enviar notificación al admin con el comprobante y resumen
       await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto, pedido.total);
 
-      // Limpiar sesión DESPUÉS de enviar notificación
-      await SessionService.deleteSession(telefono);
+      // Reiniciar sesión (mantener cliente rastreable para notificaciones durante preparación)
+      await SessionService.resetSession(telefono);
 
       return {
         success: true,
@@ -1549,8 +1561,8 @@ class BotService {
       tipoPedido
     );
 
-    // Limpiar sesión
-    await SessionService.deleteSession(telefono);
+    // Reiniciar sesión (mantener cliente rastreable para recibir actualizaciones del pedido)
+    await SessionService.resetSession(telefono);
 
     return {
       success: true,
