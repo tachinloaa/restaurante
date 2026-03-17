@@ -586,7 +586,11 @@ class BotService {
     mensaje += `O escribe *todo* para ver el menú completo\n`;
     mensaje += `❌ Escribe *salir* para cancelar`;
 
-    await SessionService.guardarDatos(telefono, { categorias: resultado.categorias });
+    await SessionService.guardarDatos(telefono, {
+      categorias: resultado.categorias,
+      numeros_categoria_activa: null,
+      nombre_categoria_activa: null
+    });
     await SessionService.updateEstado(telefono, BOT_STATES.SELECCIONAR_CATEGORIA);
 
     return {
@@ -639,8 +643,15 @@ class BotService {
     mensajeFinal += `• *menu* - Ver otras categorías\n`;
     mensajeFinal += `• *todo* - Ver menú completo`;
 
+    // Guardar los números válidos de esta categoría en sesión
+    // Así podemos validar que el cliente no elija un número de otra categoría
+    const numerosCategoria = resultado.productos.map(p => p.numero);
+    await SessionService.guardarDatos(telefono, {
+      numeros_categoria_activa: numerosCategoria,
+      nombre_categoria_activa: resultado.categoria
+    });
+
     // SIEMPRE cambiar a VER_MENU para que pueda seleccionar productos
-    // El handler procesarSeleccionProducto manejará tanto ver como ordenar
     await SessionService.updateEstado(telefono, BOT_STATES.VER_MENU);
 
     return {
@@ -664,6 +675,12 @@ class BotService {
 
     const session = await SessionService.getSession(telefono);
     let mensaje = menu.mensaje;
+
+    // Al mostrar menú completo, limpiar restricción de categoría activa
+    await SessionService.guardarDatos(telefono, {
+      numeros_categoria_activa: null,
+      nombre_categoria_activa: null
+    });
 
     // Si ya inició pedido, permitir seleccionar
     if (session?.datos?.tipo_pedido) {
@@ -720,8 +737,21 @@ class BotService {
     let producto = null;
 
     if (/^\d+$/.test(body.trim())) {
-      // Es un número
-      producto = await MenuService.buscarPorNumero(parseInt(body.trim()));
+      const numeroElegido = parseInt(body.trim());
+
+      // Si el cliente estaba viendo una categoría, validar que el número pertenezca a ella
+      const session = await SessionService.getSession(telefono);
+      const numerosValidos = session?.datos?.numeros_categoria_activa;
+      if (numerosValidos && numerosValidos.length > 0 && !numerosValidos.includes(numeroElegido)) {
+        const nombreCat = session?.datos?.nombre_categoria_activa || 'esta categoría';
+        return {
+          success: true,
+          mensaje: `⚠️ El número *${numeroElegido}* no es de ${nombreCat}.\n\nElige un número de los que aparecen en el menú, o escribe *menu* para ver todas las categorías.`
+        };
+      }
+
+      // Es un número válido
+      producto = await MenuService.buscarPorNumero(numeroElegido);
     } else {
       // Es un nombre
       producto = await MenuService.buscarPorNombre(body.trim());
