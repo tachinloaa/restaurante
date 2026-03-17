@@ -21,14 +21,19 @@ export const HORARIO_ATENCION = {
  * @returns {Object} - { abierto: boolean, mensaje: string, proximaApertura: Date|null }
  */
 export const verificarHorario = (fecha = new Date()) => {
-  // Convertir a hora de México (UTC-6 o UTC-5 dependiendo del horario de verano)
-  const opciones = { timeZone: 'America/Mexico_City', hour12: false };
-  const horaMexico = fecha.toLocaleString('es-MX', opciones);
-  const fechaMexico = new Date(horaMexico);
-  
-  const dia = fechaMexico.getDay();
-  const horaActual = fechaMexico.getHours();
-  const minutosActual = fechaMexico.getMinutes();
+  // Extraer componentes de hora en México usando formatToParts (evita bug de new Date(localeString))
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Mexico_City',
+    weekday: 'short',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  }).formatToParts(fecha);
+
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const dia = weekdayMap[parts.find(p => p.type === 'weekday')?.value] ?? new Date().getDay();
+  const horaActual = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10);
+  const minutosActual = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10);
   const minutosTotales = horaActual * 60 + minutosActual;
   
   const horario = HORARIO_ATENCION[dia];
