@@ -115,6 +115,9 @@ class BotService {
         if (mensajeLimpio.startsWith('rechazar')) {
           return await this.rechazarPedidoPendiente(bodySanitizado);
         }
+        if (mensajeLimpio.startsWith('pagado')) {
+          return await this.marcarPagadoEfectivoAdmin(bodySanitizado);
+        }
 
         // Comandos rápidos de estado
         if (mensajeLimpio.startsWith('entregado')) {
@@ -2671,7 +2674,10 @@ class BotService {
     mensaje += `• *aprobar #123* — Verificar pago y poner en preparación\n`;
     mensaje += `• *rechazar #123* — Rechazar pago y notificar cliente\n\n`;
 
-    mensaje += `👨‍🍳 *AVANZAR ESTADO DEL PEDIDO*\n`;
+    mensaje += `� *PAGO EFECTIVO*\n`;
+    mensaje += `• *pagado #123* — Confirmar que se cobró en efectivo\n\n`;
+
+    mensaje += `�👨‍🍳 *AVANZAR ESTADO DEL PEDIDO*\n`;
     mensaje += `• *preparando #123* — En la cocina\n`;
     mensaje += `• *entregado #123* — Domicilio: en camino 🛵 | Recoger: listo para recoger 📦\n\n`;
 
@@ -3335,6 +3341,92 @@ class BotService {
     return {
       success: true,
       mensaje: `❌ *PEDIDO RECHAZADO*\n\n📝 Pedido #${pedido.numero_pedido}\n👤 Cliente: ${pedido.clientes.nombre}\n📞 Teléfono: ${pedido.clientes.telefono}\n\nEl cliente ha sido notificado.`
+    };
+  }
+
+  /**
+   * Marcar pago en efectivo como recibido (solo admin)
+   * Formato: "pagado #2602106719"
+   */
+  async marcarPagadoEfectivoAdmin(mensaje) {
+    const partes = mensaje.trim().split(/\s+/);
+
+    if (partes.length < 2) {
+      return {
+        success: false,
+        mensaje: '❌ Formato incorrecto.\n\nUsa: *pagado #2602106719*'
+      };
+    }
+
+    const numeroPedido = partes[1].replace('#', '');
+
+    const { data: pedido, error } = await supabase
+      .from('pedidos')
+      .select('*, clientes(*)')
+      .eq('numero_pedido', numeroPedido)
+      .single();
+
+    if (error || !pedido) {
+      return {
+        success: false,
+        mensaje: `❌ No se encontró el pedido #${numeroPedido}\n\nVerifica que el número sea correcto.`
+      };
+    }
+
+    if (pedido.metodo_pago !== 'efectivo') {
+      return {
+        success: false,
+        mensaje: `❌ El pedido #${numeroPedido} es de *transferencia*, no de efectivo.\n\nUsa *aprobar #${numeroPedido}* para transferencias.`
+      };
+    }
+
+    if (pedido.estado_pago === 'completado') {
+      return {
+        success: false,
+        mensaje: `⚠️ El pago del pedido #${numeroPedido} ya está registrado como recibido.`
+      };
+    }
+
+    // Actualizar estado de pago
+    const { error: errorUpdate } = await supabase
+      .from('pedidos')
+      .update({
+        estado_pago: 'completado',
+        pago_verificado: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', pedido.id);
+
+    if (errorUpdate) {
+      logger.error('Error al marcar pago efectivo desde WhatsApp:', errorUpdate);
+      return {
+        success: false,
+        mensaje: `❌ Error al registrar el pago: ${errorUpdate.message}`
+      };
+    }
+
+    // Notificar al cliente
+    try {
+      let msgCliente = `✅ *¡Pago recibido!*\n\n`;
+      msgCliente += `Registramos el pago en efectivo de tu pedido *#${pedido.numero_pedido}*\n`;
+      msgCliente += `💰 Total: *${formatearPrecio(pedido.total)}*\n\n`;
+      msgCliente += `¡Gracias por tu preferencia! 👋\n*El Rinconcito* 🌮`;
+      await TwilioService.enviarMensajeCliente(pedido.clientes.telefono, msgCliente);
+    } catch (e) {
+      logger.warn(`⚠️ No se pudo notificar al cliente sobre pago efectivo: ${e.message}`);
+    }
+
+    logger.info(`💵 Pago efectivo marcado por admin vía WhatsApp: pedido #${numeroPedido}`);
+
+    return {
+      success: true,
+      mensaje:
+        `💵 *PAGO EN EFECTIVO REGISTRADO*\n\n` +
+        `📝 Pedido: *#${pedido.numero_pedido}*\n` +
+        `👤 Cliente: ${pedido.clientes.nombre}\n` +
+        `📞 https://wa.me/${(pedido.clientes.telefono || '').replace('whatsapp:', '').replace('+', '')}\n` +
+        `💰 Total cobrado: *${formatearPrecio(pedido.total)}*\n\n` +
+        `✅ El cliente fue notificado.`
     };
   }
 
