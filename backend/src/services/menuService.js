@@ -4,6 +4,7 @@ import Subcategory from '../models/Subcategory.js';
 import { formatearPrecio } from '../utils/formatters.js';
 import { EMOJIS } from '../config/constants.js';
 import logger from '../utils/logger.js';
+import { getMexicoDateParts } from '../utils/horario.js';
 
 /**
  * Servicio para generar menús formateados para WhatsApp
