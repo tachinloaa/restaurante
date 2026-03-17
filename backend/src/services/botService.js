@@ -3020,11 +3020,13 @@ class BotService {
     }
 
     if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
-      mensajeCliente += `${EMOJIS.MOTO} Tu pedido saldrá pronto a tu domicilio${NL}${NL}`;
+      mensajeCliente += `${EMOJIS.MOTO} Tu pedido saldrá pronto a tu domicilio${NL}`;
+      mensajeCliente += `📲 *Te avisaremos cuando esté en camino.*${NL}${NL}`;
     } else {
       mensajeCliente += `📦 *Puedes pasar a recogerlo en:*${NL}`;
       mensajeCliente += `${DIRECCION_RESTAURANTE.TEXTO}${NL}`;
-      mensajeCliente += `${DIRECCION_RESTAURANTE.MAPS}${NL}${NL}`;
+      mensajeCliente += `${DIRECCION_RESTAURANTE.MAPS}${NL}`;
+      mensajeCliente += `📲 *Te avisaremos cuando esté listo para recoger.*${NL}${NL}`;
     }
 
     mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}${NL}`;

@@ -176,9 +176,12 @@ export const MENSAJES_BOT = {
     
     if (tipoPedido === 'para_llevar') {
       mensaje += `📍 *Recoge tu pedido en:*\n${DIRECCION_RESTAURANTE.TEXTO}\n${DIRECCION_RESTAURANTE.MAPS}\n\n`;
+      mensaje += `📲 *Te avisaremos cuando tu pedido esté listo para recoger.*\n\n`;
+    } else {
+      mensaje += `📲 *Te avisaremos cuando tu pedido esté en camino.*\n\n`;
     }
     
-    mensaje += `Te enviaremos actualizaciones del estado de tu pedido.\n\n¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
+    mensaje += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
     
     return mensaje;
   },
