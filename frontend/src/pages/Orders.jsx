@@ -157,6 +157,20 @@ function Orders() {
     }
   };
 
+  /**
+   * Marca un pedido de efectivo como pagado
+   */
+  const handleMarcarPagado = async (orderId) => {
+    try {
+      await orderService.marcarPagadoEfectivo(orderId);
+      toast.success('💵 Pago en efectivo registrado');
+      loadOrders();
+    } catch (error) {
+      toast.error('Error al registrar pago');
+      console.error('Error marcando pago efectivo:', error);
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
@@ -241,6 +255,22 @@ function Orders() {
                       </span>
                       <span>📞 {formatearTelefono(order.clientes?.telefono || '')}</span>
                       <span>🕒 {formatearFecha(order.created_at)}</span>
+                      {/* Método e indicador de pago */}
+                      {order.metodo_pago === 'efectivo' ? (
+                        order.estado_pago === 'completado' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                            💵 Efectivo · Pagado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                            💵 Efectivo · Pendiente cobro
+                          </span>
+                        )
+                      ) : order.metodo_pago === 'transferencia' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                          🏦 Transferencia · {order.estado_pago === 'completado' ? 'Verificado' : 'Por verificar'}
+                        </span>
+                      ) : null}
                     </div>
 
                     {/* Dirección de entrega */}
@@ -257,8 +287,22 @@ function Orders() {
                       {formatearPrecio(order.total)}
                     </p>
                     
-                    {/* Botón único: Entregado (notifica al cliente que va en camino) */}
-                    <div className="flex gap-2">
+                    {/* Botones de acción */}
+                    <div className="flex flex-wrap gap-2 justify-end">
+                      {/* Botón Pagado: solo efectivo con pago pendiente */}
+                      {order.metodo_pago === 'efectivo' &&
+                        order.estado_pago !== 'completado' &&
+                        !['cancelado'].includes(order.estado) && (
+                        <button
+                          onClick={() => handleMarcarPagado(order.id)}
+                          className="btn text-xs sm:text-sm bg-yellow-500 hover:bg-yellow-600 text-white font-medium px-3 py-1.5 rounded-lg transition-colors"
+                          aria-label="Marcar pago efectivo recibido"
+                        >
+                          💵 Pagado
+                        </button>
+                      )}
+
+                      {/* Botón Entregado */}
                       {!['entregado', 'cancelado'].includes(order.estado) && (
                         <button
                           onClick={() => handleCambiarEstado(order.id, 'entregado')}

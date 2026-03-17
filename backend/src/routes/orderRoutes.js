@@ -30,6 +30,7 @@ router.delete('/emergency-queue/:emergencyId', authenticate, isAdmin, orderContr
 router.get('/:id', authenticate, isAdmin, orderController.getById.bind(orderController));
 router.post('/', authenticate, isAdmin, orderValidation, orderController.create.bind(orderController));
 router.put('/:id/status', authenticate, isAdmin, orderController.updateEstado.bind(orderController));
+router.patch('/:id/pago-efectivo', authenticate, isAdmin, orderController.marcarPagadoEfectivo.bind(orderController));
 router.delete('/:id', authenticate, isAdmin, orderController.cancelar.bind(orderController));
 
 export default router;

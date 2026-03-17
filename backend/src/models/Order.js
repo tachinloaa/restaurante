@@ -274,6 +274,32 @@ class Order {
   }
 
   /**
+   * Marcar pago en efectivo como recibido
+   */
+  static async updateEstadoPago(id, estadoPago) {
+    try {
+      const { data, error } = await supabase
+        .from('pedidos')
+        .update({
+          estado_pago: estadoPago,
+          pago_verificado: estadoPago === 'completado',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      logger.info(`Estado de pago del pedido ${id} actualizado a: ${estadoPago}`);
+      return { success: true, data };
+    } catch (error) {
+      logger.error(`Error al actualizar estado_pago del pedido ${id}:`, error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Cancelar pedido
    */
   static async cancelar(id, razon = null) {

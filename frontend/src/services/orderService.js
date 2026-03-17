@@ -18,6 +18,10 @@ const orderService = {
     return await api.put(`/orders/${id}/status`, { estado });
   },
 
+  marcarPagadoEfectivo: async (id) => {
+    return await api.patch(`/orders/${id}/pago-efectivo`);
+  },
+
   cancelar: async (id, razon) => {
     return await api.delete(`/orders/${id}`, { data: { razon } });
   },

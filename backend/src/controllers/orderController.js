@@ -119,6 +119,38 @@ class OrderController {
     }
   }
 
+  async marcarPagadoEfectivo(req, res) {
+    try {
+      const { id } = req.params;
+
+      const pedidoActual = await Order.getById(id);
+      if (!pedidoActual.success) {
+        return notFound(res, 'Pedido no encontrado');
+      }
+
+      const pedido = pedidoActual.data;
+
+      if (pedido.metodo_pago !== 'efectivo') {
+        return serverError(res, 'Este pedido no es de pago en efectivo');
+      }
+
+      if (pedido.estado_pago === 'completado') {
+        return serverError(res, 'El pago ya fue registrado');
+      }
+
+      const resultado = await Order.updateEstadoPago(id, 'completado');
+      if (!resultado.success) {
+        return serverError(res, resultado.error);
+      }
+
+      logger.info(`Pago efectivo registrado para pedido ${pedido.numero_pedido}`);
+      return success(res, resultado.data);
+    } catch (error) {
+      logger.error('Error en marcarPagadoEfectivo:', error);
+      return serverError(res, 'Error al registrar pago', error);
+    }
+  }
+
   async cancelar(req, res) {
     try {
       const { id } = req.params;
