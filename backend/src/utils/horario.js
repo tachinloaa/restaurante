@@ -101,6 +101,33 @@ const calcularProximaApertura = (fecha, diaActual) => {
 /**
  * Mensaje para cliente cuando está cerrado
  */
+/**
+ * Obtener componentes de fecha/hora en zona horaria de México.
+ * Usar en lugar de new Date().getDay() o new Date(localeString) para evitar bugs de timezone.
+ */
+export const getMexicoDateParts = (fecha = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(fecha);
+
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    dayOfWeek: weekdayMap[parts.find(p => p.type === 'weekday')?.value] ?? 0,
+    year: parts.find(p => p.type === 'year')?.value ?? '',
+    month: parts.find(p => p.type === 'month')?.value ?? '',
+    day: parts.find(p => p.type === 'day')?.value ?? '',
+    hour: parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10),
+    minute: parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10)
+  };
+};
+
 export const getMensajeCerrado = (infoHorario) => {
   const horaApertura = infoHorario.proximaApertura 
     ? infoHorario.proximaApertura.toLocaleTimeString('es-MX', { 
@@ -120,5 +147,6 @@ export const getMensajeCerrado = (infoHorario) => {
 export default {
   verificarHorario,
   getMensajeCerrado,
+  getMexicoDateParts,
   HORARIO_ATENCION
 };

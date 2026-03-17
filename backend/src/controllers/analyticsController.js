@@ -165,11 +165,11 @@ const getIngresosSemana = async (req, res) => {
       agrupado[dia] = { ingresos: 0, pedidos: 0 };
     });
 
+    const _weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
     pedidos.forEach(pedido => {
       const fecha = new Date(pedido.created_at);
-      // Convertir a zona horaria de México (America/Mexico_City)
-      const fechaMexico = new Date(fecha.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
-      const dia = diasSemana[fechaMexico.getDay()];
+      const _parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Mexico_City', weekday: 'short' }).formatToParts(fecha);
+      const dia = diasSemana[_weekdayMap[_parts.find(p => p.type === 'weekday')?.value] ?? 0];
       agrupado[dia].ingresos += parseFloat(pedido.total || 0);
       agrupado[dia].pedidos += 1;
     });
@@ -391,10 +391,8 @@ const getHorariosPico = async (req, res) => {
 
     pedidos.forEach(pedido => {
       const fecha = new Date(pedido.created_at);
-      
-      // Convertir a zona horaria de México (America/Mexico_City)
-      const fechaMexico = new Date(fecha.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
-      const hora = fechaMexico.getHours();
+      const _hourParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Mexico_City', hour: 'numeric', hour12: false }).formatToParts(fecha);
+      const hora = parseInt(_hourParts.find(p => p.type === 'hour')?.value ?? '0', 10);
       
       const franjaInicio = Math.floor(hora / 2) * 2;
       const franjaFin = franjaInicio + 2;
@@ -497,11 +495,11 @@ const obtenerIngresosSemanaInterno = async (periodo) => {
   const agrupado = {};
   diasSemana.forEach(dia => { agrupado[dia] = { ingresos: 0, pedidos: 0 }; });
 
+  const _wdMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   pedidos.forEach(pedido => {
     const fecha = new Date(pedido.created_at);
-    // Convertir a zona horaria de México (America/Mexico_City)
-    const fechaMexico = new Date(fecha.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
-    const dia = diasSemana[fechaMexico.getDay()];
+    const _p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Mexico_City', weekday: 'short' }).formatToParts(fecha);
+    const dia = diasSemana[_wdMap[_p.find(p => p.type === 'weekday')?.value] ?? 0];
     agrupado[dia].ingresos += parseFloat(pedido.total || 0);
     agrupado[dia].pedidos += 1;
   });

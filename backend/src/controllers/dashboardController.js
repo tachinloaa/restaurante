@@ -96,7 +96,7 @@ class DashboardController {
       
       resultado.data.forEach(pedido => {
         if (pedido.estado !== 'cancelado') {
-          const fecha = new Date(pedido.created_at).toLocaleDateString('es-MX');
+          const fecha = new Date(pedido.created_at).toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City' });
           
           if (!ventasPorDia[fecha]) {
             ventasPorDia[fecha] = {

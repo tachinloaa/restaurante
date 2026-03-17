@@ -81,13 +81,17 @@ export const formatearTelefono = (telefono) => {
  * Generar número de pedido único
  */
 export const generarNumeroPedido = () => {
-  const ahora = new Date();
-  const fechaMexico = new Date(ahora.toLocaleString('en-US', { timeZone: TZ }));
-  const año = fechaMexico.getFullYear().toString().slice(-2);
-  const mes = String(fechaMexico.getMonth() + 1).padStart(2, '0');
-  const dia = String(fechaMexico.getDate()).padStart(2, '0');
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+  const año = (parts.find(p => p.type === 'year')?.value ?? '').slice(-2);
+  const mes = parts.find(p => p.type === 'month')?.value ?? '00';
+  const dia = parts.find(p => p.type === 'day')?.value ?? '00';
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  
+
   return `${año}${mes}${dia}${random}`;
 };
 

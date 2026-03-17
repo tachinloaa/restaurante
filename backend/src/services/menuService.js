@@ -25,7 +25,7 @@ class MenuService {
   async getMenuCompleto() {
     try {
       // Usar caché si está disponible, no ha expirado y es el mismo día
-      const diaActual = new Date().getDay();
+      const diaActual = getMexicoDateParts().dayOfWeek;
       if (this.menuCache && this.lastUpdate && 
           (Date.now() - this.lastUpdate) < this.CACHE_DURATION &&
           this.lastDia === diaActual) {
@@ -52,7 +52,7 @@ class MenuService {
       // Actualizar caché
       this.menuCache = menuFormateado;
       this.lastUpdate = Date.now();
-      this.lastDia = new Date().getDay();
+      this.lastDia = getMexicoDateParts().dayOfWeek;
 
       logger.info('Menú actualizado y cacheado');
       return menuFormateado;

@@ -180,8 +180,9 @@ class Product {
 
       if (error) throw error;
 
-      // Filtrar productos de solo fin de semana si hoy no es sábado (6) o domingo (0)
-      const diaSemana = new Date().getDay();
+      // Filtrar productos de solo fin de semana si hoy no es sábado (6) o domingo (0) en hora México
+      const { getMexicoDateParts } = await import('../utils/horario.js');
+      const diaSemana = getMexicoDateParts().dayOfWeek;
       const esFindeSemana = diaSemana === 0 || diaSemana === 6;
 
       const productosFiltrados = esFindeSemana
