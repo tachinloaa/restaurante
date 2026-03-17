@@ -211,7 +211,7 @@ class ReminderService {
       }
 
       mensaje += `${EMOJIS.DINERO} Total: ${formatearPrecio(pedido.total)}\n\n`;
-      mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${config.frontendUrl}\n\n`;
+      mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${config.frontendUrl}/orders\n\n`;
       mensaje += `⚡ *POR FAVOR ATENDER DE INMEDIATO*`;
 
       // 1) Enviar plantilla primero (abre ventana de 24h si estaba cerrada)

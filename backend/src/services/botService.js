@@ -1740,7 +1740,7 @@ class BotService {
     mensajeAdmin += `Para rechazar:\n`;
     mensajeAdmin += `*rechazar #${numeroPedido}*\n\n`;
     mensajeAdmin += `👉 También puedes gestionarlo desde el dashboard:\n`;
-    mensajeAdmin += `${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/pedidos`;
+    mensajeAdmin += `${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/orders`;
 
     // Incluir link del comprobante en el texto del mensaje
     if (session.datos.comprobante_url) {
@@ -2685,7 +2685,7 @@ class BotService {
     mensaje += `ℹ️ *OTROS*\n`;
     mensaje += `• *ayuda* — Esta pantalla\n\n`;
 
-    mensaje += `🌐 Dashboard: ${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/pedidos`;
+    mensaje += `🌐 Dashboard: ${config.frontend?.url || 'https://el-rinconcito.pages.dev'}/orders`;
 
     return { success: true, mensaje };
   }

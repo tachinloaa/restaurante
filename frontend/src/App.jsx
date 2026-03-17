@@ -45,6 +45,7 @@ function App() {
         
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/pedidos" element={<Navigate to="/login" replace />} />
           <Route path="/" element={
             <ProtectedRoute>
               <NotificationProvider>
