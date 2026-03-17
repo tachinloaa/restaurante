@@ -176,10 +176,13 @@ class NotificationService {
       switch (pedido.estado) {
         case 'entregado': {
           // Obtener productos del pedido
-          const { data: productosData } = await supabase
+          logger.info(`🛒 Buscando productos para pedido id=${pedido.id} numero=${pedido.numero_pedido}`);
+          const { data: productosData, error: errorProductos } = await supabase
             .from('detalle_pedidos')
             .select('cantidad, productos(nombre, subcategorias(nombre))')
             .eq('pedido_id', pedido.id);
+          if (errorProductos) logger.error(`❌ Error al obtener productos del pedido: ${errorProductos.message}`);
+          logger.info(`🛒 Productos encontrados: ${productosData ? productosData.length : 0}`);
 
           let resumenProductos = '';
           if (productosData && productosData.length > 0) {
