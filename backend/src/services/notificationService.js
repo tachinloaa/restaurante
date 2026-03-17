@@ -83,6 +83,7 @@ class NotificationService {
           mensaje += `• *ficha #${pedido.numero_pedido}* — Ver ficha de entrega 📋\n`;
         }
         mensaje += `• *entregado #${pedido.numero_pedido}* — ${esDomicilio ? 'Marcar en camino 🛵' : 'Listo para recoger 📦'}\n`;
+        mensaje += `• *pagado #${pedido.numero_pedido}* — Confirmar cobro en efectivo 💵\n`;
         mensaje += `• *cancelar #${pedido.numero_pedido}* — Cancelar pedido\n`;
       } else {
         mensaje += `⚡ *VERIFICAR PAGO:*\n`;
