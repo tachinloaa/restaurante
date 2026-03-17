@@ -383,6 +383,50 @@ class NotificationService {
   }
 
   /**
+   * Notificar al admin y al cliente cuando se registra un pago en efectivo
+   */
+  async notificarPagoEfectivoRecibido(pedido, cliente) {
+    try {
+      // ── Mensaje al ADMIN ──────────────────────────────────────
+      const tipoPedido = pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO
+        ? 'domicilio 🏠'
+        : 'para llevar 🏪';
+
+      let msgAdmin = `💵 *PAGO EFECTIVO REGISTRADO*\n\n`;
+      msgAdmin += `${EMOJIS.TICKET} Pedido: *#${pedido.numero_pedido}*\n`;
+      msgAdmin += `${EMOJIS.PERSONA} Cliente: *${cliente.nombre || 'Sin nombre'}*\n`;
+      msgAdmin += `${EMOJIS.TELEFONO} Tel: https://wa.me/${(cliente.telefono || '').replace('whatsapp:', '').replace('+', '')}\n`;
+      msgAdmin += `${EMOJIS.DINERO} Total cobrado: *${formatearPrecio(pedido.total)}*\n`;
+      msgAdmin += `📦 Tipo: ${tipoPedido}\n`;
+      msgAdmin += `✅ Pago marcado como recibido desde el panel admin`;
+
+      await TwilioService.enviarMensajeAdmin(msgAdmin);
+      logger.info(`Notificación pago efectivo admin enviada: pedido #${pedido.numero_pedido}`);
+
+      // ── Mensaje al CLIENTE ────────────────────────────────────
+      try {
+        const telefonoCliente = TwilioService.formatearNumeroWhatsApp(cliente.telefono);
+        let msgCliente = `${EMOJIS.CHECK} *¡Pago recibido!*\n\n`;
+        msgCliente += `Registramos el pago en efectivo de tu pedido *#${pedido.numero_pedido}*\n`;
+        msgCliente += `${EMOJIS.DINERO} Total: *${formatearPrecio(pedido.total)}*\n\n`;
+        msgCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n`;
+        msgCliente += `*El Rinconcito* ${EMOJIS.TACO}`;
+
+        await TwilioService.enviarMensajeCliente(telefonoCliente, msgCliente);
+        logger.info(`Confirmación pago efectivo enviada al cliente: #${pedido.numero_pedido}`);
+      } catch (clienteError) {
+        // No es crítico si falla el mensaje al cliente
+        logger.warn(`⚠️ No se pudo notificar al cliente sobre pago efectivo: ${clienteError.message}`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      logger.error('Error en notificarPagoEfectivoRecibido:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Crea notificación de nuevo pedido
    */
   async notificarNuevoPedidoPanel(pedido, cliente) {

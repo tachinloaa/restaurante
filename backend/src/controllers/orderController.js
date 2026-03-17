@@ -143,6 +143,19 @@ class OrderController {
         return serverError(res, resultado.error);
       }
 
+      // Notificar por WhatsApp al admin y al cliente
+      try {
+        const pedidoCompleto = await Order.getById(id);
+        if (pedidoCompleto.success && pedidoCompleto.data.clientes) {
+          await NotificationService.notificarPagoEfectivoRecibido(
+            pedidoCompleto.data,
+            pedidoCompleto.data.clientes
+          );
+        }
+      } catch (notifError) {
+        logger.warn(`⚠️ Notificación pago efectivo falló (pago ya registrado): ${notifError.message}`);
+      }
+
       logger.info(`Pago efectivo registrado para pedido ${pedido.numero_pedido}`);
       return success(res, resultado.data);
     } catch (error) {
