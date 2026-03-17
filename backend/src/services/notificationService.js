@@ -174,18 +174,37 @@ class NotificationService {
 
       // ⚡ Solo notifica al cliente en estados: ENTREGADO y CANCELADO
       switch (pedido.estado) {
-        case 'entregado':
+        case 'entregado': {
+          // Obtener productos del pedido
+          const { data: productosData } = await supabase
+            .from('detalle_pedidos')
+            .select('cantidad, productos(nombre, subcategorias(nombre))')
+            .eq('pedido_id', pedido.id);
+
+          let resumenProductos = '';
+          if (productosData && productosData.length > 0) {
+            resumenProductos += `🛒 *Tu pedido:*\n`;
+            productosData.forEach(p => {
+              const nombre = formatearNombreProducto({ nombre: p.productos?.nombre, subcategoria: p.productos?.subcategorias?.nombre });
+              resumenProductos += `• ${p.cantidad}x ${nombre || 'Producto'}\n`;
+            });
+            resumenProductos += `\n`;
+          }
+
           if (pedido.tipo_pedido === TIPOS_PEDIDO.DOMICILIO) {
             mensaje = `${EMOJIS.MOTO} *¡Tu pedido #${pedido.numero_pedido} ya va en camino!*\n\n`;
+            mensaje += resumenProductos;
             mensaje += `🛵 El repartidor está en camino a tu domicilio.\n\n`;
             mensaje += `¡Ya casi llega! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
           } else if (pedido.tipo_pedido === TIPOS_PEDIDO.PARA_LLEVAR) {
             mensaje = `${EMOJIS.CHECK} ¡Tu pedido *#${pedido.numero_pedido}* está listo!\n\n`;
+            mensaje += resumenProductos;
             mensaje += `📦 *Puedes pasar a recogerlo*\n\n`;
             mensaje += `📍 *Dirección:*\n${DIRECCION_RESTAURANTE.TEXTO}\n${DIRECCION_RESTAURANTE.MAPS}\n\n`;
             mensaje += `Gracias por tu preferencia ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
           }
           break;
+        }
 
         case 'cancelado':
           mensaje = `${EMOJIS.CRUZ} Tu pedido *#${pedido.numero_pedido}* ha sido cancelado.\n\n`;
