@@ -3335,17 +3335,6 @@ class BotService {
       };
     }
 
-    // Notificar al cliente
-    try {
-      let msgCliente = `✅ *¡Pago recibido!*\n\n`;
-      msgCliente += `Registramos el pago en efectivo de tu pedido *#${pedido.numero_pedido}*\n`;
-      msgCliente += `💰 Total: *${formatearPrecio(pedido.total)}*\n\n`;
-      msgCliente += `¡Gracias por tu preferencia! 👋\n*El Rinconcito* 🌮`;
-      await TwilioService.enviarMensajeCliente(pedido.clientes.telefono, msgCliente);
-    } catch (e) {
-      logger.warn(`⚠️ No se pudo notificar al cliente sobre pago efectivo: ${e.message}`);
-    }
-
     logger.info(`💵 Pago efectivo marcado por admin vía WhatsApp: pedido #${numeroPedido}`);
 
     return {
@@ -3356,7 +3345,7 @@ class BotService {
         `👤 Cliente: ${pedido.clientes.nombre}\n` +
         `📞 https://wa.me/${(pedido.clientes.telefono || '').replace('whatsapp:', '').replace('+', '')}\n` +
         `💰 Total cobrado: *${formatearPrecio(pedido.total)}*\n\n` +
-        `✅ El cliente fue notificado.`
+        `✅ Pago registrado internamente.`
     };
   }
 
