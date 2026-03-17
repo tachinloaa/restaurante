@@ -107,154 +107,90 @@ class MenuService {
   /**
    * Formatear menú para mensajes de WhatsApp
    */
+  /**
+   * Renderiza una lista de productos con soporte para variantes "con queso".
+   * @param {Array} lista - Productos a renderizar
+   * @param {number} contador - Número inicial del contador global
+   * @param {string} categoria - Nombre de la categoría
+   * @param {string|null} subcategoria - Nombre de la subcategoría (null si no aplica)
+   * @returns {{ mensajeBloque: string, productosBloque: Array, contador: number }}
+   */
+  _renderizarProductos(lista, contador, categoria, subcategoria = null) {
+    let mensajeBloque = '';
+    const productosBloque = [];
+    const rendered = new Set();
+
+    for (let i = 0; i < lista.length; i++) {
+      const producto = lista[i];
+      if (rendered.has(producto.id)) continue;
+
+      const nombreBase = producto.nombre.toLowerCase();
+      const varianteIdx = lista.findIndex(
+        (p, j) => j !== i && !rendered.has(p.id) &&
+          p.nombre.toLowerCase() === nombreBase + ' con queso'
+      );
+
+      if (varianteIdx !== -1) {
+        const variante = lista[varianteIdx];
+        const numBase = contador;
+        const numVariante = contador + 1;
+
+        if (producto.descripcion) {
+          mensajeBloque += `${numBase}. ${producto.nombre} - ${producto.descripcion} — ${formatearPrecio(producto.precio)}\n`;
+        } else {
+          mensajeBloque += `${numBase}. ${producto.nombre} — ${formatearPrecio(producto.precio)}\n`;
+        }
+        mensajeBloque += `${numVariante}. ↳ con queso — ${formatearPrecio(variante.precio)}\n`;
+
+        const baseEntry = { numero: numBase, id: producto.id, nombre: producto.nombre, precio: producto.precio, descripcion: producto.descripcion, categoria };
+        const varEntry = { numero: numVariante, id: variante.id, nombre: variante.nombre, precio: variante.precio, descripcion: variante.descripcion, categoria };
+        if (subcategoria) { baseEntry.subcategoria = subcategoria; varEntry.subcategoria = subcategoria; }
+
+        productosBloque.push(baseEntry, varEntry);
+        rendered.add(producto.id);
+        rendered.add(variante.id);
+        contador += 2;
+      } else if (!lista.some(p => p.nombre.toLowerCase() + ' con queso' === nombreBase)) {
+        mensajeBloque += `${contador}. ${producto.nombre}`;
+        if (producto.descripcion) mensajeBloque += ` - ${producto.descripcion}`;
+        mensajeBloque += ` — ${formatearPrecio(producto.precio)}\n`;
+
+        const entry = { numero: contador, id: producto.id, nombre: producto.nombre, precio: producto.precio, descripcion: producto.descripcion, categoria };
+        if (subcategoria) entry.subcategoria = subcategoria;
+
+        productosBloque.push(entry);
+        rendered.add(producto.id);
+        contador++;
+      }
+    }
+
+    return { mensajeBloque, productosBloque, contador };
+  }
+
   formatearMenuWhatsApp(menuAgrupado) {
     let mensaje = `${EMOJIS.TICKET} *MENÚ DE EL RINCONCITO* ${EMOJIS.TACO}\n\n`;
     let contador = 1;
     const productos = [];
 
     for (const grupo of menuAgrupado) {
-      // Emoji de categoría
       const emojiCategoria = this.getEmojiCategoria(grupo.categoria.nombre);
       mensaje += `${emojiCategoria} *${grupo.categoria.nombre.toUpperCase()}*\n\n`;
 
-      // Si hay subcategorías
       if (grupo.subcategorias.length > 0) {
         for (const subcat of grupo.subcategorias) {
           mensaje += `  _${subcat.nombre}_\n`;
-
-          const lista = subcat.productos;
-          const rendered = new Set();
-
-          for (let i = 0; i < lista.length; i++) {
-            const producto = lista[i];
-            if (rendered.has(producto.id)) continue;
-
-            // Buscar variante "con queso" de este producto
-            const nombreBase = producto.nombre.toLowerCase();
-            const varianteIdx = lista.findIndex(
-              (p, j) => j !== i && !rendered.has(p.id) &&
-                p.nombre.toLowerCase() === nombreBase + ' con queso'
-            );
-
-            if (varianteIdx !== -1) {
-              // Es un producto base que tiene variante con queso — mostrar en una línea
-              const variante = lista[varianteIdx];
-              const numBase = contador;
-              const numVariante = contador + 1;
-
-              if (producto.descripcion) {
-                mensaje += `${numBase}. ${producto.nombre} - ${producto.descripcion} — ${formatearPrecio(producto.precio)}\n`;
-              } else {
-                mensaje += `${numBase}. ${producto.nombre} — ${formatearPrecio(producto.precio)}\n`;
-              }
-              mensaje += `${numVariante}. ↳ con queso — ${formatearPrecio(variante.precio)}\n`;
-
-              productos.push({
-                numero: numBase,
-                id: producto.id,
-                nombre: producto.nombre,
-                precio: producto.precio,
-                descripcion: producto.descripcion,
-                categoria: grupo.categoria.nombre,
-                subcategoria: subcat.nombre
-              });
-              productos.push({
-                numero: numVariante,
-                id: variante.id,
-                nombre: variante.nombre,
-                precio: variante.precio,
-                descripcion: variante.descripcion,
-                categoria: grupo.categoria.nombre,
-                subcategoria: subcat.nombre
-              });
-
-              rendered.add(producto.id);
-              rendered.add(variante.id);
-              contador += 2;
-            } else if (!lista.some(
-              p => p.nombre.toLowerCase() + ' con queso' === nombreBase
-            )) {
-              // No es variante de nadie — mostrar normal
-              mensaje += `${contador}. ${producto.nombre}`;
-              if (producto.descripcion) mensaje += ` - ${producto.descripcion}`;
-              mensaje += ` — ${formatearPrecio(producto.precio)}\n`;
-
-              productos.push({
-                numero: contador,
-                id: producto.id,
-                nombre: producto.nombre,
-                precio: producto.precio,
-                descripcion: producto.descripcion,
-                categoria: grupo.categoria.nombre,
-                subcategoria: subcat.nombre
-              });
-              rendered.add(producto.id);
-              contador++;
-            }
-            // Si es variante con queso de alguien, ya fue rendered arriba — skip
-          }
-          mensaje += '\n';
+          const res = this._renderizarProductos(subcat.productos, contador, grupo.categoria.nombre, subcat.nombre);
+          mensaje += res.mensajeBloque + '\n';
+          productos.push(...res.productosBloque);
+          contador = res.contador;
         }
       }
 
-      // Productos sin subcategoría
       if (grupo.productosSinSubcategoria.length > 0) {
-        const lista = grupo.productosSinSubcategoria;
-        const rendered = new Set();
-
-        for (let i = 0; i < lista.length; i++) {
-          const producto = lista[i];
-          if (rendered.has(producto.id)) continue;
-
-          const nombreBase = producto.nombre.toLowerCase();
-          const varianteIdx = lista.findIndex(
-            (p, j) => j !== i && !rendered.has(p.id) &&
-              p.nombre.toLowerCase() === nombreBase + ' con queso'
-          );
-
-          if (varianteIdx !== -1) {
-            const variante = lista[varianteIdx];
-            const numBase = contador;
-            const numVariante = contador + 1;
-
-            if (producto.descripcion) {
-              mensaje += `${numBase}. ${producto.nombre} - ${producto.descripcion} — ${formatearPrecio(producto.precio)}\n`;
-            } else {
-              mensaje += `${numBase}. ${producto.nombre} — ${formatearPrecio(producto.precio)}\n`;
-            }
-            mensaje += `${numVariante}. ↳ con queso — ${formatearPrecio(variante.precio)}\n`;
-
-            productos.push({
-              numero: numBase, id: producto.id, nombre: producto.nombre,
-              precio: producto.precio, descripcion: producto.descripcion,
-              categoria: grupo.categoria.nombre
-            });
-            productos.push({
-              numero: numVariante, id: variante.id, nombre: variante.nombre,
-              precio: variante.precio, descripcion: variante.descripcion,
-              categoria: grupo.categoria.nombre
-            });
-
-            rendered.add(producto.id);
-            rendered.add(variante.id);
-            contador += 2;
-          } else if (!lista.some(
-            p => p.nombre.toLowerCase() + ' con queso' === nombreBase
-          )) {
-            mensaje += `${contador}. ${producto.nombre}`;
-            if (producto.descripcion) mensaje += ` - ${producto.descripcion}`;
-            mensaje += ` — ${formatearPrecio(producto.precio)}\n`;
-
-            productos.push({
-              numero: contador, id: producto.id, nombre: producto.nombre,
-              precio: producto.precio, descripcion: producto.descripcion,
-              categoria: grupo.categoria.nombre
-            });
-            rendered.add(producto.id);
-            contador++;
-          }
-        }
-        mensaje += '\n';
+        const res = this._renderizarProductos(grupo.productosSinSubcategoria, contador, grupo.categoria.nombre);
+        mensaje += res.mensajeBloque + '\n';
+        productos.push(...res.productosBloque);
+        contador = res.contador;
       }
     }
 

@@ -29,6 +29,7 @@ import { limpiarNumeroWhatsApp, formatearPrecio } from '../utils/formatters.js';
 import { sanitizarInput, esValidoNombre, esValidaDireccion } from '../utils/validators.js';
 import logger from '../utils/logger.js';
 import crypto from 'crypto';
+import { verificarHorario } from '../utils/horario.js';
 
 /**
  * Servicio del Bot conversacional de WhatsApp
@@ -156,14 +157,12 @@ class BotService {
       }
 
       // 🕐 VALIDACIÓN DE HORARIO: Servicio de 7am a 10pm hora México
-      const horaMexico = new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City', hour: 'numeric', hour12: false });
-      const hora = parseInt(horaMexico);
-      const fueraDéHorario = hora < 7 || hora >= 22;
+      const infoHorario = verificarHorario();
 
       // Permitir consultas de estado/pedidos fuera de horario, pero no nuevos pedidos
       const esConsulta = this.esComandoMisPedidos(mensajeLimpio) || this.esComandoEstado(mensajeLimpio) || this.esComandoAyuda(mensajeLimpio);
 
-      if (fueraDéHorario && !esConsulta) {
+      if (!infoHorario.abierto && !esConsulta) {
         // No eliminar progreso fuera de horario: conservar sesión para retomar después.
         return {
           success: true,
@@ -216,18 +215,6 @@ class BotService {
         return await this.procesarCancelacionPedido(telefono, bodySanitizado);
       }
 
-      // 🛡️ BLOQUEO DE PEDIDOS PARA ADMIN (seguridad adicional)
-      if (this.esComandoPedir(mensajeLimpio) || COMANDOS_BOT.DOMICILIO.some(cmd => mensajeLimpio.includes(cmd)) || COMANDOS_BOT.PARA_LLEVAR.some(cmd => mensajeLimpio.includes(cmd))) {
-        // Double-check: Verificar nuevamente que no sea admin
-        if (this.esAdmin(telefono)) {
-          logger.warn(`🔒 Admin intentó hacer pedido: ${telefono} - BLOQUEADO`);
-          return {
-            success: true,
-            mensaje: `🔒 *ACCESO DENEGADO*\n\nLos administradores no pueden hacer pedidos directos.\n\nEscribe *ayuda* para ver los comandos disponibles.`
-          };
-        }
-      }
-
       // Comandos directos de acción (pedir, domicilio, para llevar)
       if (this.esComandoPedir(mensajeLimpio)) {
         return await this.solicitarTipoPedido(telefono);
@@ -265,15 +252,6 @@ class BotService {
     if (!session) {
       return await this.iniciarConversacion(telefono);
     }
-
-    // Estados donde NO se deben procesar comandos globales (el usuario está dando datos)
-    const estadosSolicitandoDatos = [
-      BOT_STATES.SOLICITAR_NOMBRE,
-      BOT_STATES.SOLICITAR_DIRECCION,
-      BOT_STATES.SOLICITAR_REFERENCIAS,
-      BOT_STATES.SELECCIONAR_CANTIDAD,
-      BOT_STATES.ESPERANDO_COMPROBANTE
-    ];
 
     switch (session.estado) {
       case BOT_STATES.INICIO:
@@ -609,11 +587,6 @@ class BotService {
     // Si escribe "todo", mostrar menú completo
     if (mensaje === 'todo' || mensaje === 'completo' || mensaje === 'ver todo') {
       return await this.mostrarMenuCompletoDirecto(telefono);
-    }
-
-    // Si escribe "salir"
-    if (this.esComandoCancelar(mensaje)) {
-      return await this.cancelarProceso(telefono);
     }
 
     // Validar que sea un número
@@ -973,12 +946,6 @@ class BotService {
    * Procesar nombre
    */
   async procesarNombre(telefono, nombre) {
-    // Detectar comandos de edición si ya tiene nombre guardado
-    const session = await SessionService.getSession(telefono);
-    if (session.datos.nombre && COMANDOS_BOT.EDITAR_NOMBRE.some(cmd => nombre.toLowerCase().includes(cmd))) {
-      // Ya está editando, este es el estado correcto
-    }
-
     const nombreLimpio = nombre.trim();
 
     if (!esValidoNombre(nombreLimpio)) {
@@ -1023,15 +990,8 @@ class BotService {
    * Procesar dirección
    */
   async procesarDireccion(telefono, direccion, mediaData = {}) {
-    // Detectar comandos de edición
-    const session = await SessionService.getSession(telefono);
-    
     if (COMANDOS_BOT.EDITAR_NOMBRE.some(cmd => direccion.toLowerCase().includes(cmd))) {
       return await this.iniciarEdicionNombre(telefono);
-    }
-
-    if (session.datos.direccion && COMANDOS_BOT.EDITAR_DIRECCION.some(cmd => direccion.toLowerCase().includes(cmd))) {
-      // Ya está editando dirección, este es el estado correcto
     }
 
     // Si enviaron ubicación (mapa)
@@ -1105,10 +1065,6 @@ class BotService {
 
     if (COMANDOS_BOT.EDITAR_DIRECCION.some(cmd => refLimpia.includes(cmd))) {
       return await this.iniciarEdicionDireccion(telefono);
-    }
-
-    if (session.datos.referencias && COMANDOS_BOT.EDITAR_REFERENCIAS.some(cmd => refLimpia.includes(cmd))) {
-      // Ya está editando referencias
     }
 
     // Guardar referencias si no es NO
@@ -1354,122 +1310,21 @@ class BotService {
         };
       }
 
-      // CREAR EL PEDIDO INMEDIATAMENTE con estado PENDIENTE_PAGO
-      const idemKeyComprobanteImg = this.generarIdempotencyKey(telefono, session, 'comprobante_imagen');
-      const resultado = await OrderService.crearPedidoDesdeBot(telefono, { idempotencyKey: idemKeyComprobanteImg });
-
-      if (!resultado.success) {
-        logger.error('Error al crear pedido con comprobante:', resultado.error);
-        return {
-          success: false,
-          mensaje: `❌ *Error al procesar tu pedido*\n\n` +
-            `${resultado.error || 'Error desconocido'}\n\n` +
-            `Por favor intenta de nuevo o contacta con nosotros.`
-        };
-      }
-
-      if (resultado.queued) {
-        await SessionService.resetSession(telefono);
-        return {
-          success: true,
-          mensaje: `✅ *COMPROBANTE RECIBIDO*\n\n` +
-            `⚠️ En este momento estamos finalizando el registro de tu pedido por alta carga del sistema.\n` +
-            `🧾 Folio temporal: *${resultado.emergencyId}*\n\n` +
-            `Tu pedido *NO se perdió*.\n` +
-            `Te confirmaremos por WhatsApp en cuanto quede registrado.`
-        };
-      }
-
-      const { pedido } = resultado;
-
-      // Cambiar estado a PENDIENTE_PAGO
-      await OrderService.cambiarEstado(pedido.id, ESTADOS_PEDIDO.PENDIENTE_PAGO);
-
-      // Enviar notificación al admin con el comprobante y resumen
-      logger.info(`📨 Enviando notificación al admin para pedido #${pedido.numero_pedido}`);
-      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto, pedido.total);
-
-      // Mensaje al cliente
-      let mensajeCliente = `✅ *COMPROBANTE RECIBIDO*\n\n`;
-      mensajeCliente += `📝 Tu número de pedido es: *#${pedido.numero_pedido}*\n\n`;
-      mensajeCliente += `⏳ *Estamos verificando tu pago*\n`;
-      mensajeCliente += `Tu pedido será confirmado una vez que verifiquemos la transferencia.\n\n`;
-      mensajeCliente += `📱 Te notificaremos cuando tu pago sea verificado y tu pedido esté en preparación.\n\n`;
-      mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
-
-      // Reiniciar sesión (mantener cliente rastreable para notificaciones, no eliminar)
-      await SessionService.resetSession(telefono);
-
-      logger.info(`✅ Pedido #${pedido.numero_pedido} creado con comprobante, esperando aprobación`);
-
-      return {
-        success: true,
-        mensaje: mensajeCliente
-      };
+      return await this._finalizarPedidoConComprobante(telefono, session, resumenTexto, 'comprobante_imagen', 'COMPROBANTE RECIBIDO');
     }
 
     // Si no recibió imagen pero envió texto (número de referencia)
     if (mensaje && mensaje.trim().length >= 5) {
-      // Guardar que se recibió comprobante como texto
       await SessionService.guardarDatos(telefono, {
         comprobante_recibido: true,
         comprobante_info: mensaje.substring(0, 100)
       });
 
-      // GENERAR RESUMEN ANTES DE QUE SE BORRE EL CARRITO
       const session = await SessionService.getSession(telefono);
       const resumenCarrito = OrderService.generarResumenCarrito(session);
       const resumenTexto = resumenCarrito ? resumenCarrito.resumen : null;
 
-      // CREAR EL PEDIDO INMEDIATAMENTE con estado PENDIENTE_PAGO
-      const idemKeyComprobanteRef = this.generarIdempotencyKey(telefono, session, 'comprobante_referencia');
-      const resultado = await OrderService.crearPedidoDesdeBot(telefono, { idempotencyKey: idemKeyComprobanteRef });
-
-      if (!resultado.success) {
-        logger.error('Error al crear pedido con referencia:', resultado.error);
-        return {
-          success: false,
-          mensaje: `Lo sentimos, ocurrió un error al procesar tu pedido: ${resultado.error}\n\nPor favor intenta de nuevo.`
-        };
-      }
-
-      if (resultado.queued) {
-        await SessionService.resetSession(telefono);
-        return {
-          success: true,
-          mensaje: `✅ *REFERENCIA RECIBIDA*\n\n` +
-            `⚠️ Estamos finalizando el registro de tu pedido por alta carga.\n` +
-            `🧾 Folio temporal: *${resultado.emergencyId}*\n\n` +
-            `Tu pedido *NO se perdió*.\n` +
-            `Te confirmaremos por WhatsApp en cuanto quede registrado.`
-        };
-      }
-
-      const { pedido } = resultado;
-
-      // Cambiar estado a PENDIENTE_PAGO
-      await OrderService.cambiarEstado(pedido.id, ESTADOS_PEDIDO.PENDIENTE_PAGO);
-
-      // Enviar notificación al admin
-      await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto, pedido.total);
-
-      // Mensaje al cliente
-      let mensajeCliente = `✅ *REFERENCIA RECIBIDA*\n\n`;
-      mensajeCliente += `📝 Tu número de pedido es: *#${pedido.numero_pedido}*\n\n`;
-      mensajeCliente += `⏳ *Estamos verificando tu pago*\n`;
-      mensajeCliente += `Tu pedido será confirmado una vez que verifiquemos la transferencia.\n\n`;
-      mensajeCliente += `📱 Te notificaremos cuando tu pago sea verificado y tu pedido esté en preparación.\n\n`;
-      mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
-
-      // Reiniciar sesión (mantener cliente rastreable para notificaciones, no eliminar)
-      await SessionService.resetSession(telefono);
-
-      logger.info(`Pedido #${pedido.numero_pedido} creado con referencia, esperando aprobación`);
-
-      return {
-        success: true,
-        mensaje: mensajeCliente
-      };
+      return await this._finalizarPedidoConComprobante(telefono, session, resumenTexto, 'comprobante_referencia', 'REFERENCIA RECIBIDA');
     }
 
     // Si no envió nada válido, extender sesión nuevamente para darle más tiempo
@@ -1486,6 +1341,51 @@ class BotService {
         `⏰ Tienes ${COMPROBANTE_TIMEOUT / 60000} minutos para enviarlo.\n\n` +
         `� *Tip:* Si ya realizaste la transferencia, envía la captura ahora.`
     };
+  }
+
+  /**
+   * Lógica común para finalizar un pedido de transferencia (imagen o referencia).
+   * Crea el pedido, cambia estado a PENDIENTE_PAGO y notifica al admin.
+   */
+  async _finalizarPedidoConComprobante(telefono, session, resumenTexto, idemContext, header) {
+    const idemKey = this.generarIdempotencyKey(telefono, session, idemContext);
+    const resultado = await OrderService.crearPedidoDesdeBot(telefono, { idempotencyKey: idemKey });
+
+    if (!resultado.success) {
+      logger.error(`Error al crear pedido (${idemContext}):`, resultado.error);
+      return {
+        success: false,
+        mensaje: `❌ *Error al procesar tu pedido*\n\n${resultado.error || 'Error desconocido'}\n\nPor favor intenta de nuevo o contacta con nosotros.`
+      };
+    }
+
+    if (resultado.queued) {
+      await SessionService.resetSession(telefono);
+      return {
+        success: true,
+        mensaje: `✅ *${header}*\n\n` +
+          `⚠️ En este momento estamos finalizando el registro de tu pedido por alta carga del sistema.\n` +
+          `🧾e Folio temporal: *${resultado.emergencyId}*\n\n` +
+          `Tu pedido *NO se perdió*.\n` +
+          `Te confirmaremos por WhatsApp en cuanto quede registrado.`
+      };
+    }
+
+    const { pedido } = resultado;
+    await OrderService.cambiarEstado(pedido.id, ESTADOS_PEDIDO.PENDIENTE_PAGO);
+    logger.info(`📨 Enviando notificación al admin para pedido #${pedido.numero_pedido}`);
+    await this.notificarAdminPedidoPendiente(telefono, pedido.numero_pedido, resumenTexto, pedido.total);
+
+    let mensajeCliente = `✅ *${header}*\n\n`;
+    mensajeCliente += `📝 Tu número de pedido es: *#${pedido.numero_pedido}*\n\n`;
+    mensajeCliente += `⏳ *Estamos verificando tu pago*\n`;
+    mensajeCliente += `Tu pedido será confirmado una vez que verifiquemos la transferencia.\n\n`;
+    mensajeCliente += `📱 Te notificaremos cuando tu pago sea verificado y tu pedido esté en preparación.\n\n`;
+    mensajeCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n*El Rinconcito* ${EMOJIS.TACO}`;
+
+    await SessionService.resetSession(telefono);
+    logger.info(`✅ Pedido #${pedido.numero_pedido} creado (${idemContext}), esperando aprobación`);
+    return { success: true, mensaje: mensajeCliente };
   }
 
   /**
@@ -1554,7 +1454,7 @@ class BotService {
     }
 
     // Para llevar: mostrar dirección del restaurante
-    if (tipoPedido === TIPOS_PEDIDO.PARA_LLEVAR || tipoPedido === 'para_llevar') {
+    if (tipoPedido === TIPOS_PEDIDO.PARA_LLEVAR) {
       mensaje += `\n\n📍 *Recoge tu pedido en:*\n${DIRECCION_RESTAURANTE.TEXTO}\n${DIRECCION_RESTAURANTE.MAPS}`;
     }
 
