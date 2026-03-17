@@ -2978,6 +2978,7 @@ class BotService {
       .from('pedidos')
       .update({
         estado: ESTADOS_PEDIDO.PREPARANDO,
+        estado_pago: 'completado',
         pago_verificado: true,
         fecha_verificacion_pago: new Date().toISOString()
       })
