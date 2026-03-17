@@ -9,7 +9,9 @@ import notificationRoutes from './notificationRoutes.js';
 import analyticsRoutes from './analyticsRoutes.js';
 import authRoutes from './authRoutes.js';
 import webhookController from '../controllers/webhookController.js';
-import { publicApiLimiter } from '../middlewares/rateLimiter.js';
+import { publicApiLimiter, strictLimiter } from '../middlewares/rateLimiter.js';
+import { authenticate } from '../middlewares/auth.js';
+import { isAdmin } from '../middlewares/authorize.js';
 
 const router = express.Router();
 
@@ -30,7 +32,7 @@ router.use('/notifications', notificationRoutes);
 router.use('/analytics', analyticsRoutes);
 
 // Utility Routes
-router.post('/whatsapp/send', webhookController.sendMessage.bind(webhookController));
+router.post('/whatsapp/send', authenticate, isAdmin, strictLimiter, webhookController.sendMessage.bind(webhookController));
 router.get('/health', webhookController.health.bind(webhookController));
 router.get('/health/ops', webhookController.healthOps.bind(webhookController));
 

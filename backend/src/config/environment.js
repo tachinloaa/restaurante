@@ -126,4 +126,15 @@ if (config.isDevelopment) {
   }
 }
 
+// Seguridad en producción: JWT secret obligatorio y robusto
+if (config.isProduction) {
+  const jwtSecret = config.jwt.secret || '';
+  const usesDefaultSecret = jwtSecret === 'your-secret-key-change-in-production';
+
+  if (!jwtSecret || usesDefaultSecret || jwtSecret.length < 32) {
+    console.error('❌ JWT_SECRET inseguro en producción. Debe ser único y de al menos 32 caracteres.');
+    process.exit(1);
+  }
+}
+
 export default config;
