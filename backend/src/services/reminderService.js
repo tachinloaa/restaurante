@@ -13,6 +13,7 @@ class ReminderService {
   constructor() {
     this.recordatoriosEnviados = new Set(); // Cache de pedidos con recordatorio enviado
     this.ultimaVerificacion = null; // Timestamp de la última verificación
+    this.ultimaVerificacionDLQ = null; // Timestamp de última verificación DLQ
   }
 
   /**
@@ -88,6 +89,19 @@ class ReminderService {
       if (resultadoCliente.success) {
         this.recordatoriosEnviados.add(keyClientePendiente);
         logger.info(`📨 Recordatorio pendiente_pago enviado al cliente para #${pedido.numero_pedido}`);
+
+        // Persistir en BD para sobrevivir reinicios del servidor
+        await supabase
+          .from('notificaciones')
+          .insert({
+            tipo: 'recordatorio_pedido',
+            mensaje: `RECORDATORIO pendiente_pago cliente ${pedido.id} #${pedido.numero_pedido}`,
+            datos_adicionales: { pedido_id: pedido.id, tipo: 'pendiente_pago_cliente' },
+            leida: false
+          })
+          .then(({ error }) => {
+            if (error) logger.warn(`⚠️ No se pudo persistir recordatorio pendiente_pago: ${error.message}`);
+          });
       }
 
       // Refuerzo al admin para atender aprobación pendiente
@@ -270,6 +284,46 @@ class ReminderService {
   }
 
   /**
+   * Verificar si hay pedidos atrapados en Dead Letter Queue y alertar al admin
+   * Se ejecuta una vez por hora para no saturar.
+   */
+  async verificarDeadLetterQueue() {
+    try {
+      const ahora = Date.now();
+      // Solo una vez por hora
+      if (this.ultimaVerificacionDLQ && (ahora - this.ultimaVerificacionDLQ) < 60 * 60 * 1000) {
+        return;
+      }
+      this.ultimaVerificacionDLQ = ahora;
+
+      const { data, error } = await supabase
+        .from('dead_letter_queue')
+        .select('id, tipo, numero_intentos, razon_descarte, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error || !data || data.length === 0) return;
+
+      logger.warn(`🗑️ Dead Letter Queue tiene ${data.length} item(s) sin atender`);
+
+      const listaItems = data
+        .slice(0, 5)
+        .map((item, i) => `${i + 1}. [${item.tipo}] ${item.razon_descarte?.substring(0, 60) || 'sin razón'} (${item.numero_intentos} intentos)`)
+        .join('\n');
+
+      const mensajeAdmin =
+        `🗑️ *DEAD LETTER QUEUE — ATENCIÓN REQUERIDA*\n\n` +
+        `Hay *${data.length}* pedido(s)/notificación(es) que fallaron permanentemente y necesitan revisión manual:\n\n` +
+        `${listaItems}${data.length > 5 ? `\n...y ${data.length - 5} más` : ''}\n\n` +
+        `👉 Revisa la tabla *dead_letter_queue* en Supabase y actúa manualmente.`;
+
+      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+    } catch (error) {
+      logger.error('Error verificando Dead Letter Queue:', error);
+    }
+  }
+
+  /**
    * Iniciar verificación periódica (cada 5 minutos)
    */
   iniciarVerificacionPeriodica() {
@@ -278,7 +332,17 @@ class ReminderService {
       this.verificarPedidosPendientes();
     }, 60 * 1000);
 
-    logger.info('Sistema de recordatorios ACTIVADO - verificación cada 1 minuto (pendiente_pago a 2 min)');
+    // Verificar DLQ cada hora
+    setInterval(() => {
+      this.verificarDeadLetterQueue();
+    }, 60 * 60 * 1000);
+
+    // Primera verificación DLQ al iniciar (con delay de 2 min para no saturar el arranque)
+    setTimeout(() => {
+      this.verificarDeadLetterQueue();
+    }, 2 * 60 * 1000);
+
+    logger.info('Sistema de recordatorios ACTIVADO - verificación cada 1 minuto (pendiente_pago a 2 min) + DLQ cada hora');
   }
 }
 
