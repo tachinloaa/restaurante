@@ -24,7 +24,7 @@ class NotificationService {
 
       // Encabezado según método de pago
       const encabezado = esEfectivo
-        ? `💵 *PEDIDO EFECTIVO - ${tipoPedido}*`
+        ? `� *NUEVO PEDIDO - EFECTIVO - ${tipoPedido}*`
         : `🏦 *PEDIDO TRANSFERENCIA - ${tipoPedido}*`;
 
       let mensaje = `${EMOJIS.CAMPANA} ${encabezado}\n\n`;
@@ -78,6 +78,7 @@ class NotificationService {
       mensaje += `\n${'─'.repeat(30)}\n`;
       if (esEfectivo) {
         mensaje += `⚡ *ACCIONES:*\n`;
+        mensaje += `• *preparando #${pedido.numero_pedido}* — Confirmar preparación 👨‍🍳\n`;
         if (esDomicilio) {
           mensaje += `• *ficha #${pedido.numero_pedido}* — Ver ficha de entrega 📋\n`;
         }
