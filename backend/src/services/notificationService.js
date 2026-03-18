@@ -178,7 +178,7 @@ class NotificationService {
           // Obtener productos del pedido
           logger.info(`🛒 Buscando productos para pedido id=${pedido.id} numero=${pedido.numero_pedido}`);
           const { data: productosData, error: errorProductos } = await supabase
-            .from('detalle_pedidos')
+            .from('pedido_detalles')
             .select('cantidad, productos(nombre, subcategorias(nombre))')
             .eq('pedido_id', pedido.id);
           if (errorProductos) logger.error(`❌ Error al obtener productos del pedido: ${errorProductos.message}`);
