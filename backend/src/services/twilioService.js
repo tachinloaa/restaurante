@@ -263,6 +263,11 @@ class TwilioService {
       return false;
     }
 
+    // 🔒 FIJO es siempre admin — inamovible, igual que la lógica original
+    if (numeroLocal === this.extraerNumeroLocal(ADMIN_PHONE_FIJO)) {
+      return true;
+    }
+
     return this.getAuthorizedAdminLocals().includes(numeroLocal);
   }
 
