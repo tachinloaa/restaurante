@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import {fileURLToPath} from 'url';
+import { ADMIN_PHONE_FIJO_2 } from './constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,7 +48,7 @@ const config = {
   // Admin — respaldo fijo si la variable de entorno no está configurada
   admin: {
     phoneNumber: process.env.ADMIN_PHONE_NUMBER || '+525636399034',
-    secondaryPhoneNumber: process.env.ADMIN_PHONE_NUMBER_SECONDARY || null
+    secondaryPhoneNumber: process.env.ADMIN_PHONE_NUMBER_SECONDARY || ADMIN_PHONE_FIJO_2
   },
 
   // Repartidor — opcional, configura REPARTIDOR_PHONE_NUMBER en Render si tienes uno

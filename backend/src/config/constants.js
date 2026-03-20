@@ -3,11 +3,12 @@
  */
 
 // ================================================================
-// 🔒 NÚMERO ADMIN FIJO — respaldo de pruebas/operación
-// Todos los pedidos y notificaciones llegan a este número.
-// Actúa como respaldo si ADMIN_PHONE_NUMBER no está en el entorno.
+// 🔒 NÚMEROS ADMIN FIJOS — inamovibles, siempre autorizados
+// Ambos reciben notificaciones y pueden emitir comandos de admin.
+// Son el respaldo definitivo si las variables de entorno no están.
 // ================================================================
-export const ADMIN_PHONE_FIJO = '+525636399034';
+export const ADMIN_PHONE_FIJO  = '+525636399034'; // Admin principal
+export const ADMIN_PHONE_FIJO_2 = '+525565632217'; // Admin secundario
 
 // ================================================================
 // 🛵 NÚMERO REPARTIDOR — Opcional

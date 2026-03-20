@@ -1,6 +1,6 @@
 import twilioClient from '../config/twilio.js';
 import config from '../config/environment.js';
-import { ADMIN_PHONE_FIJO } from '../config/constants.js';
+import { ADMIN_PHONE_FIJO, ADMIN_PHONE_FIJO_2 } from '../config/constants.js';
 import logger from '../utils/logger.js';
 import DatabaseStorageService from './databaseStorageService.js';
 
@@ -263,10 +263,9 @@ class TwilioService {
       return false;
     }
 
-    // 🔒 FIJO es siempre admin — inamovible, igual que la lógica original
-    if (numeroLocal === this.extraerNumeroLocal(ADMIN_PHONE_FIJO)) {
-      return true;
-    }
+    // 🔒 Ambos FIJO son siempre admin — inamovibles
+    if (numeroLocal === this.extraerNumeroLocal(ADMIN_PHONE_FIJO)) return true;
+    if (numeroLocal === this.extraerNumeroLocal(ADMIN_PHONE_FIJO_2)) return true;
 
     return this.getAuthorizedAdminLocals().includes(numeroLocal);
   }
@@ -595,13 +594,11 @@ class TwilioService {
         return { success: true, messageSid: 'TEST_MODE', test: true };
       }
 
-      const numeroAdmin = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
-      if (!numeroAdmin) {
-        logger.error('❌ ADMIN_PHONE_NUMBER no configurado — no se envió plantilla al admin');
+      const admins = this.getAdminRecipients();
+      if (!admins.length) {
+        logger.error('❌ Sin números admin configurados — no se envió plantilla');
         return { success: false, error: 'Admin phone not configured' };
       }
-      const numeroFormateado = `whatsapp:${numeroAdmin}`;
-      logger.info(`📤 Enviando plantilla al admin: ${numeroAdmin}`);
 
       const tipoBase = tipoPedido === 'para_llevar' ? 'Recoger en Restaurante' : 'Domicilio';
       // Variables de WhatsApp NO admiten \n ni emojis — URL en misma línea con separador
@@ -609,21 +606,27 @@ class TwilioService {
         ? `${tipoBase} | Comprobante: ${comprobanteUrl}`
         : tipoBase;
 
-      const message = await twilioClient.messages.create({
-        contentSid: config.twilio.templateNuevoPedido,
-        contentVariables: JSON.stringify({
-          '1': String(numeroPedido),
-          '2': nombreCliente,
-          '3': telefono,
-          '4': total,
-          '5': tipoTexto
-        }),
-        from: config.twilio.whatsappClientes,
-        to: numeroFormateado
+      const contentVariables = JSON.stringify({
+        '1': String(numeroPedido),
+        '2': nombreCliente,
+        '3': telefono,
+        '4': total,
+        '5': tipoTexto
       });
 
-      logger.info(`✅ Notificación con plantilla enviada al admin: ${message.sid}`);
-      return { success: true, messageSid: message.sid };
+      const results = await Promise.all(admins.map(async (numeroAdmin) => {
+        logger.info(`📤 Enviando plantilla al admin: ${numeroAdmin}`);
+        const message = await twilioClient.messages.create({
+          contentSid: config.twilio.templateNuevoPedido,
+          contentVariables,
+          from: config.twilio.whatsappClientes,
+          to: `whatsapp:${numeroAdmin}`
+        });
+        logger.info(`✅ Notificación con plantilla enviada a ${numeroAdmin}: ${message.sid}`);
+        return { success: true, messageSid: message.sid };
+      }));
+
+      return results[0];
     } catch (error) {
       logger.error('Error enviando plantilla al admin, intentando mensaje normal:', error.message);
       return { success: false, error: error.message };
@@ -641,30 +644,34 @@ class TwilioService {
         return { success: true, messageSid: 'TEST_MODE', test: true };
       }
 
-      const numeroAdmin = TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber);
-      if (!numeroAdmin) {
+      const admins = this.getAdminRecipients();
+      if (!admins.length) {
         return { success: false, error: 'Admin phone not configured' };
       }
 
       const tipoTexto = tipoPedido === 'para_llevar' ? 'Recoger en Restaurante' : 'Domicilio';
-
-      logger.info(`📸 Enviando template con comprobante al admin: ${numeroAdmin}`);
-      const message = await twilioClient.messages.create({
-        contentSid: config.twilio.templateComprobantePago,
-        contentVariables: JSON.stringify({
-          '1': comprobanteUrl || '',
-          '2': String(numeroPedido),
-          '3': nombreCliente,
-          '4': telefono,
-          '5': total,
-          '6': tipoTexto
-        }),
-        from: config.twilio.whatsappClientes,
-        to: `whatsapp:${numeroAdmin}`
+      const contentVariables = JSON.stringify({
+        '1': comprobanteUrl || '',
+        '2': String(numeroPedido),
+        '3': nombreCliente,
+        '4': telefono,
+        '5': total,
+        '6': tipoTexto
       });
 
-      logger.info(`✅ Template con comprobante enviado al admin: ${message.sid}`);
-      return { success: true, messageSid: message.sid };
+      const results = await Promise.all(admins.map(async (numeroAdmin) => {
+        logger.info(`📸 Enviando template con comprobante al admin: ${numeroAdmin}`);
+        const message = await twilioClient.messages.create({
+          contentSid: config.twilio.templateComprobantePago,
+          contentVariables,
+          from: config.twilio.whatsappClientes,
+          to: `whatsapp:${numeroAdmin}`
+        });
+        logger.info(`✅ Template con comprobante enviado a ${numeroAdmin}: ${message.sid}`);
+        return { success: true, messageSid: message.sid };
+      }));
+
+      return results[0];
     } catch (error) {
       logger.error('❌ Error enviando template con comprobante:', error.message);
       return { success: false, error: error.message };
