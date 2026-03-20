@@ -18,6 +18,16 @@ class MenuService {
     this.lastUpdate = null;
     this.lastDia = null;
     this.CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+    this.hiddenCategories = new Set(['paquete', 'paquetes']);
+  }
+
+  esCategoriaOculta(nombreCategoria) {
+    const nombreNormalizado = String(nombreCategoria || '').trim().toLowerCase();
+    return this.hiddenCategories.has(nombreNormalizado);
+  }
+
+  filtrarCategoriasVisibles(categorias) {
+    return categorias.filter(categoria => !this.esCategoriaOculta(categoria.nombre));
   }
 
   /**
@@ -41,9 +51,11 @@ class MenuService {
         throw new Error('Error al cargar datos del menú');
       }
 
+      const categoriasVisibles = this.filtrarCategoriasVisibles(categorias.data);
+
       // Agrupar productos por categoría
       const menuPorCategoria = this.agruparPorCategoria(
-        categorias.data,
+        categoriasVisibles,
         productos.data
       );
 
@@ -300,7 +312,7 @@ class MenuService {
       }
 
       // Filtrar solo categorías que tengan productos
-      const categoriasConProductos = categorias.data.filter(cat => 
+      const categoriasConProductos = this.filtrarCategoriasVisibles(categorias.data).filter(cat => 
         productos.data.some(prod => prod.categorias?.id === cat.id)
       );
 
@@ -335,6 +347,13 @@ class MenuService {
       }
 
       const categoria = categoriaResult.data;
+      if (this.esCategoriaOculta(categoria.nombre)) {
+        return {
+          success: false,
+          mensaje: 'Esta categoría ya no está disponible en el bot'
+        };
+      }
+
       const productosCategoria = productos.data.filter(
         p => p.categorias?.id === categoriaId
       );

@@ -154,7 +154,7 @@ class WebhookController {
         longitude: Longitude || null
       };
 
-      logger.info(`📦 Datos del mensaje preparados:`, JSON.stringify(mensajeData, null, 2));
+      logger.info('📦 Datos del mensaje preparados', { mensajeData });
 
       // 🔄 PROCESAR FUERA DEL CICLO DE RESPUESTA PARA NO RETENER EL REQUEST
       setImmediate(() => {

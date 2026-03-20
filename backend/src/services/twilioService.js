@@ -243,6 +243,29 @@ class TwilioService {
     return [...new Set(recipients)];
   }
 
+  static extraerNumeroLocal(numero) {
+    const digits = String(numero || '').replace(/\D/g, '');
+    return digits.length >= 10 ? digits.slice(-10) : digits;
+  }
+
+  static getAuthorizedAdminLocals() {
+    return [...new Set(
+      this.getAdminRecipients()
+        .map(numero => this.extraerNumeroLocal(numero))
+        .filter(numero => numero.length === 10)
+    )];
+  }
+
+  static isAdminNumber(numero) {
+    const numeroLocal = this.extraerNumeroLocal(numero);
+
+    if (numeroLocal.length !== 10) {
+      return false;
+    }
+
+    return this.getAuthorizedAdminLocals().includes(numeroLocal);
+  }
+
   /**
    * Dividir mensaje en partes si excede el límite
    */

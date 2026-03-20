@@ -21,7 +21,6 @@ import {
   MAX_CAMBIO_REPARTIDOR,
   COSTO_ENVIO,
   COMPROBANTE_TIMEOUT,
-  ADMIN_PHONE_FIJO,
   MAX_CANCELACIONES_PARA_BLOQUEO,
   DIAS_BLOQUEO
 } from '../config/constants.js';
@@ -2630,32 +2629,16 @@ class BotService {
    * Verificar si el número es admin
    */
   esAdmin(telefono) {
-    // Comparar solo los últimos 10 dígitos del número local.
-    // Funciona con: +525636399034, 525636399034, 5636399034, whatsapp:+52...
-    const extraerLocal = (num) => {
-      const digits = String(num).replace(/\D/g, '');
-      return digits.length >= 10 ? digits.slice(-10) : digits;
-    };
+    const userLocal = TwilioService.extraerNumeroLocal(telefono);
+    const authorizedAdmins = TwilioService.getAuthorizedAdminLocals();
+    const isAdmin = TwilioService.isAdminNumber(telefono);
 
-    const userLocal = extraerLocal(telefono);
-
-    // 🔒 Siempre verificar contra el número fijo (inamovible)
-    const adminFijoLocal = extraerLocal(ADMIN_PHONE_FIJO);
-    if (userLocal === adminFijoLocal) {
-      logger.info(`🔑 Admin verificado (número fijo): ${userLocal}`);
+    if (isAdmin) {
+      logger.info(`🔑 Admin verificado: ${userLocal}`);
       return true;
     }
 
-    // También aceptar si el env var apunta a otro número autorizado
-    if (config.admin.phoneNumber) {
-      const adminEnvLocal = extraerLocal(config.admin.phoneNumber);
-      if (adminEnvLocal.length === 10 && userLocal === adminEnvLocal) {
-        logger.info(`🔑 Admin verificado (env var): ${userLocal}`);
-        return true;
-      }
-    }
-
-    logger.info(`🔍 Verificación admin fallida: User=${userLocal} no es admin`);
+    logger.info(`🔍 Verificación admin fallida: User=${userLocal} | Admins autorizados=${authorizedAdmins.join(', ') || 'ninguno'}`);
     return false;
   }
 
