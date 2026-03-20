@@ -1309,7 +1309,14 @@ class BotService {
         };
       }
 
-      return await this._finalizarPedidoConComprobante(telefono, session, resumenTexto, 'comprobante_imagen', 'COMPROBANTE RECIBIDO');
+      const resultado = await this._finalizarPedidoConComprobante(telefono, session, resumenTexto, 'comprobante_imagen', 'COMPROBANTE RECIBIDO');
+
+      // 🔒 Si la creación falló, quitar el flag para que el cliente pueda reintentar
+      if (!resultado.success) {
+        await SessionService.guardarDatos(telefono, { pedido_ya_creado: false });
+      }
+
+      return resultado;
     }
 
     // Si no recibió imagen pero envió texto (número de referencia)

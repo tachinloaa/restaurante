@@ -36,6 +36,18 @@ class WebhookController {
     } catch (error) {
       logger.error('💥 Error crítico en procesamiento del mensaje:', error);
 
+      // Notificar al admin para que sepa que un mensaje no se pudo procesar
+      try {
+        await TwilioService.enviarMensajeAdmin(
+          `🚨 *ERROR EN BOT*\n\n` +
+          `Mensaje de ${from} no se pudo procesar.\n` +
+          `Error: ${error.message}\n\n` +
+          `El cliente fue notificado del problema.`
+        );
+      } catch (adminError) {
+        logger.error('Error notificando al admin de fallo crítico en webhook:', adminError);
+      }
+
       try {
         await TwilioService.enviarMensajeCliente(
           from,

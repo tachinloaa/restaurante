@@ -42,10 +42,34 @@ class ReminderService {
 
         // Regla crítica: si pasan 2 minutos sin aprobar pago, avisar al cliente (sin autoaprobar)
         if (pedido.estado === 'pendiente_pago') {
+          // 🔴 Auto-cancelar si lleva más de 4 horas sin aprobación
+          if (tiempoTranscurrido >= 240) {
+            const keyAutoCancelado = `${pedido.id}-pendiente_pago-autocancelado`;
+            if (!this.recordatoriosEnviados.has(keyAutoCancelado)) {
+              this.recordatoriosEnviados.add(keyAutoCancelado);
+              await this.cancelarPendientePagoExpirado(pedido);
+            }
+            continue;
+          }
+
+          // Recordatorio al cliente (solo 1 vez, a los 2 min)
           const keyClientePendiente = `${pedido.id}-pendiente_pago-cliente`;
           if (tiempoTranscurrido >= 2 && !this.recordatoriosEnviados.has(keyClientePendiente)) {
             await this.enviarRecordatorioPendientePagoCliente(pedido, tiempoTranscurrido);
           }
+
+          // Re-alertas escaladas al admin: a los 15, 30, 45 min
+          for (const umbral of [15, 30, 45]) {
+            if (tiempoTranscurrido >= umbral) {
+              const keyAdmin = `${pedido.id}-pendiente_pago-admin-${umbral}`;
+              if (!this.recordatoriosEnviados.has(keyAdmin)) {
+                this.recordatoriosEnviados.add(keyAdmin);
+                await this.reenviarAlertaAdminPendientePago(pedido, tiempoTranscurrido);
+                break; // Solo uno por ciclo
+              }
+            }
+          }
+
           continue;
         }
 
@@ -184,12 +208,15 @@ class ReminderService {
 
     // SOLO 1 recordatorio por pedido:
     // - Pendiente: después de 10 minutos sin atender
-    // - Preparando: NO se envía recordatorio (el admin ya lo vio)
+    // - Preparando: alerta si lleva más de 45 min (puede estar atascado)
     if (pedido.estado === 'pendiente' && minutos >= 10) {
       return true;
     }
 
-    // No enviar recordatorios para pedidos en preparación
+    if (pedido.estado === 'preparando' && minutos >= 45) {
+      return true;
+    }
+
     return false;
   }
 
@@ -275,6 +302,75 @@ class ReminderService {
     } catch (error) {
       logger.error('Error al enviar recordatorio:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Re-alerta al admin (sin mensaje al cliente) cuando pendiente_pago lleva mucho tiempo.
+   */
+  async reenviarAlertaAdminPendientePago(pedido, minutos) {
+    try {
+      const telefonoCliente = pedido.clientes?.telefono || '';
+      let mensajeAdmin = `🔔 *RECORDATORIO ${minutos} MIN — PAGO SIN APROBAR*\n\n`;
+      mensajeAdmin += `🧾 Pedido: *#${pedido.numero_pedido}*\n`;
+      mensajeAdmin += `👤 Cliente: ${pedido.clientes?.nombre || 'Sin nombre'}\n`;
+      if (telefonoCliente) {
+        mensajeAdmin += `📞 https://wa.me/${telefonoCliente.replace('whatsapp:', '').replace('+', '')}\n`;
+      }
+      mensajeAdmin += `⏱️ ${minutos} minutos sin aprobación\n\n`;
+      mensajeAdmin += `Acciones:\n`;
+      mensajeAdmin += `• *aprobar #${pedido.numero_pedido}*\n`;
+      mensajeAdmin += `• *rechazar #${pedido.numero_pedido}*\n\n`;
+      mensajeAdmin += `⚠️ Se cancelará automáticamente en ${240 - minutos} minutos si no hay respuesta.`;
+
+      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+      logger.warn(`🔔 Re-alerta admin enviada para pedido #${pedido.numero_pedido} (${minutos} min)`);
+    } catch (error) {
+      logger.error(`Error en re-alerta admin pendiente_pago #${pedido.numero_pedido}:`, error);
+    }
+  }
+
+  /**
+   * Cancela un pedido que lleva 4+ horas en pendiente_pago sin aprobación.
+   */
+  async cancelarPendientePagoExpirado(pedido) {
+    try {
+      logger.warn(`🕐 Auto-cancelando pedido #${pedido.numero_pedido} por inactividad (4h en pendiente_pago)`);
+
+      const { error } = await supabase
+        .from('pedidos')
+        .update({ estado: 'cancelado', estado_pago: 'fallido' })
+        .eq('id', pedido.id)
+        .eq('estado', 'pendiente_pago'); // Guard: solo si sigue en ese estado
+
+      if (error) {
+        logger.error(`Error al auto-cancelar pedido #${pedido.numero_pedido}:`, error);
+        return;
+      }
+
+      // Notificar al cliente
+      const telefonoCliente = pedido.clientes?.telefono;
+      if (telefonoCliente) {
+        await TwilioService.enviarMensajeCliente(
+          telefonoCliente,
+          `⏰ *Tu pedido #${pedido.numero_pedido} fue cancelado automáticamente.*\n\n` +
+          `Tu comprobante no fue verificado en 4 horas.\n\n` +
+          `Si ya realizaste el pago, por favor contáctanos directamente.\n` +
+          `Puedes hacer un nuevo pedido escribiendo *pedir*. 🌮`
+        );
+      }
+
+      // Alertar al admin
+      await TwilioService.enviarMensajeAdmin(
+        `🚨 *AUTO-CANCELACIÓN*\n\n` +
+        `Pedido *#${pedido.numero_pedido}* cancelado automáticamente.\n` +
+        `Razón: 4 horas en pendiente_pago sin aprobación.\n\n` +
+        `Si el cliente pagó, revisa manualmente en Supabase.`
+      );
+
+      logger.warn(`✅ Pedido #${pedido.numero_pedido} auto-cancelado por expiración de pendiente_pago`);
+    } catch (error) {
+      logger.error(`Error al auto-cancelar pedido #${pedido.numero_pedido}:`, error);
     }
   }
 
