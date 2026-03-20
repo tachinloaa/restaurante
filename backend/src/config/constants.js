@@ -3,12 +3,10 @@
  */
 
 // ================================================================
-// 🔒 NÚMEROS ADMIN FIJOS — inamovibles, siempre autorizados
-// Ambos reciben notificaciones y pueden emitir comandos de admin.
-// Son el respaldo definitivo si las variables de entorno no están.
+// 🔒 NÚMEROS ADMIN
+// Los números reales se gestionan desde variables de entorno en Render.
+// Ver: ADMIN_PHONE_NUMBER y ADMIN_PHONE_NUMBER_SECONDARY
 // ================================================================
-export const ADMIN_PHONE_FIJO  = '+525636399034'; // Admin principal
-export const ADMIN_PHONE_FIJO_2 = '+525565632217'; // Admin secundario
 
 // ================================================================
 // 🛵 NÚMERO REPARTIDOR — Opcional

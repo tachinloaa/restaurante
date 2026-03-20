@@ -1,6 +1,5 @@
 import TwilioService from '../services/twilioService.js';
 import config from '../config/environment.js';
-import { ADMIN_PHONE_FIJO } from '../config/constants.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -9,7 +8,7 @@ import logger from '../utils/logger.js';
  */
 class AdminNotificationService {
   constructor() {
-    this.adminPhone = config.admin.phoneNumber || ADMIN_PHONE_FIJO;
+    this.adminPhone = config.admin.phoneNumber;
     this.notificationQueue = [];
     this.isProcessing = false;
     this.lastNotification = {};

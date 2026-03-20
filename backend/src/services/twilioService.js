@@ -1,6 +1,5 @@
 import twilioClient from '../config/twilio.js';
 import config from '../config/environment.js';
-import { ADMIN_PHONE_FIJO, ADMIN_PHONE_FIJO_2 } from '../config/constants.js';
 import logger from '../utils/logger.js';
 import DatabaseStorageService from './databaseStorageService.js';
 
@@ -263,9 +262,9 @@ class TwilioService {
       return false;
     }
 
-    // 🔒 Ambos FIJO son siempre admin — inamovibles
-    if (numeroLocal === this.extraerNumeroLocal(ADMIN_PHONE_FIJO)) return true;
-    if (numeroLocal === this.extraerNumeroLocal(ADMIN_PHONE_FIJO_2)) return true;
+    // 🔒 Ambos admins configurados son siempre autorizados — inamovibles
+    if (numeroLocal === this.extraerNumeroLocal(config.admin.phoneNumber)) return true;
+    if (config.admin.secondaryPhoneNumber && numeroLocal === this.extraerNumeroLocal(config.admin.secondaryPhoneNumber)) return true;
 
     return this.getAuthorizedAdminLocals().includes(numeroLocal);
   }
@@ -405,8 +404,8 @@ class TwilioService {
     * Acepta: +525636399034, 525636399034, 5636399034, whatsapp:+525636399034, etc.
    */
   static normalizarNumeroAdmin(numero) {
-    // Si no viene número, usar el número fijo inamovible
-    const raw = numero || ADMIN_PHONE_FIJO;
+    // Si no viene número, usar el número principal del admin
+    const raw = numero || config.admin.phoneNumber;
     // Quitar prefijo whatsapp: si existe
     let s = String(raw).replace(/^whatsapp:/i, '').trim();
     // Dejar solo dígitos y el '+' inicial
@@ -416,8 +415,8 @@ class TwilioService {
     // Verificación mínima: debe tener al menos 10 dígitos después del '+'
     if (s.replace(/\D/g, '').length < 10) {
       // Último recurso: usar el número fijo
-      logger.warn('⚠️ Número admin inválido, usando ADMIN_PHONE_FIJO como respaldo');
-      return ADMIN_PHONE_FIJO;
+      logger.warn('⚠️ Número admin inválido, usando número principal como respaldo');
+      return config.admin.phoneNumber;
     }
     return s;
   }
