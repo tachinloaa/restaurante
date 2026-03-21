@@ -613,19 +613,31 @@ class TwilioService {
         '5': tipoTexto
       });
 
-      const results = await Promise.all(admins.map(async (numeroAdmin) => {
-        logger.info(`📤 Enviando plantilla al admin: ${numeroAdmin}`);
-        const message = await twilioClient.messages.create({
-          contentSid: config.twilio.templateNuevoPedido,
-          contentVariables,
-          from: config.twilio.whatsappClientes,
-          to: `whatsapp:${numeroAdmin}`
-        });
-        logger.info(`✅ Notificación con plantilla enviada a ${numeroAdmin}: ${message.sid}`);
-        return { success: true, messageSid: message.sid };
-      }));
+      const failures = [];
+      const messageSids = [];
 
-      return results[0];
+      for (const numeroAdmin of admins) {
+        try {
+          logger.info(`📤 Enviando plantilla al admin: ${numeroAdmin}`);
+          const message = await twilioClient.messages.create({
+            contentSid: config.twilio.templateNuevoPedido,
+            contentVariables,
+            from: config.twilio.whatsappClientes,
+            to: `whatsapp:${numeroAdmin}`
+          });
+          logger.info(`✅ Notificación con plantilla enviada a ${numeroAdmin}: ${message.sid}`);
+          messageSids.push(message.sid);
+        } catch (adminError) {
+          failures.push({ numeroAdmin, error: adminError.message });
+          logger.error(`❌ Error enviando plantilla a ${numeroAdmin}: ${adminError.message}`);
+        }
+      }
+
+      if (messageSids.length > 0) {
+        return { success: true, messageSid: messageSids[0], messageSids, failures };
+      }
+
+      return { success: false, error: failures.map(f => `${f.numeroAdmin}: ${f.error}`).join(' | ') || 'Error desconocido' };
     } catch (error) {
       logger.error('Error enviando plantilla al admin, intentando mensaje normal:', error.message);
       return { success: false, error: error.message };
@@ -658,19 +670,31 @@ class TwilioService {
         '6': tipoTexto
       });
 
-      const results = await Promise.all(admins.map(async (numeroAdmin) => {
-        logger.info(`📸 Enviando template con comprobante al admin: ${numeroAdmin}`);
-        const message = await twilioClient.messages.create({
-          contentSid: config.twilio.templateComprobantePago,
-          contentVariables,
-          from: config.twilio.whatsappClientes,
-          to: `whatsapp:${numeroAdmin}`
-        });
-        logger.info(`✅ Template con comprobante enviado a ${numeroAdmin}: ${message.sid}`);
-        return { success: true, messageSid: message.sid };
-      }));
+      const failures = [];
+      const messageSids = [];
 
-      return results[0];
+      for (const numeroAdmin of admins) {
+        try {
+          logger.info(`📸 Enviando template con comprobante al admin: ${numeroAdmin}`);
+          const message = await twilioClient.messages.create({
+            contentSid: config.twilio.templateComprobantePago,
+            contentVariables,
+            from: config.twilio.whatsappClientes,
+            to: `whatsapp:${numeroAdmin}`
+          });
+          logger.info(`✅ Template con comprobante enviado a ${numeroAdmin}: ${message.sid}`);
+          messageSids.push(message.sid);
+        } catch (adminError) {
+          failures.push({ numeroAdmin, error: adminError.message });
+          logger.error(`❌ Error enviando template comprobante a ${numeroAdmin}: ${adminError.message}`);
+        }
+      }
+
+      if (messageSids.length > 0) {
+        return { success: true, messageSid: messageSids[0], messageSids, failures };
+      }
+
+      return { success: false, error: failures.map(f => `${f.numeroAdmin}: ${f.error}`).join(' | ') || 'Error desconocido' };
     } catch (error) {
       logger.error('❌ Error enviando template con comprobante:', error.message);
       return { success: false, error: error.message };

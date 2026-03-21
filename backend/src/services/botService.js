@@ -1699,16 +1699,19 @@ class BotService {
         );
         if (resultado.success) {
           logger.info(`✅ Media template con comprobante enviado al admin para pedido #${numeroPedido}`);
-          // Enviar también el detalle completo del pedido (productos, dirección, etc.)
-          try {
-            await TwilioService.enviarMensajeAdmin(mensajeAdmin);
-          } catch (e) {
-            logger.warn(`⚠️ No se pudo enviar detalle del pedido al admin: ${e.message}`);
-          }
         } else {
           logger.error(`❌ Error media template: ${resultado.error}`);
           // Fallback al template de texto
-          await TwilioService.enviarNotificacionAdminConPlantilla(numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl);
+          const fallbackTexto = await TwilioService.enviarNotificacionAdminConPlantilla(numeroPedido, cliente, telefono, total, tipoPedido, comprobanteUrl);
+          if (!fallbackTexto.success) {
+            logger.error(`❌ Error fallback template de texto: ${fallbackTexto.error}`);
+          }
+        }
+        // SIEMPRE enviar el detalle completo (productos, dirección, acciones) con o sin template
+        try {
+          await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+        } catch (e) {
+          logger.warn(`⚠️ No se pudo enviar detalle del pedido al admin: ${e.message}`);
         }
       } else {
         // Sin imagen: template de texto
@@ -1717,14 +1720,14 @@ class BotService {
         );
         if (resultadoTexto.success) {
           logger.info(`✅ Template de texto enviado al admin para pedido #${numeroPedido}`);
-          // Enviar también el detalle completo del pedido (productos, dirección, etc.)
-          try {
-            await TwilioService.enviarMensajeAdmin(mensajeAdmin);
-          } catch (e) {
-            logger.warn(`⚠️ No se pudo enviar detalle del pedido al admin: ${e.message}`);
-          }
         } else {
           logger.error(`❌ Error template de texto: ${resultadoTexto.error}`);
+        }
+        // SIEMPRE enviar el detalle completo (productos, dirección, acciones) con o sin template
+        try {
+          await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+        } catch (e) {
+          logger.warn(`⚠️ No se pudo enviar detalle del pedido al admin: ${e.message}`);
         }
       }
 
