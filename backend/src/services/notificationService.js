@@ -92,7 +92,7 @@ class NotificationService {
       }
 
       // Template solo al secondary (no tiene sesión activa, solo le llega template)
-      // Freeform solo al primary (tiene sesión activa por su uso diario del bot)
+      // Template solo al secondary (siempre llega, abre ventana 24h cuando él responde)
       try {
         const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
         const secondaryTargets = config.admin.secondaryPhoneNumber
@@ -118,11 +118,8 @@ class NotificationService {
         logger.warn(`⚠️ Error al enviar plantilla al secondary: ${templateError.message}`);
       }
 
-      // Freeform solo al primary (tiene sesión activa, no necesita template)
-      const primaryTarget = config.admin.phoneNumber
-        ? [TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber)]
-        : null;
-      const resultado = await TwilioService.enviarMensajeAdmin(mensaje, { adminTargets: primaryTarget });
+      // Freeform a ambos admins — al secondary llega si tiene ventana 24h activa
+      const resultado = await TwilioService.enviarMensajeAdmin(mensaje);
 
       if (resultado.success) {
         logger.info(`Notificación de pedido #${pedido.numero_pedido} enviada al admin`);

@@ -159,10 +159,7 @@ class ReminderService {
         logger.warn(`⚠️ Error plantilla recordatorio pendiente_pago: ${templateError.message}`);
       }
 
-      const primaryTarget = config.admin.phoneNumber
-        ? [TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber)]
-        : null;
-      await TwilioService.enviarMensajeAdmin(mensajeAdmin, { adminTargets: primaryTarget });
+      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
 
       return resultadoCliente;
     } catch (error) {
@@ -279,7 +276,7 @@ class ReminderService {
       mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${config.frontendUrl}/orders\n\n`;
       mensaje += `⚡ *POR FAVOR ATENDER DE INMEDIATO*`;
 
-      // 1) Template solo al secondary; freeform solo al primary
+      // 1) Template solo al secondary; 2) freeform a ambos
       try {
         const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
         const secondaryTargets = config.admin.secondaryPhoneNumber
@@ -303,11 +300,8 @@ class ReminderService {
         logger.warn(`⚠️ Error plantilla recordatorio: ${templateError.message}`);
       }
 
-      // 2) Freeform solo al primary
-      const primaryTarget = config.admin.phoneNumber
-        ? [TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber)]
-        : null;
-      const resultado = await TwilioService.enviarMensajeAdmin(mensaje, { adminTargets: primaryTarget });
+      // 2) Freeform a ambos admins
+      const resultado = await TwilioService.enviarMensajeAdmin(mensaje);
 
       if (resultado.success) {
         // Guardar notificación en BD para tracking
@@ -375,10 +369,7 @@ class ReminderService {
         logger.warn(`⚠️ Error plantilla re-alerta: ${templateError.message}`);
       }
 
-      const primaryTarget = config.admin.phoneNumber
-        ? [TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber)]
-        : null;
-      await TwilioService.enviarMensajeAdmin(mensajeAdmin, { adminTargets: primaryTarget });
+      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
       logger.warn(`🔔 Re-alerta admin enviada para pedido #${pedido.numero_pedido} (${minutos} min)`);
     } catch (error) {
       logger.error(`Error en re-alerta admin pendiente_pago #${pedido.numero_pedido}:`, error);
