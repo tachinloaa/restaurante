@@ -142,7 +142,17 @@ class BotService {
           return await this.mostrarResumenDia();
         }
 
-        // Si el admin envió algo no reconocido, mostrar ayuda
+        // Si el admin envió algo no reconocido:
+        // - Secondary: probablemente respondió al template para abrir ventana 24h → enviar pedidos activos
+        // - Primary: mostrar ayuda
+        const esSecundario = config.admin.secondaryPhoneNumber &&
+          TwilioService.extraerNumeroLocal(telefono) === TwilioService.extraerNumeroLocal(config.admin.secondaryPhoneNumber);
+
+        if (esSecundario) {
+          logger.info(`📲 Secondary admin respondió al template — enviando pedidos activos`);
+          return await this.mostrarPedidosPendientes();
+        }
+
         logger.warn(`⚠️ Comando de admin no reconocido: ${mensajeLimpio}`);
         return await this.mostrarAyudaAdmin();
       }
