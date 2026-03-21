@@ -91,26 +91,24 @@ class NotificationService {
         mensaje += `• *rechazar #${pedido.numero_pedido}* — Pago inválido ❌\n`;
       }
 
-      // Pedidos de transferencia: enviar plantilla primero para abrir ventana 24h
-      // Pedidos de efectivo: NO enviar plantilla (dice "aprobar/rechazar" que es incorrecto)
-      if (esTransferencia) {
-        try {
-          const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-          const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
-            pedido.numero_pedido,
-            cliente.nombre || 'Sin nombre',
-            cliente.telefono || 'N/A',
-            `$${pedido.total}`,
-            tipoPedidoTemplate
-          );
-          if (resultadoPlantilla.success) {
-            logger.info(`✅ Plantilla enviada al admin para pedido #${pedido.numero_pedido}`);
-          } else {
-            logger.warn(`⚠️ Plantilla falló para pedido #${pedido.numero_pedido}: ${resultadoPlantilla.error}`);
-          }
-        } catch (templateError) {
-          logger.warn(`⚠️ Error al enviar plantilla al admin: ${templateError.message}`);
+      // Enviar plantilla primero para todos los pedidos (efectivo Y transferencia)
+      // El template abre la ventana de 24h en WhatsApp, sin él el secondary no recibe freeform
+      try {
+        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
+        const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
+          pedido.numero_pedido,
+          cliente.nombre || 'Sin nombre',
+          cliente.telefono || 'N/A',
+          `$${pedido.total}`,
+          tipoPedidoTemplate
+        );
+        if (resultadoPlantilla.success) {
+          logger.info(`✅ Plantilla enviada al admin para pedido #${pedido.numero_pedido}`);
+        } else {
+          logger.warn(`⚠️ Plantilla falló para pedido #${pedido.numero_pedido}: ${resultadoPlantilla.error}`);
         }
+      } catch (templateError) {
+        logger.warn(`⚠️ Error al enviar plantilla al admin: ${templateError.message}`);
       }
 
       // Enviar detalle completo (freeform)
