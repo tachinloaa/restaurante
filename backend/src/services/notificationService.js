@@ -91,29 +91,38 @@ class NotificationService {
         mensaje += `• *rechazar #${pedido.numero_pedido}* — Pago inválido ❌\n`;
       }
 
-      // Enviar plantilla a TODOS los admins para abrir/mantener ventana 24h de WhatsApp
-      // Sin esto, el admin que no haya hablado en 24h no recibe el freeform
+      // Template solo al secondary (no tiene sesión activa, solo le llega template)
+      // Freeform solo al primary (tiene sesión activa por su uso diario del bot)
       try {
         const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-        const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
-          pedido.numero_pedido,
-          cliente.nombre || 'Sin nombre',
-          cliente.telefono || 'N/A',
-          `$${pedido.total}`,
-          tipoPedidoTemplate,
-          null
-        );
-        if (resultadoPlantilla.success) {
-          logger.info(`✅ Plantilla enviada al admin para pedido #${pedido.numero_pedido}`);
-        } else {
-          logger.warn(`⚠️ Plantilla falló para pedido #${pedido.numero_pedido}: ${resultadoPlantilla.error}`);
+        const secondaryTargets = config.admin.secondaryPhoneNumber
+          ? [TwilioService.normalizarNumeroAdmin(config.admin.secondaryPhoneNumber)]
+          : null;
+        if (secondaryTargets) {
+          const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
+            pedido.numero_pedido,
+            cliente.nombre || 'Sin nombre',
+            cliente.telefono || 'N/A',
+            `$${pedido.total}`,
+            tipoPedidoTemplate,
+            null,
+            secondaryTargets
+          );
+          if (resultadoPlantilla.success) {
+            logger.info(`✅ Plantilla enviada al secondary para pedido #${pedido.numero_pedido}`);
+          } else {
+            logger.warn(`⚠️ Plantilla falló para pedido #${pedido.numero_pedido}: ${resultadoPlantilla.error}`);
+          }
         }
       } catch (templateError) {
-        logger.warn(`⚠️ Error al enviar plantilla al admin: ${templateError.message}`);
+        logger.warn(`⚠️ Error al enviar plantilla al secondary: ${templateError.message}`);
       }
 
-      // Enviar detalle completo (freeform)
-      const resultado = await TwilioService.enviarMensajeAdmin(mensaje);
+      // Freeform solo al primary (tiene sesión activa, no necesita template)
+      const primaryTarget = config.admin.phoneNumber
+        ? [TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber)]
+        : null;
+      const resultado = await TwilioService.enviarMensajeAdmin(mensaje, { adminTargets: primaryTarget });
 
       if (resultado.success) {
         logger.info(`Notificación de pedido #${pedido.numero_pedido} enviada al admin`);

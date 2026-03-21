@@ -138,21 +138,31 @@ class ReminderService {
       mensajeAdmin += `• *aprobar #${pedido.numero_pedido}*\n`;
       mensajeAdmin += `• *rechazar #${pedido.numero_pedido}*`;
 
-      // Template a todos los admins para mantener ventana 24h activa
+      // Template solo al secondary; freeform solo al primary
       try {
         const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-        await TwilioService.enviarNotificacionAdminConPlantilla(
-          pedido.numero_pedido,
-          pedido.clientes?.nombre || 'Sin nombre',
-          telefonoCliente || 'N/A',
-          `$${pedido.total}`,
-          tipoPedidoTemplate
-        );
+        const secondaryTargets = config.admin.secondaryPhoneNumber
+          ? [TwilioService.normalizarNumeroAdmin(config.admin.secondaryPhoneNumber)]
+          : null;
+        if (secondaryTargets) {
+          await TwilioService.enviarNotificacionAdminConPlantilla(
+            pedido.numero_pedido,
+            pedido.clientes?.nombre || 'Sin nombre',
+            telefonoCliente || 'N/A',
+            `$${pedido.total}`,
+            tipoPedidoTemplate,
+            null,
+            secondaryTargets
+          );
+        }
       } catch (templateError) {
         logger.warn(`⚠️ Error plantilla recordatorio pendiente_pago: ${templateError.message}`);
       }
 
-      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+      const primaryTarget = config.admin.phoneNumber
+        ? [TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber)]
+        : null;
+      await TwilioService.enviarMensajeAdmin(mensajeAdmin, { adminTargets: primaryTarget });
 
       return resultadoCliente;
     } catch (error) {
@@ -269,25 +279,35 @@ class ReminderService {
       mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${config.frontendUrl}/orders\n\n`;
       mensaje += `⚡ *POR FAVOR ATENDER DE INMEDIATO*`;
 
-      // 1) Template a todos los admins para mantener ventana 24h activa
+      // 1) Template solo al secondary; freeform solo al primary
       try {
         const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-        const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
-          pedido.numero_pedido,
-          pedido.clientes?.nombre || 'Sin nombre',
-          pedido.clientes?.telefono || 'N/A',
-          `$${pedido.total}`,
-          tipoPedidoTemplate
-        );
-        if (resultadoPlantilla.success) {
-          logger.info(`✅ Plantilla recordatorio enviada para pedido #${pedido.numero_pedido}`);
+        const secondaryTargets = config.admin.secondaryPhoneNumber
+          ? [TwilioService.normalizarNumeroAdmin(config.admin.secondaryPhoneNumber)]
+          : null;
+        if (secondaryTargets) {
+          const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
+            pedido.numero_pedido,
+            pedido.clientes?.nombre || 'Sin nombre',
+            pedido.clientes?.telefono || 'N/A',
+            `$${pedido.total}`,
+            tipoPedidoTemplate,
+            null,
+            secondaryTargets
+          );
+          if (resultadoPlantilla.success) {
+            logger.info(`✅ Plantilla recordatorio enviada al secondary para pedido #${pedido.numero_pedido}`);
+          }
         }
       } catch (templateError) {
         logger.warn(`⚠️ Error plantilla recordatorio: ${templateError.message}`);
       }
 
-      // 2) Enviar detalle completo (freeform)
-      const resultado = await TwilioService.enviarMensajeAdmin(mensaje);
+      // 2) Freeform solo al primary
+      const primaryTarget = config.admin.phoneNumber
+        ? [TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber)]
+        : null;
+      const resultado = await TwilioService.enviarMensajeAdmin(mensaje, { adminTargets: primaryTarget });
 
       if (resultado.success) {
         // Guardar notificación en BD para tracking
@@ -334,21 +354,31 @@ class ReminderService {
       mensajeAdmin += `• *rechazar #${pedido.numero_pedido}*\n\n`;
       mensajeAdmin += `⚠️ Se cancelará automáticamente en ${240 - minutos} minutos si no hay respuesta.`;
 
-      // Template a todos los admins para mantener ventana 24h activa
+      // Template solo al secondary; freeform solo al primary
       try {
         const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-        await TwilioService.enviarNotificacionAdminConPlantilla(
-          pedido.numero_pedido,
-          pedido.clientes?.nombre || 'Sin nombre',
-          pedido.clientes?.telefono || 'N/A',
-          `$${pedido.total}`,
-          tipoPedidoTemplate
-        );
+        const secondaryTargets = config.admin.secondaryPhoneNumber
+          ? [TwilioService.normalizarNumeroAdmin(config.admin.secondaryPhoneNumber)]
+          : null;
+        if (secondaryTargets) {
+          await TwilioService.enviarNotificacionAdminConPlantilla(
+            pedido.numero_pedido,
+            pedido.clientes?.nombre || 'Sin nombre',
+            pedido.clientes?.telefono || 'N/A',
+            `$${pedido.total}`,
+            tipoPedidoTemplate,
+            null,
+            secondaryTargets
+          );
+        }
       } catch (templateError) {
         logger.warn(`⚠️ Error plantilla re-alerta: ${templateError.message}`);
       }
 
-      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+      const primaryTarget = config.admin.phoneNumber
+        ? [TwilioService.normalizarNumeroAdmin(config.admin.phoneNumber)]
+        : null;
+      await TwilioService.enviarMensajeAdmin(mensajeAdmin, { adminTargets: primaryTarget });
       logger.warn(`🔔 Re-alerta admin enviada para pedido #${pedido.numero_pedido} (${minutos} min)`);
     } catch (error) {
       logger.error(`Error en re-alerta admin pendiente_pago #${pedido.numero_pedido}:`, error);
