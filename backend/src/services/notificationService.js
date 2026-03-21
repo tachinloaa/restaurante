@@ -77,6 +77,7 @@ class NotificationService {
       // Comandos de acción según estado y tipo de pedido
       mensaje += `\n${'─'.repeat(30)}\n`;
       if (esEfectivo) {
+        mensaje += `⚠️ _Ignora el mensaje anterior — ese es solo de notificación. Usa ESTOS comandos:_\n\n`;
         mensaje += `⚡ *ACCIONES:*\n`;
         mensaje += `• *preparando #${pedido.numero_pedido}* — Confirmar preparación 👨‍🍳\n`;
         if (esDomicilio) {
