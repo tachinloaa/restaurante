@@ -77,7 +77,6 @@ class NotificationService {
       // Comandos de acción según estado y tipo de pedido
       mensaje += `\n${'─'.repeat(30)}\n`;
       if (esEfectivo) {
-        mensaje += `⚠️ _Ignora el mensaje anterior — ese es solo de notificación. Usa ESTOS comandos:_\n\n`;
         mensaje += `⚡ *ACCIONES:*\n`;
         mensaje += `• *preparando #${pedido.numero_pedido}* — Confirmar preparación 👨‍🍳\n`;
         if (esDomicilio) {
@@ -92,16 +91,24 @@ class NotificationService {
         mensaje += `• *rechazar #${pedido.numero_pedido}* — Pago inválido ❌\n`;
       }
 
-      // Enviar plantilla primero para todos los pedidos (efectivo Y transferencia)
-      // El template abre la ventana de 24h en WhatsApp, sin él el secondary no recibe freeform
+      // Enviar plantilla para abrir ventana 24h en WhatsApp:
+      // - Efectivo: solo al secondary (el primary solo recibe el freeform con acciones correctas)
+      // - Transferencia: a todos (ambos necesitan ver "aprobar/rechazar")
       try {
         const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
+        const templateTargets = esEfectivo
+          ? (config.admin.secondaryPhoneNumber
+              ? [TwilioService.normalizarNumeroAdmin(config.admin.secondaryPhoneNumber)]
+              : null)
+          : null;
         const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
           pedido.numero_pedido,
           cliente.nombre || 'Sin nombre',
           cliente.telefono || 'N/A',
           `$${pedido.total}`,
-          tipoPedidoTemplate
+          tipoPedidoTemplate,
+          null,
+          templateTargets
         );
         if (resultadoPlantilla.success) {
           logger.info(`✅ Plantilla enviada al admin para pedido #${pedido.numero_pedido}`);

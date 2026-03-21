@@ -586,14 +586,14 @@ class TwilioService {
    * Enviar notificación al admin usando plantilla aprobada de WhatsApp (business-initiated)
    * Esto permite enviar mensajes al admin sin restricción de 24 horas
    */
-  static async enviarNotificacionAdminConPlantilla(numeroPedido, nombreCliente, telefono, total, tipoPedido, comprobanteUrl = null) {
+  static async enviarNotificacionAdminConPlantilla(numeroPedido, nombreCliente, telefono, total, tipoPedido, comprobanteUrl = null, targets = null) {
     try {
       if (process.env.TWILIO_TEST_MODE === 'true') {
         logger.info(`[TEST MODE] Plantilla nuevo pedido #${numeroPedido} para admin`);
         return { success: true, messageSid: 'TEST_MODE', test: true };
       }
 
-      const admins = this.getAdminRecipients();
+      const admins = this.getAdminRecipients(targets);
       if (!admins.length) {
         logger.error('❌ Sin números admin configurados — no se envió plantilla');
         return { success: false, error: 'Admin phone not configured' };
@@ -648,14 +648,14 @@ class TwilioService {
    * Enviar template de comprobante con imagen al admin (Media template - business initiated)
    * Variables: {{1}}=comprobanteUrl, {{2}}=numeroPedido, {{3}}=cliente, {{4}}=telefono, {{5}}=total, {{6}}=tipo
    */
-  static async enviarTemplateComprobanteAdmin(numeroPedido, nombreCliente, telefono, total, tipoPedido, comprobanteUrl) {
+  static async enviarTemplateComprobanteAdmin(numeroPedido, nombreCliente, telefono, total, tipoPedido, comprobanteUrl, targets = null) {
     try {
       if (process.env.TWILIO_TEST_MODE === 'true') {
         logger.info(`[TEST MODE] Template comprobante pedido #${numeroPedido}`);
         return { success: true, messageSid: 'TEST_MODE', test: true };
       }
 
-      const admins = this.getAdminRecipients();
+      const admins = this.getAdminRecipients(targets);
       if (!admins.length) {
         return { success: false, error: 'Admin phone not configured' };
       }
