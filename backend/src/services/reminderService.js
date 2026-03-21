@@ -138,6 +138,20 @@ class ReminderService {
       mensajeAdmin += `• *aprobar #${pedido.numero_pedido}*\n`;
       mensajeAdmin += `• *rechazar #${pedido.numero_pedido}*`;
 
+      // Enviar template primero para garantizar ventana 24h en secondary admin
+      try {
+        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
+        await TwilioService.enviarNotificacionAdminConPlantilla(
+          pedido.numero_pedido,
+          pedido.clientes?.nombre || 'Sin nombre',
+          telefonoCliente || 'N/A',
+          `$${pedido.total}`,
+          tipoPedidoTemplate
+        );
+      } catch (templateError) {
+        logger.warn(`⚠️ Error plantilla recordatorio pendiente_pago: ${templateError.message}`);
+      }
+
       await TwilioService.enviarMensajeAdmin(mensajeAdmin);
 
       return resultadoCliente;
@@ -255,24 +269,21 @@ class ReminderService {
       mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${config.frontendUrl}/orders\n\n`;
       mensaje += `⚡ *POR FAVOR ATENDER DE INMEDIATO*`;
 
-      // 1) Enviar plantilla primero (abre ventana de 24h si estaba cerrada)
-      // Solo para transferencias — la plantilla dice "aprobar/rechazar" que no aplica a efectivo
-      if (pedido.metodo_pago === 'transferencia') {
-        try {
-          const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-          const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
-            pedido.numero_pedido,
-            pedido.clientes?.nombre || 'Sin nombre',
-            pedido.clientes?.telefono || 'N/A',
-            `$${pedido.total}`,
-            tipoPedidoTemplate
-          );
-          if (resultadoPlantilla.success) {
-            logger.info(`✅ Plantilla recordatorio enviada para pedido #${pedido.numero_pedido}`);
-          }
-        } catch (templateError) {
-          logger.warn(`⚠️ Error plantilla recordatorio: ${templateError.message}`);
+      // 1) Enviar plantilla primero SIEMPRE (abre ventana 24h para secondary admin sin importar método de pago)
+      try {
+        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
+        const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
+          pedido.numero_pedido,
+          pedido.clientes?.nombre || 'Sin nombre',
+          pedido.clientes?.telefono || 'N/A',
+          `$${pedido.total}`,
+          tipoPedidoTemplate
+        );
+        if (resultadoPlantilla.success) {
+          logger.info(`✅ Plantilla recordatorio enviada para pedido #${pedido.numero_pedido}`);
         }
+      } catch (templateError) {
+        logger.warn(`⚠️ Error plantilla recordatorio: ${templateError.message}`);
       }
 
       // 2) Enviar detalle completo (freeform)
@@ -322,6 +333,20 @@ class ReminderService {
       mensajeAdmin += `• *aprobar #${pedido.numero_pedido}*\n`;
       mensajeAdmin += `• *rechazar #${pedido.numero_pedido}*\n\n`;
       mensajeAdmin += `⚠️ Se cancelará automáticamente en ${240 - minutos} minutos si no hay respuesta.`;
+
+      // Enviar template primero para garantizar ventana 24h en secondary admin
+      try {
+        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
+        await TwilioService.enviarNotificacionAdminConPlantilla(
+          pedido.numero_pedido,
+          pedido.clientes?.nombre || 'Sin nombre',
+          pedido.clientes?.telefono || 'N/A',
+          `$${pedido.total}`,
+          tipoPedidoTemplate
+        );
+      } catch (templateError) {
+        logger.warn(`⚠️ Error plantilla re-alerta: ${templateError.message}`);
+      }
 
       await TwilioService.enviarMensajeAdmin(mensajeAdmin);
       logger.warn(`🔔 Re-alerta admin enviada para pedido #${pedido.numero_pedido} (${minutos} min)`);
