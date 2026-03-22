@@ -91,31 +91,7 @@ class NotificationService {
         mensaje += `• *rechazar #${pedido.numero_pedido}* — Pago inválido ❌\n`;
       }
 
-      // Template solo al PRIMARY en TODOS los pedidos (efectivo y transferencia)
-      // Los templates bypasean la ventana 24h — así el primary siempre recibe sin sesión activa
-      // El secondary recibe solo el freeform detallado (ya tiene sesión por sus comandos diarios)
-      try {
-        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-        const primaryTargets = [config.admin.phoneNumber];
-        const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
-          pedido.numero_pedido,
-          cliente.nombre || 'Sin nombre',
-          cliente.telefono || 'N/A',
-          `$${pedido.total}`,
-          tipoPedidoTemplate,
-          null,
-          primaryTargets
-        );
-        if (resultadoPlantilla.success) {
-          logger.info(`✅ Plantilla enviada para pedido #${pedido.numero_pedido}`);
-        } else {
-          logger.warn(`⚠️ Plantilla falló para pedido #${pedido.numero_pedido}: ${resultadoPlantilla.error}`);
-        }
-      } catch (templateError) {
-        logger.warn(`⚠️ Error al enviar plantilla: ${templateError.message}`);
-      }
-
-      // Freeform a ambos admins — al secondary llega si tiene ventana 24h activa
+      // Solo freeform a ambos admins — un mensaje limpio sin duplicados
       const resultado = await TwilioService.enviarMensajeAdmin(mensaje);
 
       if (resultado.success) {
