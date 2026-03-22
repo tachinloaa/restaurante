@@ -464,7 +464,8 @@ class TwilioService {
             const message = await twilioClient.messages.create({
               body: mensajeConEncabezado,
               from: config.twilio.whatsappClientes,
-              to: numeroFormateado
+              to: numeroFormateado,
+              statusCallback: `${config.backendUrl}/webhook/status`
             });
 
             messageSids.push(message.sid);
@@ -623,7 +624,8 @@ class TwilioService {
             contentSid: config.twilio.templateNuevoPedido,
             contentVariables,
             from: config.twilio.whatsappClientes,
-            to: `whatsapp:${numeroAdmin}`
+            to: `whatsapp:${numeroAdmin}`,
+            statusCallback: `${config.backendUrl}/webhook/status`
           });
           logger.info(`✅ Notificación con plantilla enviada a ${numeroAdmin}: ${message.sid}`);
           messageSids.push(message.sid);
@@ -680,7 +682,8 @@ class TwilioService {
             contentSid: config.twilio.templateComprobantePago,
             contentVariables,
             from: config.twilio.whatsappClientes,
-            to: `whatsapp:${numeroAdmin}`
+            to: `whatsapp:${numeroAdmin}`,
+            statusCallback: `${config.backendUrl}/webhook/status`
           });
           logger.info(`✅ Template con comprobante enviado a ${numeroAdmin}: ${message.sid}`);
           messageSids.push(message.sid);

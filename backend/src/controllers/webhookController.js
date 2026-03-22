@@ -189,12 +189,16 @@ class WebhookController {
    */
   async status(req, res) {
     try {
-      const { MessageSid, MessageStatus, ErrorCode, ErrorMessage } = req.body;
+      const { MessageSid, MessageStatus, To, ErrorCode, ErrorMessage } = req.body;
+      const destinatario = To ? To.replace('whatsapp:', '') : 'desconocido';
 
-      logger.info(`Estado de mensaje ${MessageSid}: ${MessageStatus}`, {
-        errorCode: ErrorCode,
-        errorMessage: ErrorMessage
-      });
+      if (MessageStatus === 'delivered' || MessageStatus === 'read') {
+        logger.info(`✅ Mensaje ${MessageSid} ${MessageStatus.toUpperCase()} a ${destinatario}`);
+      } else if (MessageStatus === 'failed' || MessageStatus === 'undelivered') {
+        logger.warn(`❌ Mensaje ${MessageSid} FALLIDO a ${destinatario} — Código: ${ErrorCode || 'N/A'} — ${ErrorMessage || 'Sin detalle'}`);
+      } else {
+        logger.info(`📨 Mensaje ${MessageSid} → ${MessageStatus} a ${destinatario}`);
+      }
 
       res.status(200).send('OK');
     } catch (error) {
