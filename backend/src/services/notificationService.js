@@ -424,21 +424,7 @@ class NotificationService {
       await TwilioService.enviarMensajeAdmin(msgAdmin);
       logger.info(`Notificación pago efectivo admin enviada: pedido #${pedido.numero_pedido}`);
 
-      // ── Mensaje al CLIENTE ────────────────────────────────────
-      try {
-        const telefonoCliente = TwilioService.formatearNumeroWhatsApp(cliente.telefono);
-        let msgCliente = `${EMOJIS.CHECK} *¡Pago recibido!*\n\n`;
-        msgCliente += `Registramos el pago en efectivo de tu pedido *#${pedido.numero_pedido}*\n`;
-        msgCliente += `${EMOJIS.DINERO} Total: *${formatearPrecio(pedido.total)}*\n\n`;
-        msgCliente += `¡Gracias por tu preferencia! ${EMOJIS.SALUDO}\n`;
-        msgCliente += `*El Rinconcito* ${EMOJIS.TACO}`;
-
-        await TwilioService.enviarMensajeCliente(telefonoCliente, msgCliente);
-        logger.info(`Confirmación pago efectivo enviada al cliente: #${pedido.numero_pedido}`);
-      } catch (clienteError) {
-        // No es crítico si falla el mensaje al cliente
-        logger.warn(`⚠️ No se pudo notificar al cliente sobre pago efectivo: ${clienteError.message}`);
-      }
+      // Pago en efectivo es interno — no notificar al cliente
 
       return { success: true };
     } catch (error) {
