@@ -91,10 +91,9 @@ class NotificationService {
         mensaje += `• *rechazar #${pedido.numero_pedido}* — Pago inválido ❌\n`;
       }
 
-      // Template al PRIMARY — bypasea ventana 24h, primary nunca pierde notificaciones
+      // Template a AMBOS admins — bypasea ventana 24h, ambos siempre reciben notificación
       try {
         const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-        const primaryTargets = [config.admin.phoneNumber];
         await TwilioService.enviarNotificacionAdminConPlantilla(
           pedido.numero_pedido,
           cliente.nombre || 'Sin nombre',
@@ -102,10 +101,10 @@ class NotificationService {
           `$${pedido.total}`,
           tipoPedidoTemplate,
           null,
-          primaryTargets
+          null // null = enviar a ambos admins
         );
       } catch (templateError) {
-        logger.warn(`⚠️ Error al enviar plantilla al primary: ${templateError.message}`);
+        logger.warn(`⚠️ Error al enviar plantilla a admins: ${templateError.message}`);
       }
 
       // Freeform limpio a AMBOS admins (imagen completa con productos y comandos)
