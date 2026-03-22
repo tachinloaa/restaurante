@@ -138,27 +138,6 @@ class ReminderService {
       mensajeAdmin += `• *aprobar #${pedido.numero_pedido}*\n`;
       mensajeAdmin += `• *rechazar #${pedido.numero_pedido}*`;
 
-      // Template solo al secondary; freeform solo al primary
-      try {
-        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-        const secondaryTargets = config.admin.secondaryPhoneNumber
-          ? [TwilioService.normalizarNumeroAdmin(config.admin.secondaryPhoneNumber)]
-          : null;
-        if (secondaryTargets) {
-          await TwilioService.enviarNotificacionAdminConPlantilla(
-            pedido.numero_pedido,
-            pedido.clientes?.nombre || 'Sin nombre',
-            telefonoCliente || 'N/A',
-            `$${pedido.total}`,
-            tipoPedidoTemplate,
-            null,
-            secondaryTargets
-          );
-        }
-      } catch (templateError) {
-        logger.warn(`⚠️ Error plantilla recordatorio pendiente_pago: ${templateError.message}`);
-      }
-
       await TwilioService.enviarMensajeAdmin(mensajeAdmin);
 
       return resultadoCliente;
@@ -276,31 +255,7 @@ class ReminderService {
       mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${config.frontendUrl}/orders\n\n`;
       mensaje += `⚡ *POR FAVOR ATENDER DE INMEDIATO*`;
 
-      // 1) Template solo al secondary; 2) freeform a ambos
-      try {
-        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-        const secondaryTargets = config.admin.secondaryPhoneNumber
-          ? [TwilioService.normalizarNumeroAdmin(config.admin.secondaryPhoneNumber)]
-          : null;
-        if (secondaryTargets) {
-          const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
-            pedido.numero_pedido,
-            pedido.clientes?.nombre || 'Sin nombre',
-            pedido.clientes?.telefono || 'N/A',
-            `$${pedido.total}`,
-            tipoPedidoTemplate,
-            null,
-            secondaryTargets
-          );
-          if (resultadoPlantilla.success) {
-            logger.info(`✅ Plantilla recordatorio enviada al secondary para pedido #${pedido.numero_pedido}`);
-          }
-        }
-      } catch (templateError) {
-        logger.warn(`⚠️ Error plantilla recordatorio: ${templateError.message}`);
-      }
-
-      // 2) Freeform a ambos admins
+      // Freeform a ambos admins
       const resultado = await TwilioService.enviarMensajeAdmin(mensaje);
 
       if (resultado.success) {
