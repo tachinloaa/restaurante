@@ -91,26 +91,24 @@ class NotificationService {
         mensaje += `• *rechazar #${pedido.numero_pedido}* — Pago inválido ❌\n`;
       }
 
-      // Template solo para transferencia (el contenido "aprobar/rechazar" es relevante)
-      // Para efectivo no se manda template — el secondary usa comandos y mantiene ventana abierta
-      if (!esEfectivo) {
-        try {
-          const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-          const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
-            pedido.numero_pedido,
-            cliente.nombre || 'Sin nombre',
-            cliente.telefono || 'N/A',
-            `$${pedido.total}`,
-            tipoPedidoTemplate
-          );
-          if (resultadoPlantilla.success) {
-            logger.info(`✅ Plantilla enviada para pedido #${pedido.numero_pedido}`);
-          } else {
-            logger.warn(`⚠️ Plantilla falló para pedido #${pedido.numero_pedido}: ${resultadoPlantilla.error}`);
-          }
-        } catch (templateError) {
-          logger.warn(`⚠️ Error al enviar plantilla: ${templateError.message}`);
+      // Template a AMBOS admins en TODOS los pedidos (efectivo y transferencia)
+      // Los templates bypasean la ventana 24h — siempre llegan sin importar inactividad
+      try {
+        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
+        const resultadoPlantilla = await TwilioService.enviarNotificacionAdminConPlantilla(
+          pedido.numero_pedido,
+          cliente.nombre || 'Sin nombre',
+          cliente.telefono || 'N/A',
+          `$${pedido.total}`,
+          tipoPedidoTemplate
+        );
+        if (resultadoPlantilla.success) {
+          logger.info(`✅ Plantilla enviada para pedido #${pedido.numero_pedido}`);
+        } else {
+          logger.warn(`⚠️ Plantilla falló para pedido #${pedido.numero_pedido}: ${resultadoPlantilla.error}`);
         }
+      } catch (templateError) {
+        logger.warn(`⚠️ Error al enviar plantilla: ${templateError.message}`);
       }
 
       // Freeform a ambos admins — al secondary llega si tiene ventana 24h activa
