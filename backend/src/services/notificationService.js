@@ -91,23 +91,24 @@ class NotificationService {
         mensaje += `• *rechazar #${pedido.numero_pedido}* — Pago inválido ❌\n`;
       }
 
-      // Template a AMBOS admins — solo para transferencia (tiene aprobar/rechazar)
-      // Para efectivo no aplica — el freeform ya tiene las acciones correctas
-      if (!esEfectivo) {
-        try {
-          const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
-          await TwilioService.enviarNotificacionAdminConPlantilla(
-            pedido.numero_pedido,
-            cliente.nombre || 'Sin nombre',
-            cliente.telefono || 'N/A',
-            `$${pedido.total}`,
-            tipoPedidoTemplate,
-            null,
-            null // null = enviar a ambos admins
-          );
-        } catch (templateError) {
-          logger.warn(`⚠️ Error al enviar plantilla a admins: ${templateError.message}`);
-        }
+      // Template a AMBOS admins según método de pago
+      try {
+        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
+        const templateSid = esEfectivo
+          ? config.twilio.templateNuevoPedidoEfectivo
+          : config.twilio.templateNuevoPedido;
+        await TwilioService.enviarNotificacionAdminConPlantilla(
+          pedido.numero_pedido,
+          cliente.nombre || 'Sin nombre',
+          cliente.telefono || 'N/A',
+          `$${pedido.total}`,
+          tipoPedidoTemplate,
+          null,
+          null, // null = enviar a ambos admins
+          templateSid
+        );
+      } catch (templateError) {
+        logger.warn(`⚠️ Error al enviar plantilla a admins: ${templateError.message}`);
       }
 
       // Freeform limpio a AMBOS admins (imagen completa con productos y comandos)

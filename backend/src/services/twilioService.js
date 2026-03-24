@@ -587,7 +587,7 @@ class TwilioService {
    * Enviar notificación al admin usando plantilla aprobada de WhatsApp (business-initiated)
    * Esto permite enviar mensajes al admin sin restricción de 24 horas
    */
-  static async enviarNotificacionAdminConPlantilla(numeroPedido, nombreCliente, telefono, total, tipoPedido, comprobanteUrl = null, targets = null) {
+  static async enviarNotificacionAdminConPlantilla(numeroPedido, nombreCliente, telefono, total, tipoPedido, comprobanteUrl = null, targets = null, templateSid = null) {
     try {
       if (process.env.TWILIO_TEST_MODE === 'true') {
         logger.info(`[TEST MODE] Plantilla nuevo pedido #${numeroPedido} para admin`);
@@ -621,7 +621,7 @@ class TwilioService {
         try {
           logger.info(`📤 Enviando plantilla al admin: ${numeroAdmin}`);
           const message = await twilioClient.messages.create({
-            contentSid: config.twilio.templateNuevoPedido,
+            contentSid: templateSid || config.twilio.templateNuevoPedido,
             contentVariables,
             from: config.twilio.whatsappClientes,
             to: `whatsapp:${numeroAdmin}`,

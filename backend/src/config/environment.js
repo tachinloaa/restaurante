@@ -41,6 +41,7 @@ const config = {
     authToken: process.env.TWILIO_AUTH_TOKEN,
     whatsappClientes: process.env.TWILIO_WHATSAPP_NUMBER_CLIENTES || process.env.TWILIO_WHATSAPP_NUMBER,
     templateNuevoPedido: process.env.TWILIO_TEMPLATE_NUEVO_PEDIDO || 'HXae10080ed88b39c890553c03c3b5bcb8',
+    templateNuevoPedidoEfectivo: process.env.TWILIO_TEMPLATE_NUEVO_PEDIDO_EFECTIVO || 'HX3ecfb271c95fd7d46a878d53d8824c72',
     templateComprobantePago: process.env.TWILIO_TEMPLATE_COMPROBANTE_PAGO || 'HXa804d78cca892bf946f4b94e271d437a'
   },
 
