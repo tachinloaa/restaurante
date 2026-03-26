@@ -129,6 +129,9 @@ const startServer = async () => {
     // Iniciar sistema de recordatorios automáticos
     reminderService.iniciarVerificacionPeriodica();
 
+    // Iniciar ping matutino diario a las 7:00 AM CDMX para abrir ventana de 24h WhatsApp
+    reminderService.iniciarPingMatutino();
+
     // Iniciar servidor
     app.listen(config.port, () => {
       logger.info(`✅ Servidor corriendo en puerto ${config.port}`);

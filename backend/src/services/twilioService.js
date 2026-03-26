@@ -822,6 +822,54 @@ class TwilioService {
 
     return `whatsapp:${numero}`;
   }
+
+  /**
+   * Enviar ping matutino a los admins para abrir la ventana de 24h de WhatsApp.
+   * Usa la plantilla TWILIO_TEMPLATE_PING_MATUTINO (business-initiated, no requiere ventana activa).
+   */
+  static async enviarPingMatutino() {
+    try {
+      if (process.env.TWILIO_TEST_MODE === 'true') {
+        logger.info('[TEST MODE] Ping matutino omitido');
+        return { success: true, test: true };
+      }
+
+      const templateSid = config.twilio.templatePingMatutino;
+      if (!templateSid) {
+        logger.warn('⚠️ TWILIO_TEMPLATE_PING_MATUTINO no configurado — ping matutino omitido');
+        return { success: false, error: 'Template no configurado' };
+      }
+
+      const admins = this.getAdminRecipients();
+      if (!admins.length) {
+        return { success: false, error: 'Admin phone not configured' };
+      }
+
+      const resultados = [];
+      for (const numeroAdmin of admins) {
+        try {
+          const message = await twilioClient.messages.create({
+            contentSid: templateSid,
+            from: config.twilio.whatsappClientes,
+            to: `whatsapp:${numeroAdmin}`,
+            statusCallback: `${config.backendUrl}/webhook/status`
+          });
+          logger.info(`🌅 Ping matutino enviado a ${numeroAdmin}: ${message.sid}`);
+          this.logDelivery(message.sid, numeroAdmin, 'template', null);
+          resultados.push({ numeroAdmin, sid: message.sid, ok: true });
+        } catch (err) {
+          logger.error(`❌ Error en ping matutino a ${numeroAdmin}: ${err.message}`);
+          resultados.push({ numeroAdmin, ok: false, error: err.message });
+        }
+      }
+
+      const exitosos = resultados.filter(r => r.ok).length;
+      return { success: exitosos > 0, resultados };
+    } catch (error) {
+      logger.error('❌ Error general en enviarPingMatutino:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 export default TwilioService;

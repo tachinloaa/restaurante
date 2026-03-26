@@ -422,6 +422,46 @@ class ReminderService {
   }
 
   /**
+   * Programa el ping matutino diario a las 7:00 AM hora CDMX (UTC-6).
+   * Envía una plantilla de WhatsApp a los admins para abrir la ventana de 24h.
+   * El admin sólo necesita responder una vez para que todas las notificaciones
+   * del día funcionen sin restricciones de ventana.
+   */
+  iniciarPingMatutino() {
+    const HORA_PING_CDMX = 7;       // 7:00 AM
+    const OFFSET_CDMX_MS = -6 * 60 * 60 * 1000; // UTC-6 en milisegundos
+
+    const msHastaProximoPing = () => {
+      const ahoraUTC = Date.now() + new Date().getTimezoneOffset() * 60000;
+      const ahoraCDMX = new Date(ahoraUTC + OFFSET_CDMX_MS);
+
+      const proximoPing = new Date(ahoraCDMX);
+      proximoPing.setHours(HORA_PING_CDMX, 0, 0, 0);
+
+      if (proximoPing <= ahoraCDMX) {
+        proximoPing.setDate(proximoPing.getDate() + 1);
+      }
+
+      return proximoPing.getTime() - ahoraCDMX.getTime();
+    };
+
+    const programarSiguiente = () => {
+      const ms = msHastaProximoPing();
+      const horas = Math.round((ms / 3600000) * 10) / 10;
+      logger.info(`🌅 Ping matutino programado en ${horas}h (próximas 7:00 AM CDMX)`);
+
+      setTimeout(async () => {
+        logger.info('🌅 Ejecutando ping matutino...');
+        await TwilioService.enviarPingMatutino();
+        // Programar el siguiente ping 24 horas después
+        programarSiguiente();
+      }, ms);
+    };
+
+    programarSiguiente();
+  }
+
+  /**
    * Verificar si hay pedidos atrapados en Dead Letter Queue y alertar al admin
    * Se ejecuta una vez por hora para no saturar.
    */
