@@ -435,7 +435,11 @@ class TwilioService {
 
   /**
    * Enviar mensaje de WhatsApp al administrador
-   * Si el mensaje es muy largo, lo divide automáticamente
+   * Si el mensaje es muy largo, lo divide automáticamente.
+   *
+   * opciones.templateData = { numeroPedido, nombreCliente, telefono, total, tipoPedido, templateSid }
+   * Si se proporciona, se envía primero el template (sin ventana 24h) como garantía,
+   * y luego el freeform como detalle adicional.
    */
   static async enviarMensajeAdmin(mensaje, opciones = {}) {
     try {
@@ -443,6 +447,25 @@ class TwilioService {
       if (process.env.TWILIO_TEST_MODE === 'true') {
         logger.info(`[TEST MODE] Mensaje a admin: ${mensaje.substring(0, 100)}...`);
         return { success: true, messageSid: 'TEST_MODE', test: true };
+      }
+
+      // Si hay datos del pedido, enviar template primero (garantiza entrega sin ventana 24h)
+      if (opciones.templateData) {
+        const { numeroPedido, nombreCliente, telefono, total, tipoPedido, templateSid } = opciones.templateData;
+        try {
+          await this.enviarNotificacionAdminConPlantilla(
+            numeroPedido,
+            nombreCliente || 'Sin nombre',
+            telefono || 'N/A',
+            total || '$0',
+            tipoPedido || 'para_llevar',
+            null,
+            opciones.adminTargets || null,
+            templateSid || null
+          );
+        } catch (te) {
+          logger.warn(`⚠️ Template previo al freeform falló: ${te.message}`);
+        }
       }
 
       // Obtener números admin (principal + secundario)

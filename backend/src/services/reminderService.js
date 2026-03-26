@@ -138,7 +138,15 @@ class ReminderService {
       mensajeAdmin += `• *aprobar #${pedido.numero_pedido}*\n`;
       mensajeAdmin += `• *rechazar #${pedido.numero_pedido}*`;
 
-      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+      await TwilioService.enviarMensajeAdmin(mensajeAdmin, {
+        templateData: {
+          numeroPedido: pedido.numero_pedido,
+          nombreCliente: pedido.clientes?.nombre || 'Sin nombre',
+          telefono: telefonoCliente || 'N/A',
+          total: `$${pedido.total}`,
+          tipoPedido: pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar'
+        }
+      });
 
       return resultadoCliente;
     } catch (error) {
@@ -255,28 +263,41 @@ class ReminderService {
       mensaje += `${EMOJIS.FLECHA} Ver en dashboard: ${config.frontendUrl}/orders\n\n`;
       mensaje += `⚡ *POR FAVOR ATENDER DE INMEDIATO*`;
 
-      // Freeform a ambos admins
+      // Template primero (siempre llega aunque no haya ventana de 24h)
+      try {
+        const tipoPedidoTemplate = pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar';
+        await TwilioService.enviarNotificacionAdminConPlantilla(
+          pedido.numero_pedido,
+          pedido.clientes?.nombre || 'Sin nombre',
+          pedido.clientes?.telefono || 'N/A',
+          `$${pedido.total}`,
+          tipoPedidoTemplate
+        );
+        logger.info(`📋 Template recordatorio enviado al admin para pedido #${pedido.numero_pedido}`);
+      } catch (templateError) {
+        logger.warn(`⚠️ Error al enviar template de recordatorio: ${templateError.message}`);
+      }
+
+      // Freeform con detalle (llega si hay ventana de 24h abierta)
       const resultado = await TwilioService.enviarMensajeAdmin(mensaje);
 
-      if (resultado.success) {
-        // Guardar notificación en BD para tracking
-        await supabase
-          .from('notificaciones')
-          .insert({
-            tipo: 'recordatorio_pedido',
-            mensaje: `Recordatorio: Pedido #${pedido.numero_pedido} - ${pedido.estado} - ${minutos} min`,
-            datos_adicionales: {
-              pedido_id: pedido.id,
-              estado: pedido.estado,
-              minutos_transcurridos: minutos
-            },
-            leida: false
-          });
+      // Guardar en BD y marcar en cache siempre (el template ya llegó)
+      await supabase
+        .from('notificaciones')
+        .insert({
+          tipo: 'recordatorio_pedido',
+          mensaje: `Recordatorio: Pedido #${pedido.numero_pedido} - ${pedido.estado} - ${minutos} min`,
+          datos_adicionales: {
+            pedido_id: pedido.id,
+            estado: pedido.estado,
+            minutos_transcurridos: minutos
+          },
+          leida: false
+        })
+        .then(({ error }) => { if (error) logger.warn(`⚠️ No se pudo persistir recordatorio: ${error.message}`); });
 
-        // Marcar en cache
-        this.recordatoriosEnviados.add(key);
-        logger.info(`Recordatorio enviado para pedido #${pedido.numero_pedido} (${minutos} min)`);
-      }
+      this.recordatoriosEnviados.add(key);
+      logger.info(`Recordatorio enviado para pedido #${pedido.numero_pedido} (${minutos} min)`);
 
       return resultado;
     } catch (error) {
@@ -324,7 +345,15 @@ class ReminderService {
         logger.warn(`⚠️ Error plantilla re-alerta: ${templateError.message}`);
       }
 
-      await TwilioService.enviarMensajeAdmin(mensajeAdmin);
+      await TwilioService.enviarMensajeAdmin(mensajeAdmin, {
+        templateData: {
+          numeroPedido: pedido.numero_pedido,
+          nombreCliente: pedido.clientes?.nombre || 'Sin nombre',
+          telefono: pedido.clientes?.telefono || 'N/A',
+          total: `$${pedido.total}`,
+          tipoPedido: pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar'
+        }
+      });
       logger.warn(`🔔 Re-alerta admin enviada para pedido #${pedido.numero_pedido} (${minutos} min)`);
     } catch (error) {
       logger.error(`Error en re-alerta admin pendiente_pago #${pedido.numero_pedido}:`, error);
@@ -366,7 +395,16 @@ class ReminderService {
         `🚨 *AUTO-CANCELACIÓN*\n\n` +
         `Pedido *#${pedido.numero_pedido}* cancelado automáticamente.\n` +
         `Razón: 4 horas en pendiente_pago sin aprobación.\n\n` +
-        `Si el cliente pagó, revisa manualmente en Supabase.`
+        `Si el cliente pagó, revisa manualmente en Supabase.`,
+        {
+          templateData: {
+            numeroPedido: pedido.numero_pedido,
+            nombreCliente: pedido.clientes?.nombre || 'Sin nombre',
+            telefono: pedido.clientes?.telefono || 'N/A',
+            total: `$${pedido.total}`,
+            tipoPedido: pedido.tipo_pedido === 'domicilio' ? 'domicilio' : 'para_llevar'
+          }
+        }
       );
 
       logger.warn(`✅ Pedido #${pedido.numero_pedido} auto-cancelado por expiración de pendiente_pago`);
