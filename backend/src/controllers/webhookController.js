@@ -200,6 +200,23 @@ class WebhookController {
         logger.info(`📨 Mensaje ${MessageSid} → ${MessageStatus} a ${destinatario}`);
       }
 
+      // Actualizar log de auditoría (upsert por si el insert inicial no ocurrió)
+      if (MessageSid) {
+        const update = {
+          message_sid: MessageSid,
+          destinatario,
+          tipo: MessageSid.startsWith('MM') ? 'template' : 'freeform',
+          estado: MessageStatus,
+          error_code: ErrorCode || null,
+          actualizado_at: new Date().toISOString()
+        };
+        supabase
+          .from('whatsapp_delivery_log')
+          .upsert(update, { onConflict: 'message_sid' })
+          .then(({ error }) => { if (error) logger.warn(`⚠️ delivery_log upsert: ${error.message}`); })
+          .catch(() => {});
+      }
+
       res.status(200).send('OK');
     } catch (error) {
       logger.error('Error en webhook status:', error);

@@ -2,6 +2,7 @@ import twilioClient from '../config/twilio.js';
 import config from '../config/environment.js';
 import logger from '../utils/logger.js';
 import DatabaseStorageService from './databaseStorageService.js';
+import { supabase } from '../config/database.js';
 
 /**
  * Servicio de Twilio para envío de mensajes de WhatsApp
@@ -16,6 +17,17 @@ class TwilioService {
   static isQueueProcessing = false;
   static isReliabilityInitialized = false;
   static maxQueueRetries = 20;
+
+  /**
+   * Registra un mensaje enviado en el log de auditoría (fire-and-forget)
+   */
+  static logDelivery(messageSid, destinatario, tipo, pedidoNumero = null) {
+    supabase
+      .from('whatsapp_delivery_log')
+      .insert({ message_sid: messageSid, destinatario, tipo, pedido_numero: pedidoNumero ? String(pedidoNumero) : null, estado: 'sent' })
+      .then(({ error }) => { if (error) logger.warn(`⚠️ delivery_log insert: ${error.message}`); })
+      .catch(() => {});
+  }
 
   static iniciarSistemaConfiabilidad() {
     if (this.isReliabilityInitialized) {
@@ -470,6 +482,7 @@ class TwilioService {
 
             messageSids.push(message.sid);
             logger.info(`Mensaje enviado a admin ${numeroAdmin} (parte ${i + 1}/${partes.length}): ${message.sid}`);
+            this.logDelivery(message.sid, numeroAdmin, 'freeform', null);
 
             // Pequeño delay entre mensajes
             if (i < partes.length - 1) {
@@ -629,6 +642,7 @@ class TwilioService {
           });
           logger.info(`✅ Notificación con plantilla enviada a ${numeroAdmin}: ${message.sid}`);
           messageSids.push(message.sid);
+          this.logDelivery(message.sid, numeroAdmin, 'template', numeroPedido);
         } catch (adminError) {
           failures.push({ numeroAdmin, error: adminError.message });
           logger.error(`❌ Error enviando plantilla a ${numeroAdmin}: ${adminError.message}`);
