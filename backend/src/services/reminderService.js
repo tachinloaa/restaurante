@@ -118,7 +118,7 @@ class ReminderService {
         await supabase
           .from('notificaciones')
           .insert({
-            tipo: 'recordatorio_pedido',
+            tipo: 'alerta',
             mensaje: `RECORDATORIO pendiente_pago cliente ${pedido.id} #${pedido.numero_pedido}`,
             datos_adicionales: { pedido_id: pedido.id, tipo: 'pendiente_pago_cliente' },
             leida: false
@@ -285,7 +285,7 @@ class ReminderService {
       await supabase
         .from('notificaciones')
         .insert({
-          tipo: 'recordatorio_pedido',
+          tipo: 'alerta',
           mensaje: `Recordatorio: Pedido #${pedido.numero_pedido} - ${pedido.estado} - ${minutos} min`,
           datos_adicionales: {
             pedido_id: pedido.id,
